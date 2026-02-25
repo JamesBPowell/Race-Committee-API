@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/constants';
 import Link from 'next/link';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -65,50 +67,44 @@ export default function RegisterPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="firstName">First Name</label>
-                            <input
+                            <Label htmlFor="firstName">First Name</Label>
+                            <Input
                                 id="firstName"
-                                type="text"
                                 required
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="lastName">Last Name</label>
-                            <input
+                            <Label htmlFor="lastName">Last Name</Label>
+                            <Input
                                 id="lastName"
-                                type="text"
                                 required
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="email">Email Address</label>
-                        <input
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
                             id="email"
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="password">Password</label>
-                        <input
+                        <Label htmlFor="password">Password</Label>
+                        <Input
                             id="password"
                             type="password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                         />
                     </div>
 

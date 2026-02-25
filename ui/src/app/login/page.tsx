@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/constants';
 import Link from 'next/link';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -64,27 +66,25 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="email">Email</label>
-                        <input
+                        <Label htmlFor="email">Email</Label>
+                        <Input
                             id="email"
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                             placeholder="commodore@club.org"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="password">Password</label>
-                        <input
+                        <Label htmlFor="password">Password</Label>
+                        <Input
                             id="password"
                             type="password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                             placeholder="••••••••"
                         />
                     </div>

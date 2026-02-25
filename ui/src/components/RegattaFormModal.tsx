@@ -1,51 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 
-export interface BoatData {
-    id: number;
-    boatName: string;
-    sailNumber: string;
-    makeModel: string;
-    defaultRating?: number;
-}
-
-interface BoatFormModalProps {
+interface RegattaFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingBoat: BoatData | null;
 }
 
-export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatFormModalProps) {
+export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
     const [formData, setFormData] = useState({
-        boatName: '',
-        sailNumber: '',
-        makeModel: '',
-        defaultRating: ''
+        name: '',
+        organization: '',
+        startDate: '',
+        endDate: '',
+        location: ''
     });
-
-    useEffect(() => {
-        if (editingBoat) {
-            setFormData({
-                boatName: editingBoat.boatName || '',
-                sailNumber: editingBoat.sailNumber || '',
-                makeModel: editingBoat.makeModel || '',
-                defaultRating: editingBoat.defaultRating ? editingBoat.defaultRating.toString() : ''
-            });
-        } else {
-            setFormData({ boatName: '', sailNumber: '', makeModel: '', defaultRating: '' });
-        }
-        setError('');
-    }, [editingBoat, isOpen]);
 
     if (!isOpen) return null;
 
@@ -56,28 +34,25 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
 
         const payload = {
             ...formData,
-            defaultRating: formData.defaultRating ? parseFloat(formData.defaultRating) : null
+            startDate: new Date(formData.startDate).toISOString(),
+            endDate: formData.endDate ? new Date(formData.endDate).toISOString() : new Date(formData.startDate).toISOString()
         };
 
-        const url = editingBoat
-            ? `${API_BASE_URL}/api/boats/${editingBoat.id}`
-            : `${API_BASE_URL}/api/boats`;
-
-        const method = editingBoat ? 'PUT' : 'POST';
-
         try {
-            const res = await fetch(url, {
-                method,
+            const res = await fetch(`${API_BASE_URL}/api/regattas`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
-                credentials: 'include' // Important for Identity Cookies
+                credentials: 'include'
             });
 
             if (res.ok) {
+                // Reset form
+                setFormData({ name: '', organization: '', startDate: '', endDate: '', location: '' });
                 onClose();
-                router.refresh(); // Tell Next.js to re-fetch Server Components (like the boat list)
+                router.refresh();
             } else {
-                setError('Failed to save boat details.');
+                setError('Failed to create regatta.');
             }
         } catch {
             setError('A network error occurred.');
@@ -90,9 +65,7 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
                 <div className="flex justify-between items-center px-6 py-4 border-b border-white/10 bg-slate-800/50">
-                    <h2 className="text-xl font-bold text-white">
-                        {editingBoat ? 'Edit Boat' : 'Add New Boat'}
-                    </h2>
+                    <h2 className="text-xl font-bold text-white">Create New Regatta</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -106,45 +79,55 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
                     )}
 
                     <div>
-                        <Label required>Boat Name</Label>
+                        <Label required>Regatta Name</Label>
                         <Input
                             required
-                            value={formData.boatName}
-                            onChange={(e) => setFormData({ ...formData, boatName: e.target.value })}
-                            placeholder="e.g. Relentless"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="e.g. Annual Summer Regatta"
+                        />
+                    </div>
+
+                    <div>
+                        <Label required>Organization / Hosting Club</Label>
+                        <Input
+                            required
+                            value={formData.organization}
+                            onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                            placeholder="e.g. New Orleans Yacht Club"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label required>Sail Number</Label>
+                            <Label required>Start Date</Label>
                             <Input
+                                type="date"
                                 required
-                                value={formData.sailNumber}
-                                onChange={(e) => setFormData({ ...formData, sailNumber: e.target.value })}
-                                placeholder="e.g. USA 420"
+                                value={formData.startDate}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                className="[color-scheme:dark]"
                             />
                         </div>
                         <div>
-                            <Label>Make / Model</Label>
+                            <Label>End Date</Label>
                             <Input
-                                value={formData.makeModel}
-                                onChange={(e) => setFormData({ ...formData, makeModel: e.target.value })}
-                                placeholder="e.g. J/105"
+                                type="date"
+                                value={formData.endDate}
+                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                className="[color-scheme:dark]"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <Label>Default Rating</Label>
+                        <Label required>Location</Label>
                         <Input
-                            type="number"
-                            step="0.1"
-                            value={formData.defaultRating}
-                            onChange={(e) => setFormData({ ...formData, defaultRating: e.target.value })}
-                            placeholder="e.g. 75"
+                            required
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            placeholder="e.g. New Orleans, LA"
                         />
-                        <p className="mt-1 text-xs text-slate-500">Optional. Can be used as a fallback if no certificate is provided.</p>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
@@ -161,7 +144,7 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all disabled:opacity-50"
                         >
                             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                            {editingBoat ? 'Save Changes' : 'Add Boat'}
+                            Create Regatta
                         </button>
                     </div>
                 </form>

@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 
+import RegattaFormModal from '@/components/RegattaFormModal';
 import { PlusCircle, Search } from 'lucide-react';
 import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
 
@@ -43,6 +46,8 @@ const mockRacerRegattas: RegattaCardProps[] = [
 ];
 
 export default function DashboardPage() {
+    const [isRegattaModalOpen, setIsRegattaModalOpen] = React.useState(false);
+
     return (
         <div className="space-y-12">
 
@@ -55,7 +60,9 @@ export default function DashboardPage() {
 
                 {/* Global Actions */}
                 <div className="flex w-full md:w-auto items-center gap-3">
-                    <button className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                    <button
+                        onClick={() => setIsRegattaModalOpen(true)}
+                        className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]">
                         <PlusCircle className="w-5 h-5" />
                         New Regatta
                     </button>
@@ -120,6 +127,10 @@ export default function DashboardPage() {
                 </section>
             </div>
 
+            <RegattaFormModal
+                isOpen={isRegattaModalOpen}
+                onClose={() => setIsRegattaModalOpen(false)}
+            />
         </div>
     );
 }
