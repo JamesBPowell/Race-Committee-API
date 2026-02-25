@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_BASE_URL } from '@/lib/auth';
+import { API_BASE_URL } from '@/lib/constants';
 import Link from 'next/link';
 
 export default function RegisterPage() {

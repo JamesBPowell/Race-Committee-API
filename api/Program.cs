@@ -16,7 +16,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("NextJsCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -39,28 +39,27 @@ app.UseCors("NextJsCorsPolicy");
 
 app.MapIdentityApi<ApplicationUser>();
 
-var summaries = new[]
+app.MapPost("/api/auth/register-custom", async (
+    RaceCommittee.Api.Models.RegisterCustomRequest request,
+    Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var user = new ApplicationUser
+    {
+        UserName = request.Email,
+        Email = request.Email,
+        FirstName = request.FirstName,
+        LastName = request.LastName
+    };
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var result = await userManager.CreateAsync(user, request.Password);
+
+    if (result.Succeeded)
+    {
+        return Results.Ok();
+    }
+
+    return Results.BadRequest(new { message = "Registration failed", errors = result.Errors });
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

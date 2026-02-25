@@ -1,7 +1,5 @@
 import { cookies } from 'next/headers';
-
-export const AUTH_COOKIE_NAME = '.AspNetCore.Identity.Application';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:5001';
+import { AUTH_COOKIE_NAME, API_BASE_URL } from './constants';
 
 /**
  * A wrapper around the native Web API fetch that automatically extracts the
