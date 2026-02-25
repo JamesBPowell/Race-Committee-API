@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 
 import RegattaFormModal from '@/components/RegattaFormModal';
+import FindRegattaModal from '@/components/FindRegattaModal';
 import { PlusCircle, Search } from 'lucide-react';
 import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
 import { API_BASE_URL } from '@/lib/constants';
@@ -10,6 +11,7 @@ import { API_BASE_URL } from '@/lib/constants';
 
 export default function DashboardPage() {
     const [isRegattaModalOpen, setIsRegattaModalOpen] = useState(false);
+    const [isFindModalOpen, setIsFindModalOpen] = useState(false);
     const [realRcRegattas, setRealRcRegattas] = useState<RegattaCardProps[]>([]);
     const [realRacerRegattas, setRealRacerRegattas] = useState<RegattaCardProps[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -67,7 +69,10 @@ export default function DashboardPage() {
                         <PlusCircle className="w-5 h-5" />
                         New Regatta
                     </button>
-                    <button className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-full border border-white/20 transition-all duration-300 backdrop-blur-sm">
+                    <button
+                        onClick={() => setIsFindModalOpen(true)}
+                        className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-full border border-white/20 transition-all duration-300 backdrop-blur-sm"
+                    >
                         <Search className="w-5 h-5" />
                         Find Race
                     </button>
@@ -130,7 +135,7 @@ export default function DashboardPage() {
                     ) : (
                         <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
                             <p className="mb-2">You aren&apos;t entered in any upcoming races.</p>
-                            <button className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Find a regatta to join &rarr;</button>
+                            <button onClick={() => setIsFindModalOpen(true)} className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Find a regatta to join &rarr;</button>
                         </div>
                     )}
                 </section>
@@ -141,6 +146,15 @@ export default function DashboardPage() {
                 onClose={() => {
                     setIsRegattaModalOpen(false);
                     // Refresh the list after the modal closes
+                    fetchRegattas();
+                }}
+            />
+
+            <FindRegattaModal
+                isOpen={isFindModalOpen}
+                onClose={() => setIsFindModalOpen(false)}
+                onSuccess={() => {
+                    // Refresh regattas (specifically entered ones, though currently it re-fetches all logic)
                     fetchRegattas();
                 }}
             />

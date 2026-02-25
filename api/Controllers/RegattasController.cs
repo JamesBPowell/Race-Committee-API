@@ -6,7 +6,7 @@ using RaceCommittee.Api.Models.DTOs;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-
+using System.Security.Claims;
 namespace RaceCommittee.Api.Controllers
 {
     [Route("api/[controller]")]
@@ -68,6 +68,46 @@ namespace RaceCommittee.Api.Controllers
             }
 
             return Ok(regatta);
+        }
+
+        // POST: api/regattas/{id}/entries
+        [HttpPost("{id}/entries")]
+        public async Task<IActionResult> JoinRegatta(int id, [FromBody] JoinRegattaDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Verify Boat exists and belongs to the user
+            var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Id == dto.BoatId && b.OwnerId == userId);
+            if (boat == null)
+            {
+                return BadRequest("Invalid boat selected or boat does not belong to you.");
+            }
+
+            // Verify Regatta exists
+            var regatta = await _context.Regattas.FindAsync(id);
+            if (regatta == null)
+            {
+                return NotFound("Regatta not found.");
+            }
+
+            // Check if already entered
+            var existingEntry = await _context.Entries.FirstOrDefaultAsync(e => e.RegattaId == id && e.BoatId == dto.BoatId);
+            if (existingEntry != null)
+            {
+                return BadRequest("This boat is already entered in this regatta.");
+            }
+
+            var entry = new Entry
+            {
+                RegattaId = id,
+                BoatId = dto.BoatId,
+                RegistrationStatus = "Pending"
+            };
+
+            _context.Entries.Add(entry);
+            await _context.SaveChangesAsync();
+
+            return Ok(entry);
         }
 
         private string GenerateSlug(string phrase)

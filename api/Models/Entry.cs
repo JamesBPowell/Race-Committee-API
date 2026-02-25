@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace RaceCommittee.Api.Models
 {
@@ -7,15 +8,19 @@ namespace RaceCommittee.Api.Models
         public int Id { get; set; }
 
         public int RegattaId { get; set; }
+        [JsonIgnore]
         public Regatta Regatta { get; set; }
 
         public int BoatId { get; set; }
+        [JsonIgnore]
         public Boat Boat { get; set; }
 
         public int? FleetId { get; set; }
+        [JsonIgnore]
         public Fleet Fleet { get; set; }
 
         public int? ActiveCertificateId { get; set; }
+        [JsonIgnore]
         public Certificate ActiveCertificate { get; set; }
 
         public string RegistrationStatus { get; set; } // Pending, Paid, CheckedIn
