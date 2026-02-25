@@ -3,11 +3,11 @@ import React from 'react';
 export default function HeroSection() {
     return (
         <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-slate-900">
-            {/* Background Image / Gradient Placeholder */}
+            {/* Hero Background Image */}
             <div
-                className="absolute inset-0 z-0 opacity-40 mix-blend-overlay"
+                className="absolute inset-0 z-0 opacity-50 bg-cover bg-center bg-no-repeat mix-blend-screen"
                 style={{
-                    backgroundImage: 'radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0f172a 100%)',
+                    backgroundImage: "url('/hero-bg.jpg')",
                 }}
             />
 
