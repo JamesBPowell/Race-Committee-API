@@ -47,8 +47,37 @@ export default function DashboardPage() {
         }
     };
 
+    const fetchJoinedRegattas = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/regattas/joined`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+
+                // Map backend Regatta to RegattaCardProps
+                const mappedRegattas = data.map((r: any) => ({
+                    id: r.id.toString(),
+                    name: r.name,
+                    organization: r.organization,
+                    startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+                    location: r.location,
+                    status: 'Entered',
+                    role: 'Racer',
+                    boatsEntered: 0 // Defaulting for now
+                }));
+                // Sort by ID descending so newest are first
+                setRealRacerRegattas(mappedRegattas.sort((a: any, b: any) => parseInt(b.id) - parseInt(a.id)));
+            }
+        } catch (error) {
+            console.error("Failed to fetch joined regattas:", error);
+        }
+    };
+
     useEffect(() => {
         fetchRegattas();
+        fetchJoinedRegattas();
     }, []);
 
     return (
@@ -154,8 +183,8 @@ export default function DashboardPage() {
                 isOpen={isFindModalOpen}
                 onClose={() => setIsFindModalOpen(false)}
                 onSuccess={() => {
-                    // Refresh regattas (specifically entered ones, though currently it re-fetches all logic)
-                    fetchRegattas();
+                    // Refresh regattas (specifically entered ones)
+                    fetchJoinedRegattas();
                 }}
             />
         </div>

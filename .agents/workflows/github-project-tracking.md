@@ -8,4 +8,6 @@ This workflow is used to quickly and autonomously create, list, and update issue
 // turbo-all
 1. Use `gh.exe project item-create 1 --owner JamesBPowell` to create a new draft tracked task.
 2. Use `gh.exe project item-list 1 --owner JamesBPowell --format json` to get a list of active IDs.
-3. Use the raw `gh.exe api graphql` pipeline to update project item properties such as status values.
+3. Use `gh.exe project field-list 1 --owner JamesBPowell --format json` to get the necessary Field IDs and Option IDs.
+4. Use `gh.exe project item-edit --project-id <project-id> --id <item-id> --field-id <field-id> --single-select-option-id <option-id>` to update properties such as status values.
+(Note: Draft Issue assignee updates still require graphql as `item-edit` does not support assignees array natively).

@@ -1,0 +1,16 @@
+mutation UpdateDraftIssue($draftIssueId: ID!, $assigneeId: ID!) {
+  updateProjectV2DraftIssue(input: {
+    draftIssueId: $draftIssueId
+    assigneeIds: [$assigneeId]
+  }) {
+    draftIssue {
+      id
+      title
+      assignees(first: 1) {
+        nodes {
+          login
+        }
+      }
+    }
+  }
+}

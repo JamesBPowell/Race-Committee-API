@@ -55,6 +55,23 @@ namespace RaceCommittee.Api.Controllers
             return Ok(regattas);
         }
 
+        // GET: api/regattas/joined
+        [HttpGet("joined")]
+        public async Task<IActionResult> GetJoinedRegattas()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var regattas = await _context.Entries
+                .Include(e => e.Boat)
+                .Include(e => e.Regatta)
+                .Where(e => e.Boat.OwnerId == userId)
+                .Select(e => e.Regatta)
+                .Distinct()
+                .ToListAsync();
+
+            return Ok(regattas);
+        }
+
         // GET: api/regattas/5
         // Required for CreatedAtAction to work correctly, even if we don't fully implement it yet
         [HttpGet("{id}")]
