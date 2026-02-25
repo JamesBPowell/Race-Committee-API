@@ -5,6 +5,7 @@ using RaceCommittee.Api.Models;
 using RaceCommittee.Api.Models.DTOs;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace RaceCommittee.Api.Controllers
 {
@@ -44,6 +45,14 @@ namespace RaceCommittee.Api.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetRegatta), new { id = regatta.Id }, regatta);
+        }
+
+        // GET: api/regattas
+        [HttpGet]
+        public async Task<IActionResult> GetRegattas()
+        {
+            var regattas = await _context.Regattas.ToListAsync();
+            return Ok(regattas);
         }
 
         // GET: api/regattas/5

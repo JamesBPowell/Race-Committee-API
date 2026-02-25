@@ -1,52 +1,53 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 import RegattaFormModal from '@/components/RegattaFormModal';
 import { PlusCircle, Search } from 'lucide-react';
 import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
+import { API_BASE_URL } from '@/lib/constants';
 
-// Temporary Mock Data for UI Layout
-const mockRcRegattas: RegattaCardProps[] = [
-    {
-        id: '1',
-        name: 'Annual Summer Regatta',
-        organization: 'Lake Pontchartrain Racing Fleet',
-        startDate: 'Aug 15, 2026',
-        endDate: 'Aug 17, 2026',
-        location: 'New Orleans, LA',
-        status: 'Upcoming',
-        role: 'RC',
-        boatsEntered: 42
-    },
-    {
-        id: '2',
-        name: 'Wednesday Night Series',
-        organization: 'New Orleans Yacht Club',
-        startDate: 'Sep 02, 2026',
-        endDate: '',
-        location: 'New Orleans, LA',
-        status: 'Live',
-        role: 'RC',
-        boatsEntered: 18
-    }
-];
-
-const mockRacerRegattas: RegattaCardProps[] = [
-    {
-        id: '3',
-        name: 'Gulf Coast Championship',
-        organization: 'Gulf Yachting Association',
-        startDate: 'Oct 10, 2026',
-        endDate: 'Oct 12, 2026',
-        location: 'Gulfport, MS',
-        status: 'Upcoming',
-        role: 'Competitor'
-    }
-];
 
 export default function DashboardPage() {
-    const [isRegattaModalOpen, setIsRegattaModalOpen] = React.useState(false);
+    const [isRegattaModalOpen, setIsRegattaModalOpen] = useState(false);
+    const [realRcRegattas, setRealRcRegattas] = useState<RegattaCardProps[]>([]);
+    const [realRacerRegattas, setRealRacerRegattas] = useState<RegattaCardProps[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchRegattas = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/regattas`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+
+                // Map backend Regatta to RegattaCardProps
+                const mappedRegattas = data.map((r: any) => ({
+                    id: r.id.toString(),
+                    name: r.name,
+                    organization: r.organization,
+                    startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+                    location: r.location,
+                    status: r.status,
+                    role: 'RC', // Defaulting for now
+                    boatsEntered: 0 // Defaulting for now
+                }));
+                // Sort by ID descending so newest are first
+                setRealRcRegattas(mappedRegattas.sort((a: any, b: any) => parseInt(b.id) - parseInt(a.id)));
+            }
+        } catch (error) {
+            console.error("Failed to fetch regattas:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRegattas();
+    }, []);
 
     return (
         <div className="space-y-12">
@@ -82,20 +83,24 @@ export default function DashboardPage() {
                             Managing as RC
                         </h2>
                         <span className="text-sm font-medium text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-                            {mockRcRegattas.length} Active Events
+                            {isLoading ? '...' : realRcRegattas.length} Active Events
                         </span>
                     </div>
 
-                    {mockRcRegattas.length > 0 ? (
+                    {isLoading ? (
+                        <div className="w-full h-48 border-2 border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
+                            <p className="animate-pulse">Loading regattas...</p>
+                        </div>
+                    ) : realRcRegattas.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {mockRcRegattas.map(regatta => (
+                            {realRcRegattas.map(regatta => (
                                 <RegattaCard key={regatta.id} {...regatta} />
                             ))}
                         </div>
                     ) : (
                         <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
                             <p className="mb-2">You aren&apos;t organizing any regattas yet.</p>
-                            <button className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Create your first event &rarr;</button>
+                            <button onClick={() => setIsRegattaModalOpen(true)} className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Create your first event &rarr;</button>
                         </div>
                     )}
                 </section>
@@ -108,13 +113,17 @@ export default function DashboardPage() {
                             Racing
                         </h2>
                         <span className="text-sm font-medium text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                            {mockRacerRegattas.length} Entered Events
+                            {isLoading ? '...' : realRacerRegattas.length} Entered Events
                         </span>
                     </div>
 
-                    {mockRacerRegattas.length > 0 ? (
+                    {isLoading ? (
+                        <div className="w-full h-48 border-2 border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
+                            <p className="animate-pulse">Loading regattas...</p>
+                        </div>
+                    ) : realRacerRegattas.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {mockRacerRegattas.map(regatta => (
+                            {realRacerRegattas.map(regatta => (
                                 <RegattaCard key={regatta.id} {...regatta} />
                             ))}
                         </div>
@@ -129,7 +138,11 @@ export default function DashboardPage() {
 
             <RegattaFormModal
                 isOpen={isRegattaModalOpen}
-                onClose={() => setIsRegattaModalOpen(false)}
+                onClose={() => {
+                    setIsRegattaModalOpen(false);
+                    // Refresh the list after the modal closes
+                    fetchRegattas();
+                }}
             />
         </div>
     );
