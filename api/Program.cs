@@ -61,5 +61,12 @@ app.MapPost("/api/auth/register-custom", async (
     return Results.BadRequest(new { message = "Registration failed", errors = result.Errors });
 });
 
+app.MapPost("/api/auth/logout", async (
+    Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.Ok();
+});
+
 app.Run();
 
