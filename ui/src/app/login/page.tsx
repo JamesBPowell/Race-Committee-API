@@ -35,7 +35,7 @@ export default function LoginPage() {
             } else {
                 setError('Invalid email or password.');
             }
-        } catch (err) {
+        } catch {
             setError('An error occurred connecting to the server.');
         } finally {
             setIsLoading(false);
@@ -99,7 +99,7 @@ export default function LoginPage() {
                 </form>
 
                 <p className="mt-6 text-center text-sm text-slate-400">
-                    Don't have an account? <Link href="/register" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4">Register here</Link>
+                    Don&apos;t have an account? <Link href="/register" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4">Register here</Link>
                 </p>
             </div>
         </main>

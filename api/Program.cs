@@ -26,6 +26,14 @@ builder.Services.AddCors(options =>
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+
+builder.Services.AddControllers();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -68,5 +76,6 @@ app.MapPost("/api/auth/logout", async (
     return Results.Ok();
 });
 
-app.Run();
+app.MapControllers();
 
+app.Run();

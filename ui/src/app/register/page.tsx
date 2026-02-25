@@ -36,7 +36,7 @@ export default function RegisterPage() {
                 const data = await res.json();
                 setError(data.message || 'Registration failed. Please try again.');
             }
-        } catch (err) {
+        } catch {
             setError('An error occurred connecting to the server.');
         } finally {
             setIsLoading(false);

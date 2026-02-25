@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+
 import { PlusCircle, Search } from 'lucide-react';
 import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
 
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="mb-2">You aren't organizing any regattas yet.</p>
+                            <p className="mb-2">You aren&apos;t organizing any regattas yet.</p>
                             <button className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Create your first event &rarr;</button>
                         </div>
                     )}
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="mb-2">You aren't entered in any upcoming races.</p>
+                            <p className="mb-2">You aren&apos;t entered in any upcoming races.</p>
                             <button className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Find a regatta to join &rarr;</button>
                         </div>
                     )}
