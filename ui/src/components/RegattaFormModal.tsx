@@ -54,9 +54,9 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center px-6 py-4 border-b border-white/10 bg-slate-800/50">
+        <div className="modal-overlay">
+            <div className="modal-container max-w-lg">
+                <div className="modal-header">
                     <h2 className="text-xl font-bold text-white">Create New Regatta</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />

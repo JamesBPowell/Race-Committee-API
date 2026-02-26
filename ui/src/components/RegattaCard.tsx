@@ -37,7 +37,7 @@ export default function RegattaCard({
     };
 
     const cardContent = (
-        <div className="group relative backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg hover:shadow-cyan-500/10 h-full">
+        <div className="group relative glass-container hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg hover:shadow-cyan-500/10 h-full">
             {/* Subtle Gradient Hover Effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:to-cyan-500/10 transition-all duration-500 opacity-0 group-hover:opacity-100" />
 
@@ -49,7 +49,7 @@ export default function RegattaCard({
                         <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors line-clamp-1">{name}</h3>
                         <p className="text-sm text-slate-400 font-medium">{organization}</p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusColors[status]}`}>
+                    <span className={`badge-base ${statusColors[status]}`}>
                         {status === 'Live' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5 animate-ping" />}
                         {status}
                     </span>

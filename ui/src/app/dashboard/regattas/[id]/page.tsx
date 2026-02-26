@@ -64,7 +64,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             try {
                 await deleteRace(raceId);
                 refetch();
-            } catch (err) {
+            } catch {
                 alert('Failed to delete race');
             }
         }
@@ -74,7 +74,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
             {/* Minimalist Top Navigation */}
             <nav className="flex items-center space-x-4 mb-8">
-                <Link href="/dashboard" className="p-2 rounded-full bg-slate-800/50 text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-600">
+                <Link href="/dashboard" className="nav-button-round">
                     <ChevronLeft className="w-5 h-5" />
                 </Link>
                 <div className="h-4 w-px bg-slate-700"></div>
@@ -84,16 +84,16 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             </nav>
 
             {/* Header Section */}
-            <div className="relative mb-10 p-8 rounded-3xl overflow-hidden backdrop-blur-md bg-slate-900/40 border border-slate-800 shadow-2xl">
+            <div className="glass-header mb-10">
                 <div className="absolute top-0 right-0 p-32 bg-cyan-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                 <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
                     <div>
                         <div className="flex items-center gap-4 mb-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusColors[status] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
+                            <span className={`badge-base ${statusColors[status] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
                                 {status}
                             </span>
-                            <span className="text-sm font-medium text-indigo-300 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                            <span className="badge-base text-indigo-300 bg-indigo-500/10 border-indigo-500/20">
                                 Race Committee
                             </span>
                         </div>
@@ -103,11 +103,11 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                         <p className="text-lg text-slate-400 font-medium max-w-2xl">{organization}</p>
 
                         <div className="flex flex-wrap items-center gap-6 mt-6">
-                            <div className="flex items-center text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700/50">
+                            <div className="info-pill">
                                 <Calendar className="w-5 h-5 mr-3 text-cyan-400" />
                                 <span className="font-medium">{startDate} {endDate && `- ${endDate}`}</span>
                             </div>
-                            <div className="flex items-center text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700/50">
+                            <div className="info-pill">
                                 <MapPin className="w-5 h-5 mr-3 text-cyan-400" />
                                 <span className="font-medium">{location}</span>
                             </div>
@@ -138,7 +138,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column - Main Activity */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <div className="glass-container">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xl font-bold text-white">Recent Activity</h2>
                                 <button className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">View All</button>
@@ -167,7 +167,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
             {activeTab === 'Races' && (
                 <div className="space-y-6">
-                    <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <div className="glass-container">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white">Races</h2>
                             <button
@@ -263,7 +263,7 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
     };
 
     return (
-        <div className={`group relative backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6 transition-all duration-300 hover:bg-white/10 overflow-hidden`}>
+        <div className={`group relative glass-container transition-all duration-300 hover:bg-white/10 overflow-hidden`}>
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">{title}</span>
                 <div className={`p - 2 rounded - xl transition - colors duration - 300 ${colors[color]} `}>

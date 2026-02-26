@@ -37,15 +37,15 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, onSuccess }: 
             setFormData({ raceNumber: formData.raceNumber + 1, scheduledStartTime: '', status: 'Scheduled' });
             onSuccess();
             onClose();
-        } catch (err) {
+        } catch {
             // Error is handled by useRaces hook
         }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center px-6 py-4 border-b border-white/10 bg-slate-800/50">
+        <div className="modal-overlay">
+            <div className="modal-container max-w-md">
+                <div className="modal-header">
                     <h2 className="text-xl font-bold text-white">Add Race</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
@@ -85,7 +85,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, onSuccess }: 
                         <select
                             value={formData.status}
                             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all appearance-none"
+                            className="form-select"
                         >
                             <option value="Scheduled">Scheduled</option>
                             <option value="InSequence">In Sequence</option>

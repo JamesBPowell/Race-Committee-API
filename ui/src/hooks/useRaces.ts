@@ -12,8 +12,8 @@ export function useRaces() {
         try {
             const result = await apiClient.post<RaceResponse>(`/api/regattas/${regattaId}/races`, data);
             return result;
-        } catch (err: any) {
-            const errorMessage = err.message || 'Failed to create race';
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create race';
             setError(errorMessage);
             throw new Error(errorMessage);
         } finally {
@@ -27,8 +27,8 @@ export function useRaces() {
         try {
             const result = await apiClient.put<RaceResponse>(`/api/races/${id}`, data);
             return result;
-        } catch (err: any) {
-            const errorMessage = err.message || 'Failed to update race';
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to update race';
             setError(errorMessage);
             throw new Error(errorMessage);
         } finally {
@@ -42,8 +42,8 @@ export function useRaces() {
         try {
             await apiClient.delete(`/api/races/${id}`);
             return true;
-        } catch (err: any) {
-            const errorMessage = err.message || 'Failed to delete race';
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete race';
             setError(errorMessage);
             throw new Error(errorMessage);
         } finally {

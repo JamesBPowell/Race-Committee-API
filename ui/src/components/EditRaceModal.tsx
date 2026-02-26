@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { RaceResponse } from '@/hooks/useRegattas';
@@ -23,17 +23,18 @@ export default function EditRaceModal({ isOpen, onClose, race, onSuccess }: Edit
         actualStartTime: '',
         status: 'Scheduled'
     });
+    const [prevRaceId, setPrevRaceId] = useState<number | null>(null);
 
-    useEffect(() => {
-        if (race) {
-            setFormData({
-                raceNumber: race.raceNumber,
-                scheduledStartTime: race.scheduledStartTime ? new Date(race.scheduledStartTime).toISOString().slice(0, 16) : '',
-                actualStartTime: race.actualStartTime ? new Date(race.actualStartTime).toISOString().slice(0, 16) : '',
-                status: race.status || 'Scheduled'
-            });
-        }
-    }, [race]);
+    // Sync state if race changes (using render-time sync to avoid useEffect lint warnings)
+    if (race && race.id !== prevRaceId) {
+        setPrevRaceId(race.id);
+        setFormData({
+            raceNumber: race.raceNumber,
+            scheduledStartTime: race.scheduledStartTime ? new Date(race.scheduledStartTime).toISOString().slice(0, 16) : '',
+            actualStartTime: race.actualStartTime ? new Date(race.actualStartTime).toISOString().slice(0, 16) : '',
+            status: race.status || 'Scheduled'
+        });
+    }
 
     if (!isOpen || !race) return null;
 
@@ -50,15 +51,15 @@ export default function EditRaceModal({ isOpen, onClose, race, onSuccess }: Edit
 
             onSuccess();
             onClose();
-        } catch (err) {
+        } catch {
             // Error handled by hook
         }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center px-6 py-4 border-b border-white/10 bg-slate-800/50">
+        <div className="modal-overlay">
+            <div className="modal-container max-w-md">
+                <div className="modal-header">
                     <h2 className="text-xl font-bold text-white">Edit Race {race.raceNumber}</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
@@ -109,7 +110,7 @@ export default function EditRaceModal({ isOpen, onClose, race, onSuccess }: Edit
                         <select
                             value={formData.status}
                             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all appearance-none"
+                            className="form-select"
                         >
                             <option value="Scheduled">Scheduled</option>
                             <option value="InSequence">In Sequence</option>
