@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, MapPin, Users, Settings, Target } from 'lucide-react';
+import Link from 'next/link';
 
 export type RegattaStatus = 'Upcoming' | 'Live' | 'Completed';
 export type RegattaRole = 'RC' | 'Competitor';
@@ -17,6 +18,7 @@ export interface RegattaCardProps {
 }
 
 export default function RegattaCard({
+    id,
     name,
     organization,
     startDate,
@@ -34,8 +36,8 @@ export default function RegattaCard({
         'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
     };
 
-    return (
-        <div className="group relative backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg hover:shadow-cyan-500/10">
+    const cardContent = (
+        <div className="group relative backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg hover:shadow-cyan-500/10 h-full">
             {/* Subtle Gradient Hover Effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:to-cyan-500/10 transition-all duration-500 opacity-0 group-hover:opacity-100" />
 
@@ -73,7 +75,7 @@ export default function RegattaCard({
                 </div>
 
                 {/* Footer Action Area */}
-                <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                <div className="pt-4 border-t border-white/10 flex items-center justify-between mt-auto">
                     <span className="text-sm font-medium text-slate-400">
                         {role === 'RC' ? 'Managing as Race Committee' : 'Racing as Competitor'}
                     </span>
@@ -85,4 +87,14 @@ export default function RegattaCard({
             </div>
         </div>
     );
+
+    if (role === 'RC') {
+        return (
+            <Link href={`/dashboard/regattas/${id}`} className="block h-full">
+                {cardContent}
+            </Link>
+        );
+    }
+
+    return cardContent;
 }
