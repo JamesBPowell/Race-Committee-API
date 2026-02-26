@@ -59,7 +59,7 @@ body {
   }
 
   .modal-container {
-    @apply bg-slate-900 border border-glass-border rounded-glass w-full overflow-hidden shadow-glass animate-in fade-in zoom-in duration-200;
+    @apply bg-slate-900 border border-glass-border rounded-glass w-full overflow-hidden shadow-glass;
   }
 
   .modal-header {
