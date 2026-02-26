@@ -17,10 +17,12 @@ namespace RaceCommittee.Api.Controllers
     public class RegattasController : ControllerBase
     {
         private readonly IRegattasService _regattasService;
+        private readonly IRacesService _racesService;
 
-        public RegattasController(IRegattasService regattasService)
+        public RegattasController(IRegattasService regattasService, IRacesService racesService)
         {
             _regattasService = regattasService;
+            _racesService = racesService;
         }
 
         // POST: api/regattas
@@ -104,6 +106,33 @@ namespace RaceCommittee.Api.Controllers
             }
 
             return Ok(result.Entry);
+        }
+
+        // POST: api/regattas/{id}/races
+        [HttpPost("{id}/races")]
+        public async Task<IActionResult> CreateRace(int id, [FromBody] CreateRaceDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userId == null) return Unauthorized();
+
+                var race = await _racesService.CreateRaceAsync(id, dto, userId);
+                return Ok(race);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (System.ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
     }
 }

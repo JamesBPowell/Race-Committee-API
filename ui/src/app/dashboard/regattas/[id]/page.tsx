@@ -1,16 +1,24 @@
 'use client';
 
-import React, { use } from 'react';
+import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Users,
     Target, Anchor, Shield, TrendingUp, Loader2
 } from 'lucide-react';
-import { useRegatta } from '@/hooks/useRegattas';
+import { useRegatta, RaceResponse } from '@/hooks/useRegattas';
+import { useRaces } from '@/hooks/useRaces';
+import AddRaceModal from '@/components/AddRaceModal';
+import EditRaceModal from '@/components/EditRaceModal';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const { regatta, isLoading, error } = useRegatta(id);
+    const { regatta, isLoading, error, refetch } = useRegatta(id);
+
+    const [activeTab, setActiveTab] = useState<'Overview' | 'Races'>('Overview');
+    const { deleteRace, isLoading: isDeleting } = useRaces();
+    const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
+    const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
 
     if (isLoading) {
         return (
@@ -49,6 +57,17 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         'Live': 'bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse',
         'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
         'Draft': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+    };
+
+    const handleDeleteRace = async (raceId: number) => {
+        if (confirm('Are you sure you want to delete this race?')) {
+            try {
+                await deleteRace(raceId);
+                refetch();
+            } catch (err) {
+                alert('Failed to delete race');
+            }
+        }
     };
 
     return (
@@ -107,42 +126,128 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
             {/* Navigation Tabs */}
             <div className="flex overflow-x-auto border-b border-slate-800 mb-8 pb-px scrollbar-hide">
-                <Tab active label="Overview" />
+                <Tab active={activeTab === 'Overview'} label="Overview" onClick={() => setActiveTab('Overview')} />
                 <Tab label="Entries" />
                 <Tab label="Classes" />
-                <Tab label="Races" />
+                <Tab active={activeTab === 'Races'} label="Races" onClick={() => setActiveTab('Races')} />
                 <Tab label="Settings" />
             </div>
 
-            {/* Main Content Area (Overview) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column - Main Activity */}
-                <div className="lg:col-span-2 space-y-6">
+            {/* Main Content Area */}
+            {activeTab === 'Overview' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left Column - Main Activity */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+                                <button className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">View All</button>
+                            </div>
+                            <div className="space-y-4">
+                                <ActivityItem time="2 hours ago" action="New Entry:" target="J/105 'Velocity'" />
+                                <ActivityItem time="5 hours ago" action="Class Added:" target="PHRF Spinnaker" />
+                                <ActivityItem time="Yesterday" action="Regatta Created" target="by Race Officer" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column - Actions & Info */}
+                    <div className="space-y-6">
+                        <div className="backdrop-blur-md bg-gradient-to-br from-indigo-500/10 to-cyan-500/5 border border-white/10 rounded-2xl p-6">
+                            <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
+                            <div className="space-y-3">
+                                <ActionBtn icon={<Users className="w-4 h-4" />} label="Manage Entries" />
+                                <ActionBtn icon={<Target className="w-4 h-4" />} label="Configure Classes" />
+                                <ActionBtn icon={<Calendar className="w-4 h-4" />} label="Edit Schedule" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'Races' && (
+                <div className="space-y-6">
                     <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
-                            <button className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">View All</button>
+                            <h2 className="text-xl font-bold text-white">Races</h2>
+                            <button
+                                onClick={() => setIsAddRaceOpen(true)}
+                                className="px-4 py-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-xl text-sm font-medium transition-colors"
+                            >
+                                + Add Race
+                            </button>
                         </div>
-                        <div className="space-y-4">
-                            <ActivityItem time="2 hours ago" action="New Entry:" target="J/105 'Velocity'" />
-                            <ActivityItem time="5 hours ago" action="Class Added:" target="PHRF Spinnaker" />
-                            <ActivityItem time="Yesterday" action="Regatta Created" target="by Race Officer" />
-                        </div>
-                    </div>
-                </div>
 
-                {/* Right Column - Actions & Info */}
-                <div className="space-y-6">
-                    <div className="backdrop-blur-md bg-gradient-to-br from-indigo-500/10 to-cyan-500/5 border border-white/10 rounded-2xl p-6">
-                        <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
-                        <div className="space-y-3">
-                            <ActionBtn icon={<Users className="w-4 h-4" />} label="Manage Entries" />
-                            <ActionBtn icon={<Target className="w-4 h-4" />} label="Configure Classes" />
-                            <ActionBtn icon={<Calendar className="w-4 h-4" />} label="Edit Schedule" />
-                        </div>
+                        {!regatta.races || regatta.races.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400">
+                                No races have been added to this regatta yet.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-white/10 text-slate-400 text-sm">
+                                            <th className="pb-3 font-medium">Race</th>
+                                            <th className="pb-3 font-medium">Status</th>
+                                            <th className="pb-3 font-medium">Start Time</th>
+                                            <th className="pb-3 text-right font-medium">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {regatta.races.map((race) => (
+                                            <tr key={race.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                                <td className="py-4 text-white font-medium">
+                                                    Race {race.raceNumber}
+                                                </td>
+                                                <td className="py-4">
+                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${race.status === 'Completed' ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' :
+                                                        race.status === 'Racing' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                                            'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                                                        }`}>
+                                                        {race.status || 'Scheduled'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 text-slate-300">
+                                                    {race.scheduledStartTime ? new Date(race.scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}
+                                                </td>
+                                                <td className="py-4 text-right">
+                                                    <button
+                                                        onClick={() => setEditingRace(race)}
+                                                        className="mr-3 text-cyan-400 hover:text-cyan-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteRace(race.id)}
+                                                        disabled={isDeleting}
+                                                        className="text-rose-400 hover:text-rose-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
-            </div>
+            )}
+
+            <AddRaceModal
+                isOpen={isAddRaceOpen}
+                onClose={() => setIsAddRaceOpen(false)}
+                regattaId={regatta.id}
+                onSuccess={refetch}
+            />
+
+            <EditRaceModal
+                isOpen={!!editingRace}
+                onClose={() => setEditingRace(null)}
+                race={editingRace}
+                onSuccess={refetch}
+            />
         </div>
     );
 }
@@ -170,12 +275,14 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
     );
 }
 
-function Tab({ label, active = false }: { label: string, active?: boolean }) {
+function Tab({ label, active = false, onClick }: { label: string, active?: boolean, onClick?: () => void }) {
     return (
-        <button className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors duration-300 ${active
-            ? 'text-cyan-400 border-cyan-400'
-            : 'text-slate-400 border-transparent hover:text-white hover:border-slate-600'
-            }`}>
+        <button
+            onClick={onClick}
+            className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors duration-300 ${active
+                ? 'text-cyan-400 border-cyan-400'
+                : 'text-slate-400 border-transparent hover:text-white hover:border-slate-600'
+                }`}>
             {label}
         </button>
     );

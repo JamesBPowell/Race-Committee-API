@@ -33,10 +33,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
-builder.Services.AddControllers();
-
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddScoped<IBoatsService, BoatsService>();
 builder.Services.AddScoped<IRegattasService, RegattasService>();
+builder.Services.AddScoped<IRacesService, RacesService>();
 
 var app = builder.Build();
 

@@ -71,7 +71,9 @@ namespace RaceCommittee.Api.Services
 
         public async Task<Regatta?> GetRegattaAsync(int id)
         {
-            return await _context.Regattas.FindAsync(id);
+            return await _context.Regattas
+                .Include(r => r.Races)
+                .FirstOrDefaultAsync(r => r.Id == id);
         }
 
         public async Task<(bool Success, string ErrorMessage, Entry? Entry)> JoinRegattaAsync(int id, JoinRegattaDto dto, string userId)

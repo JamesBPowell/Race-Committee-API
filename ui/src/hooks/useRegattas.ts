@@ -1,6 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { apiClient } from '../lib/api';
 
+export interface RaceResponse {
+    id: number;
+    regattaId: number;
+    fleetId: number | null;
+    raceNumber: number;
+    scheduledStartTime: string | null;
+    actualStartTime: string | null;
+    status: string;
+}
+
 export interface RegattaResponse {
     id: number;
     name: string;
@@ -9,6 +19,7 @@ export interface RegattaResponse {
     endDate: string | null;
     location: string;
     status: string;
+    races: RaceResponse[];
 }
 
 export function useRegattas() {
