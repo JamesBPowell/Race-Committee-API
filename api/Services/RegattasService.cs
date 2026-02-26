@@ -110,8 +110,37 @@ namespace RaceCommittee.Api.Services
                         BoatType = e.Boat?.MakeModel ?? "Unknown Type",
                         SailNumber = e.Boat?.SailNumber ?? "None",
                         RegistrationStatus = e.RegistrationStatus
+                    }),
+                Fleets = regatta.Fleets?
+                    .OrderBy(f => f.SequenceOrder)
+                    .Select(f => new FleetDto
+                    {
+                        Id = f.Id,
+                        Name = f.Name,
+                        SequenceOrder = f.SequenceOrder
                     })
             };
+        }
+
+        public async Task<Regatta?> UpdateRegattaAsync(int id, UpdateRegattaDto dto, string userId)
+        {
+            var regatta = await _context.Regattas
+                .Include(r => r.CommitteeMembers)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (regatta == null) return null;
+            if (!regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
+                throw new UnauthorizedAccessException("Not authorized to update this regatta");
+
+            regatta.Name = dto.Name;
+            regatta.Organization = dto.Organization;
+            regatta.StartDate = dto.StartDate;
+            regatta.EndDate = dto.EndDate;
+            regatta.Location = dto.Location;
+            regatta.Status = dto.Status;
+
+            await _context.SaveChangesAsync();
+            return regatta;
         }
 
         public async Task<(bool Success, string ErrorMessage, Entry? Entry)> JoinRegattaAsync(int id, JoinRegattaDto dto, string userId)

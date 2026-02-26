@@ -17,6 +17,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public int ScheduledRacesCount { get; set; }
         public IEnumerable<RaceDto> Races { get; set; }
         public IEnumerable<EntryDto> Entries { get; set; }
+        public IEnumerable<FleetDto> Fleets { get; set; }
     }
 
     public class EntryDto

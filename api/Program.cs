@@ -40,6 +40,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddScoped<IBoatsService, BoatsService>();
 builder.Services.AddScoped<IRegattasService, RegattasService>();
 builder.Services.AddScoped<IRacesService, RacesService>();
+builder.Services.AddScoped<IFleetsService, FleetsService>();
 
 var app = builder.Build();
 

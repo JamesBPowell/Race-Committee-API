@@ -4,21 +4,50 @@ import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Users,
-    Target, Anchor, Shield, TrendingUp, Loader2
+    Target, Anchor, Shield, TrendingUp, Loader2,
+    Plus, Trash2, Edit, Save, Settings as SettingsIcon
 } from 'lucide-react';
-import { useRegatta, RaceResponse } from '@/hooks/useRegattas';
+import { useRegatta, RaceResponse, useFleets, FleetResponse } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const { regatta, isLoading, error, refetch } = useRegatta(id);
+    const { regatta, isLoading, error, refetch, updateRegatta } = useRegatta(id);
 
     const [activeTab, setActiveTab] = useState<'Overview' | 'Entries' | 'Classes' | 'Races' | 'Settings'>('Overview');
     const { deleteRace, isLoading: isDeleting } = useRaces();
+    const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
+
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
+
+    const [isAddFleetOpen, setIsAddFleetOpen] = useState(false);
+    const [editingFleet, setEditingFleet] = useState<FleetResponse | null>(null);
+    const [fleetName, setFleetName] = useState('');
+
+    const [regattaSettings, setRegattaSettings] = useState({
+        name: '',
+        organization: '',
+        location: '',
+        startDate: '',
+        endDate: '',
+        status: ''
+    });
+
+    React.useEffect(() => {
+        if (regatta) {
+            setRegattaSettings({
+                name: regatta.name,
+                organization: regatta.organization,
+                location: regatta.location,
+                startDate: regatta.startDate.split('T')[0],
+                endDate: regatta.endDate?.split('T')[0] || '',
+                status: regatta.status
+            });
+        }
+    }, [regatta]);
 
     if (isLoading) {
         return (
@@ -59,6 +88,41 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         'Draft': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
     };
 
+    const handleAddFleet = async () => {
+        if (!fleetName.trim()) return;
+        try {
+            await createFleet(regatta.id, { name: fleetName, sequenceOrder: (regatta.fleets?.length || 0) + 1 });
+            setFleetName('');
+            setIsAddFleetOpen(false);
+            refetch();
+        } catch (err) {
+            console.error("Failed to add fleet:", err);
+        }
+    };
+
+    const handleUpdateFleet = async () => {
+        if (!editingFleet || !fleetName.trim()) return;
+        try {
+            await updateFleet(editingFleet.id, { name: fleetName, sequenceOrder: editingFleet.sequenceOrder });
+            setFleetName('');
+            setEditingFleet(null);
+            refetch();
+        } catch (err) {
+            console.error("Failed to update fleet:", err);
+        }
+    };
+
+    const handleDeleteFleet = async (id: number) => {
+        if (confirm('Are you sure you want to delete this class? This will also affect races and entries in this class.')) {
+            try {
+                await deleteFleet(id);
+                refetch();
+            } catch (err) {
+                console.error("Failed to delete fleet:", err);
+            }
+        }
+    };
+
     const handleDeleteRace = async (raceId: number) => {
         if (confirm('Are you sure you want to delete this race?')) {
             try {
@@ -67,6 +131,16 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             } catch {
                 alert('Failed to delete race');
             }
+        }
+    };
+
+    const handleUpdateSettings = async () => {
+        try {
+            await updateRegatta(regattaSettings);
+            alert('Settings updated successfully');
+            refetch();
+        } catch (err) {
+            console.error("Failed to update settings:", err);
         }
     };
 
@@ -205,6 +279,169 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 </table>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'Classes' && (
+                <div className="space-y-6">
+                    <div className="glass-container">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Racing Classes</h2>
+                            <button
+                                onClick={() => { setFleetName(''); setIsAddFleetOpen(true); }}
+                                className="action-button-sm py-2 px-4"
+                            >
+                                <Plus className="w-4 h-4 mr-2" /> Add Class
+                            </button>
+                        </div>
+
+                        {/* Inline Add/Edit Class Form */}
+                        {(isAddFleetOpen || editingFleet) && (
+                            <div className="mb-8 p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl flex items-center gap-4">
+                                <input
+                                    type="text"
+                                    value={fleetName}
+                                    onChange={(e) => setFleetName(e.target.value)}
+                                    placeholder="Class Name (e.g. J/70, PHRF A)"
+                                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
+                                    disabled={isManagingFleets}
+                                    className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center"
+                                >
+                                    {isManagingFleets ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                    {editingFleet ? 'Update' : 'Save'}
+                                </button>
+                                <button
+                                    onClick={() => { setIsAddFleetOpen(false); setEditingFleet(null); setFleetName(''); }}
+                                    className="text-slate-400 hover:text-white px-2"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        )}
+
+                        {!regatta.fleets || regatta.fleets.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400 border border-dashed border-slate-700 rounded-2xl">
+                                No racing classes configured yet.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {regatta.fleets.map((fleet) => (
+                                    <div key={fleet.id} className="p-5 bg-slate-800/30 border border-slate-700/50 rounded-2xl flex items-center justify-between group hover:border-cyan-500/30 transition-all">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white">{fleet.name}</h3>
+                                            <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">Sequence: {fleet.sequenceOrder}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => { setEditingFleet(fleet); setFleetName(fleet.name); }}
+                                                className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteFleet(fleet.id)}
+                                                className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'Settings' && (
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="glass-container">
+                        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                            <SettingsIcon className="w-5 h-5 text-cyan-400" /> Regatta Settings
+                        </h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">Regatta Name</label>
+                                <input
+                                    type="text"
+                                    value={regattaSettings.name}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, name: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">Organization</label>
+                                <input
+                                    type="text"
+                                    value={regattaSettings.organization}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, organization: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">Location</label>
+                                <input
+                                    type="text"
+                                    value={regattaSettings.location}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, location: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">Status</label>
+                                <select
+                                    value={regattaSettings.status}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, status: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                >
+                                    <option value="Draft">Draft</option>
+                                    <option value="Upcoming">Upcoming</option>
+                                    <option value="Live">Live</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">Start Date</label>
+                                <input
+                                    type="date"
+                                    value={regattaSettings.startDate}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, startDate: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-400 ml-1">End Date</label>
+                                <input
+                                    type="date"
+                                    value={regattaSettings.endDate}
+                                    onChange={(e) => setRegattaSettings({ ...regattaSettings, endDate: e.target.value })}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-white/5">
+                            <button
+                                onClick={handleUpdateSettings}
+                                className="bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold py-3 px-10 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center"
+                            >
+                                <Save className="w-5 h-5 mr-3" /> Save Changes
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="glass-container border-rose-500/20">
+                        <h3 className="text-lg font-bold text-rose-400 mb-2">Danger Zone</h3>
+                        <p className="text-slate-400 text-sm mb-4">Once you delete a regatta, there is no going back. Please be certain.</p>
+                        <button className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-lg text-sm font-medium transition-colors">
+                            Delete Regatta
+                        </button>
                     </div>
                 </div>
             )}

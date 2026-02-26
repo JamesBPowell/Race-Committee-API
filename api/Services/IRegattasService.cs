@@ -12,6 +12,7 @@ namespace RaceCommittee.Api.Services
         Task<IEnumerable<Regatta>> GetJoinedRegattasAsync(string userId);
         Task<IEnumerable<Regatta>> GetManagingRegattasAsync(string userId);
         Task<RegattaDetailsDto?> GetRegattaAsync(int id);
+        Task<Regatta?> UpdateRegattaAsync(int id, UpdateRegattaDto dto, string userId);
         Task<(bool Success, string ErrorMessage, Entry? Entry)> JoinRegattaAsync(int id, JoinRegattaDto dto, string userId);
     }
 }

@@ -87,6 +87,31 @@ namespace RaceCommittee.Api.Controllers
             return Ok(regatta);
         }
 
+        // PUT: api/regattas/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateRegatta(int id, [FromBody] UpdateRegattaDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userId == null) return Unauthorized();
+
+                var regatta = await _regattasService.UpdateRegattaAsync(id, dto, userId);
+                if (regatta == null) return NotFound();
+
+                return Ok(regatta);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
         // POST: api/regattas/{id}/entries
         [HttpPost("{id}/entries")]
         public async Task<IActionResult> JoinRegatta(int id, [FromBody] JoinRegattaDto dto)

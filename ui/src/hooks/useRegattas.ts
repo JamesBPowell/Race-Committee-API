@@ -19,6 +19,12 @@ export interface EntryResponse {
     registrationStatus: string;
 }
 
+export interface FleetResponse {
+    id: number;
+    name: string;
+    sequenceOrder: number;
+}
+
 export interface RegattaResponse {
     id: number;
     name: string;
@@ -32,6 +38,7 @@ export interface RegattaResponse {
     scheduledRacesCount?: number;
     races: RaceResponse[];
     entries?: EntryResponse[];
+    fleets?: FleetResponse[];
 }
 
 export function useRegattas() {
@@ -107,10 +114,73 @@ export function useRegatta(id: string | number) {
         fetchRegatta();
     }, [fetchRegatta]);
 
+    const updateRegatta = async (data: Partial<RegattaResponse>) => {
+        setIsLoading(true);
+        try {
+            await apiClient.put(`/api/regattas/${id}`, data);
+            await fetchRegatta();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update regatta");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return {
         regatta,
         isLoading,
         error,
-        refetch: fetchRegatta
+        refetch: fetchRegatta,
+        updateRegatta
+    };
+}
+
+export function useFleets() {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const createFleet = async (regattaId: number, data: { name: string, sequenceOrder: number }) => {
+        setIsLoading(true);
+        try {
+            await apiClient.post(`/api/fleets/regatta/${regattaId}`, data);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to create fleet");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const updateFleet = async (id: number, data: { name: string, sequenceOrder: number }) => {
+        setIsLoading(true);
+        try {
+            await apiClient.put(`/api/fleets/${id}`, data);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update fleet");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const deleteFleet = async (id: number) => {
+        setIsLoading(true);
+        try {
+            await apiClient.delete(`/api/fleets/${id}`);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to delete fleet");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return {
+        createFleet,
+        updateFleet,
+        deleteFleet,
+        isLoading,
+        error
     };
 }
