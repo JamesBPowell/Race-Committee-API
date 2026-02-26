@@ -30,6 +30,8 @@ namespace RaceCommittee.Api.Controllers
                 return BadRequest(ModelState);
             }
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var regatta = new Regatta
             {
                 Name = dto.Name,
@@ -38,7 +40,15 @@ namespace RaceCommittee.Api.Controllers
                 EndDate = dto.EndDate,
                 Location = dto.Location,
                 Status = "Upcoming",
-                Slug = GenerateSlug(dto.Name)
+                Slug = GenerateSlug(dto.Name),
+                CommitteeMembers = new List<RegattaCommittee>
+                {
+                    new RegattaCommittee
+                    {
+                        UserId = userId,
+                        Role = "PRO"
+                    }
+                }
             };
 
             _context.Regattas.Add(regatta);
@@ -67,6 +77,20 @@ namespace RaceCommittee.Api.Controllers
                 .Where(e => e.Boat.OwnerId == userId)
                 .Select(e => e.Regatta)
                 .Distinct()
+                .ToListAsync();
+
+            return Ok(regattas);
+        }
+
+        // GET: api/regattas/managing
+        [HttpGet("managing")]
+        public async Task<IActionResult> GetManagingRegattas()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var regattas = await _context.Regattas
+                .Include(r => r.CommitteeMembers)
+                .Where(r => r.CommitteeMembers.Any(cm => cm.UserId == userId))
                 .ToListAsync();
 
             return Ok(regattas);

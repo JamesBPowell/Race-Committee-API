@@ -8,7 +8,15 @@ import { PlusCircle, Search } from 'lucide-react';
 import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
 import { API_BASE_URL } from '@/lib/constants';
 
-
+interface RegattaResponse {
+    id: number;
+    name: string;
+    organization: string;
+    startDate: string;
+    endDate: string | null;
+    location: string;
+    status: string;
+}
 export default function DashboardPage() {
     const [isRegattaModalOpen, setIsRegattaModalOpen] = useState(false);
     const [isFindModalOpen, setIsFindModalOpen] = useState(false);
@@ -16,17 +24,17 @@ export default function DashboardPage() {
     const [realRacerRegattas, setRealRacerRegattas] = useState<RegattaCardProps[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchRegattas = async () => {
+    const fetchRcRegattas = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/regattas`, {
+            const response = await fetch(`${API_BASE_URL}/api/regattas/managing`, {
                 credentials: 'include'
             });
             if (response.ok) {
                 const data = await response.json();
 
                 // Map backend Regatta to RegattaCardProps
-                const mappedRegattas = data.map((r: any) => ({
+                const mappedRegattas = data.map((r: RegattaResponse) => ({
                     id: r.id.toString(),
                     name: r.name,
                     organization: r.organization,
@@ -38,10 +46,10 @@ export default function DashboardPage() {
                     boatsEntered: 0 // Defaulting for now
                 }));
                 // Sort by ID descending so newest are first
-                setRealRcRegattas(mappedRegattas.sort((a: any, b: any) => parseInt(b.id) - parseInt(a.id)));
+                setRealRcRegattas(mappedRegattas.sort((a: RegattaCardProps, b: RegattaCardProps) => parseInt(b.id) - parseInt(a.id)));
             }
         } catch (error) {
-            console.error("Failed to fetch regattas:", error);
+            console.error("Failed to fetch RC regattas:", error);
         } finally {
             setIsLoading(false);
         }
@@ -56,7 +64,7 @@ export default function DashboardPage() {
                 const data = await response.json();
 
                 // Map backend Regatta to RegattaCardProps
-                const mappedRegattas = data.map((r: any) => ({
+                const mappedRegattas = data.map((r: RegattaResponse) => ({
                     id: r.id.toString(),
                     name: r.name,
                     organization: r.organization,
@@ -68,7 +76,7 @@ export default function DashboardPage() {
                     boatsEntered: 0 // Defaulting for now
                 }));
                 // Sort by ID descending so newest are first
-                setRealRacerRegattas(mappedRegattas.sort((a: any, b: any) => parseInt(b.id) - parseInt(a.id)));
+                setRealRacerRegattas(mappedRegattas.sort((a: RegattaCardProps, b: RegattaCardProps) => parseInt(b.id) - parseInt(a.id)));
             }
         } catch (error) {
             console.error("Failed to fetch joined regattas:", error);
@@ -76,7 +84,7 @@ export default function DashboardPage() {
     };
 
     useEffect(() => {
-        fetchRegattas();
+        fetchRcRegattas();
         fetchJoinedRegattas();
     }, []);
 
@@ -175,7 +183,7 @@ export default function DashboardPage() {
                 onClose={() => {
                     setIsRegattaModalOpen(false);
                     // Refresh the list after the modal closes
-                    fetchRegattas();
+                    fetchRcRegattas();
                 }}
             />
 

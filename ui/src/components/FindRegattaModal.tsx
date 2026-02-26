@@ -93,7 +93,7 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
                     onSuccess();
                 }, 1500);
             }
-        } catch (err) {
+        } catch {
             setError('A network error occurred');
         } finally {
             setIsLoading(false);

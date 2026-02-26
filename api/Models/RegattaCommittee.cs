@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace RaceCommittee.Api.Models
 {
@@ -7,6 +8,8 @@ namespace RaceCommittee.Api.Models
         public int Id { get; set; }
 
         public int RegattaId { get; set; }
+
+        [JsonIgnore]
         public Regatta Regatta { get; set; }
 
         public string UserId { get; set; }

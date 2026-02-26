@@ -30,7 +30,7 @@ export default function MyBoatsPage() {
             } else {
                 setError('Failed to load your boats. Are you signed in?');
             }
-        } catch (err) {
+        } catch {
             setError('A network error occurred while fetching boats.');
         } finally {
             setIsLoading(false);
@@ -65,7 +65,7 @@ export default function MyBoatsPage() {
             } else {
                 alert('Failed to delete boat.');
             }
-        } catch (err) {
+        } catch {
             alert('A network error occurred.');
         }
     };
