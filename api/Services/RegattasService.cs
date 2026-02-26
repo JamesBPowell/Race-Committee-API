@@ -69,11 +69,49 @@ namespace RaceCommittee.Api.Services
                 .ToListAsync();
         }
 
-        public async Task<Regatta?> GetRegattaAsync(int id)
+        public async Task<RegattaDetailsDto?> GetRegattaAsync(int id)
         {
-            return await _context.Regattas
+            var regatta = await _context.Regattas
                 .Include(r => r.Races)
+                .Include(r => r.Entries)
+                    .ThenInclude(e => e.Boat)
+                .Include(r => r.Fleets)
                 .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (regatta == null) return null;
+
+            return new RegattaDetailsDto
+            {
+                Id = regatta.Id,
+                Name = regatta.Name,
+                Organization = regatta.Organization,
+                StartDate = regatta.StartDate,
+                EndDate = regatta.EndDate,
+                Location = regatta.Location,
+                Status = regatta.Status,
+                BoatsEnteredCount = regatta.Entries?.Count ?? 0,
+                ClassesCount = regatta.Fleets?.Count ?? 0,
+                ScheduledRacesCount = regatta.Races?.Count ?? 0,
+                Races = regatta.Races?
+                    .OrderBy(r => r.RaceNumber)
+                    .Select(r => new RaceDto
+                    {
+                        Id = r.Id,
+                        RaceNumber = r.RaceNumber,
+                        ScheduledStartTime = r.ScheduledStartTime,
+                        ActualStartTime = r.ActualStartTime,
+                        Status = r.Status
+                    }),
+                Entries = regatta.Entries?
+                    .Select(e => new EntryDto
+                    {
+                        Id = e.Id,
+                        BoatName = e.Boat?.BoatName ?? "Unknown Boat",
+                        BoatType = e.Boat?.MakeModel ?? "Unknown Type",
+                        SailNumber = e.Boat?.SailNumber ?? "None",
+                        RegistrationStatus = e.RegistrationStatus
+                    })
+            };
         }
 
         public async Task<(bool Success, string ErrorMessage, Entry? Entry)> JoinRegattaAsync(int id, JoinRegattaDto dto, string userId)

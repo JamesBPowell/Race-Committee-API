@@ -11,6 +11,14 @@ export interface RaceResponse {
     status: string;
 }
 
+export interface EntryResponse {
+    id: number;
+    boatName: string;
+    boatType: string;
+    sailNumber: string;
+    registrationStatus: string;
+}
+
 export interface RegattaResponse {
     id: number;
     name: string;
@@ -19,7 +27,11 @@ export interface RegattaResponse {
     endDate: string | null;
     location: string;
     status: string;
+    boatsEnteredCount?: number;
+    classesCount?: number;
+    scheduledRacesCount?: number;
     races: RaceResponse[];
+    entries?: EntryResponse[];
 }
 
 export function useRegattas() {

@@ -15,7 +15,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const { id } = use(params);
     const { regatta, isLoading, error, refetch } = useRegatta(id);
 
-    const [activeTab, setActiveTab] = useState<'Overview' | 'Races'>('Overview');
+    const [activeTab, setActiveTab] = useState<'Overview' | 'Entries' | 'Classes' | 'Races' | 'Settings'>('Overview');
     const { deleteRace, isLoading: isDeleting } = useRaces();
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
@@ -118,19 +118,19 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard title="Boats Entered" value="24" icon={<Anchor className="w-6 h-6" />} color="cyan" />
-                <StatCard title="Classes" value="3" icon={<Target className="w-6 h-6" />} color="indigo" />
-                <StatCard title="Scheduled Races" value="6" icon={<TrendingUp className="w-6 h-6" />} color="emerald" />
+                <StatCard title="Boats Entered" value={regatta.boatsEnteredCount?.toString() || "0"} icon={<Anchor className="w-6 h-6" />} color="cyan" />
+                <StatCard title="Classes" value={regatta.classesCount?.toString() || "0"} icon={<Target className="w-6 h-6" />} color="indigo" />
+                <StatCard title="Scheduled Races" value={regatta.scheduledRacesCount?.toString() || "0"} icon={<TrendingUp className="w-6 h-6" />} color="emerald" />
                 <StatCard title="Protests" value="0" icon={<Shield className="w-6 h-6" />} color="slate" />
             </div>
 
             {/* Navigation Tabs */}
             <div className="flex overflow-x-auto border-b border-slate-800 mb-8 pb-px scrollbar-hide">
                 <Tab active={activeTab === 'Overview'} label="Overview" onClick={() => setActiveTab('Overview')} />
-                <Tab label="Entries" />
-                <Tab label="Classes" />
+                <Tab active={activeTab === 'Entries'} label="Entries" onClick={() => setActiveTab('Entries')} />
+                <Tab active={activeTab === 'Classes'} label="Classes" onClick={() => setActiveTab('Classes')} />
                 <Tab active={activeTab === 'Races'} label="Races" onClick={() => setActiveTab('Races')} />
-                <Tab label="Settings" />
+                <Tab active={activeTab === 'Settings'} label="Settings" onClick={() => setActiveTab('Settings')} />
             </div>
 
             {/* Main Content Area */}
@@ -144,9 +144,9 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <button className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">View All</button>
                             </div>
                             <div className="space-y-4">
-                                <ActivityItem time="2 hours ago" action="New Entry:" target="J/105 'Velocity'" />
-                                <ActivityItem time="5 hours ago" action="Class Added:" target="PHRF Spinnaker" />
-                                <ActivityItem time="Yesterday" action="Regatta Created" target="by Race Officer" />
+                                <ActivityItem time="Just now" action="Regatta Statistics Updated" target={`with ${regatta.boatsEnteredCount} boats`} />
+                                <ActivityItem time="Today" action="Races Configured" target={`Total of ${regatta.scheduledRacesCount} races`} />
+                                <ActivityItem time="Recently" action="Regatta Initialized" target={`at ${location}`} />
                             </div>
                         </div>
                     </div>
@@ -156,11 +156,55 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                         <div className="backdrop-blur-md bg-gradient-to-br from-indigo-500/10 to-cyan-500/5 border border-white/10 rounded-2xl p-6">
                             <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
                             <div className="space-y-3">
-                                <ActionBtn icon={<Users className="w-4 h-4" />} label="Manage Entries" />
-                                <ActionBtn icon={<Target className="w-4 h-4" />} label="Configure Classes" />
-                                <ActionBtn icon={<Calendar className="w-4 h-4" />} label="Edit Schedule" />
+                                <ActionBtn icon={<Users className="w-4 h-4" />} label="Manage Entries" onClick={() => setActiveTab('Entries')} />
+                                <ActionBtn icon={<Target className="w-4 h-4" />} label="Configure Classes" onClick={() => setActiveTab('Classes')} />
+                                <ActionBtn icon={<Calendar className="w-4 h-4" />} label="Manage Races" onClick={() => setActiveTab('Races')} />
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'Entries' && (
+                <div className="space-y-6">
+                    <div className="glass-container">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Regatta Entries</h2>
+                            <div className="text-sm text-slate-400">{regatta.boatsEnteredCount} Boats Confirmed</div>
+                        </div>
+
+                        {!regatta.entries || regatta.entries.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400">
+                                No boats have entered this regatta yet.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-white/10 text-slate-400 text-sm">
+                                            <th className="pb-3 font-medium">Boat Name</th>
+                                            <th className="pb-3 font-medium">Design / Model</th>
+                                            <th className="pb-3 font-medium">Sail #</th>
+                                            <th className="pb-3 font-medium">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {regatta.entries.map((entry) => (
+                                            <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                <td className="py-4 text-white font-medium">{entry.boatName}</td>
+                                                <td className="py-4 text-slate-300">{entry.boatType}</td>
+                                                <td className="py-4 text-slate-300">{entry.sailNumber}</td>
+                                                <td className="py-4">
+                                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                                        {entry.registrationStatus}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -303,9 +347,12 @@ function ActivityItem({ time, action, target }: { time: string, action: string, 
     );
 }
 
-function ActionBtn({ icon, label }: { icon: React.ReactNode, label: string }) {
+function ActionBtn({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
     return (
-        <button className="w-full flex items-center gap-3 px-4 py-3 bg-slate-800/50 hover:bg-slate-700/80 border border-slate-700/50 hover:border-cyan-500/30 rounded-xl text-sm font-medium text-slate-200 hover:text-white transition-all duration-300 group">
+        <button
+            onClick={onClick}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-slate-800/50 hover:bg-slate-700/80 border border-slate-700/50 hover:border-cyan-500/30 rounded-xl text-sm font-medium text-slate-200 hover:text-white transition-all duration-300 group"
+        >
             <span className="text-slate-400 group-hover:text-cyan-400 transition-colors">{icon}</span>
             {label}
         </button>
