@@ -1,25 +1,54 @@
-import React from 'react';
+'use client';
+
+import React, { use } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Users,
-    Target, Anchor, Shield, TrendingUp
+    Target, Anchor, Shield, TrendingUp, Loader2
 } from 'lucide-react';
+import { useRegatta } from '@/hooks/useRegattas';
 
-export default async function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
-    // In a real app we'd fetch regatta data here based on params.id
-    // For now we'll use placeholder data
-    const { id } = await params;
-    const regattaName = id === 'summer-series-1' ? 'Summer Series I' : 'Regional Championship';
-    const status = 'Upcoming';
-    const startDate = 'Jun 15';
-    const endDate = 'Jun 16';
-    const location = 'Newport, RI';
-    const organization = 'Newport Yacht Club';
+export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+    const { regatta, isLoading, error } = useRegatta(id);
 
-    const statusColors = {
+    if (isLoading) {
+        return (
+            <div className="flex-1 w-full flex justify-center items-center py-20">
+                <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error || !regatta) {
+        return (
+            <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 text-center text-rose-400">
+                {error || "Regatta not found"}
+            </div>
+        );
+    }
+
+    const regattaName = regatta.name;
+    const status = regatta.status || 'Upcoming';
+
+    // Format dates nicely if they exist
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        // Force UTC to prevent shifting to previous day
+        return new Date(d.getTime() + d.getTimezoneOffset() * 60000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const startDate = formatDate(regatta.startDate);
+    const endDate = formatDate(regatta.endDate);
+    const location = regatta.location;
+    const organization = regatta.organization || 'Race Committee';
+
+    const statusColors: Record<string, string> = {
         'Upcoming': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         'Live': 'bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse',
-        'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+        'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+        'Draft': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
     };
 
     return (
@@ -42,7 +71,7 @@ export default async function RegattaPage({ params }: { params: Promise<{ id: st
                 <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
                     <div>
                         <div className="flex items-center gap-4 mb-3">
-                            <span className={`px - 3 py - 1 rounded - full text - xs font - semibold border whitespace - nowrap ${statusColors[status]} `}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${statusColors[status] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
                                 {status}
                             </span>
                             <span className="text-sm font-medium text-indigo-300 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
@@ -57,7 +86,7 @@ export default async function RegattaPage({ params }: { params: Promise<{ id: st
                         <div className="flex flex-wrap items-center gap-6 mt-6">
                             <div className="flex items-center text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700/50">
                                 <Calendar className="w-5 h-5 mr-3 text-cyan-400" />
-                                <span className="font-medium">{startDate} {endDate && `- ${endDate} `}</span>
+                                <span className="font-medium">{startDate} {endDate && `- ${endDate}`}</span>
                             </div>
                             <div className="flex items-center text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700/50">
                                 <MapPin className="w-5 h-5 mr-3 text-cyan-400" />
@@ -129,7 +158,7 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
     };
 
     return (
-        <div className={`group relative backdrop - blur - md bg - white / 5 border border - white / 10 rounded - 2xl p - 6 transition - all duration - 300 hover: bg - white / 10 overflow - hidden`}>
+        <div className={`group relative backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-6 transition-all duration-300 hover:bg-white/10 overflow-hidden`}>
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">{title}</span>
                 <div className={`p - 2 rounded - xl transition - colors duration - 300 ${colors[color]} `}>
@@ -143,10 +172,10 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
 
 function Tab({ label, active = false }: { label: string, active?: boolean }) {
     return (
-        <button className={`px - 6 py - 3 font - medium text - sm whitespace - nowrap border - b - 2 transition - colors duration - 300 ${active
-                ? 'text-cyan-400 border-cyan-400'
-                : 'text-slate-400 border-transparent hover:text-white hover:border-slate-600'
-            } `}>
+        <button className={`px-6 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors duration-300 ${active
+            ? 'text-cyan-400 border-cyan-400'
+            : 'text-slate-400 border-transparent hover:text-white hover:border-slate-600'
+            }`}>
             {label}
         </button>
     );

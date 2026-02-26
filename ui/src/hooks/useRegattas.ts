@@ -59,3 +59,35 @@ export function useRegattas() {
         refetchJoined: fetchJoinedRegattas
     };
 }
+
+export function useRegatta(id: string | number) {
+    const [regatta, setRegatta] = useState<RegattaResponse | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchRegatta = useCallback(async () => {
+        if (!id) return;
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await apiClient.get<RegattaResponse>(`/api/regattas/${id}`);
+            setRegatta(data);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to fetch regatta");
+            console.error(`Failed to fetch regatta ${id}:`, err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        fetchRegatta();
+    }, [fetchRegatta]);
+
+    return {
+        regatta,
+        isLoading,
+        error,
+        refetch: fetchRegatta
+    };
+}
