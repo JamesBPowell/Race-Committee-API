@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import HeroSection from "@/components/HeroSection";
 import LiveNowSection from "@/components/LiveNowSection";
 
@@ -20,9 +21,9 @@ export default function Home() {
           <a href="#" className="hover:text-cyan-400 transition-colors">Find Events</a>
           <a href="#" className="hover:text-cyan-400 transition-colors">Pricing</a>
           <a href="#" className="hover:text-cyan-400 transition-colors">RC Resources</a>
-          <button className="px-5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all backdrop-blur-md">
+          <Link href="/login" className="px-5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all backdrop-blur-md">
             Sign In
-          </button>
+          </Link>
         </div>
       </nav>
 
