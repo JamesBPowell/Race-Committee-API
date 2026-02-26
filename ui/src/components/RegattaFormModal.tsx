@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { X } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 
@@ -39,23 +40,14 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
         };
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/regattas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                credentials: 'include'
-            });
+            await apiClient.post('/api/regattas', payload);
 
-            if (res.ok) {
-                // Reset form
-                setFormData({ name: '', organization: '', startDate: '', endDate: '', location: '' });
-                onClose();
-                router.refresh();
-            } else {
-                setError('Failed to create regatta.');
-            }
+            // Reset form
+            setFormData({ name: '', organization: '', startDate: '', endDate: '', location: '' });
+            onClose();
+            router.refresh();
         } catch {
-            setError('A network error occurred.');
+            setError('Failed to create regatta or a network error occurred.');
         } finally {
             setIsLoading(false);
         }
@@ -131,21 +123,19 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
-                            disabled={isLoading}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all disabled:opacity-50"
+                            isLoading={isLoading}
                         >
-                            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                             Create Regatta
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

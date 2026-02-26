@@ -9,20 +9,20 @@ namespace RaceCommittee.Api.Models
         public int Id { get; set; }
 
         [Required]
-        public string OwnerId { get; set; }
-        public ApplicationUser Owner { get; set; }
+        public string OwnerId { get; set; } = string.Empty;
+        public ApplicationUser Owner { get; set; } = null!;
 
         [Required]
-        public string BoatName { get; set; }
+        public string BoatName { get; set; } = string.Empty;
 
         [Required]
-        public string SailNumber { get; set; }
+        public string SailNumber { get; set; } = string.Empty;
 
-        public string MakeModel { get; set; }
+        public string MakeModel { get; set; } = string.Empty;
 
         public float? DefaultRating { get; set; }
 
-        public ICollection<Certificate> Certificates { get; set; }
-        public ICollection<Entry> Entries { get; set; }
+        public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
+        public ICollection<Entry> Entries { get; set; } = new List<Entry>();
     }
 }

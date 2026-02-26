@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { X } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 
@@ -59,26 +60,15 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
             defaultRating: formData.defaultRating ? parseFloat(formData.defaultRating) : null
         };
 
-        const url = editingBoat
-            ? `${API_BASE_URL}/api/boats/${editingBoat.id}`
-            : `${API_BASE_URL}/api/boats`;
-
-        const method = editingBoat ? 'PUT' : 'POST';
-
         try {
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                credentials: 'include' // Important for Identity Cookies
-            });
-
-            if (res.ok) {
-                onClose();
-                router.refresh(); // Tell Next.js to re-fetch Server Components (like the boat list)
+            if (editingBoat) {
+                await apiClient.put(`/api/boats/${editingBoat.id}`, payload);
             } else {
-                setError('Failed to save boat details.');
+                await apiClient.post('/api/boats', payload);
             }
+
+            onClose();
+            router.refresh(); // Tell Next.js to re-fetch Server Components (like the boat list)
         } catch {
             setError('A network error occurred.');
         } finally {
@@ -148,21 +138,19 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
                         >
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
-                            disabled={isLoading}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all disabled:opacity-50"
+                            isLoading={isLoading}
                         >
-                            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                             {editingBoat ? 'Save Changes' : 'Add Boat'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

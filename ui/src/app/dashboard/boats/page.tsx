@@ -1,45 +1,19 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import Button from '@/components/ui/Button';
 import BoatCard from '@/components/BoatCard';
 import BoatFormModal, { BoatData } from '@/components/BoatFormModal';
+import { useBoats } from '@/hooks/useBoats';
+import { apiClient } from '@/lib/api';
 
 export default function MyBoatsPage() {
-    const [boats, setBoats] = useState<BoatData[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
+    const { boats, isLoading, error, refetch } = useBoats();
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBoat, setEditingBoat] = useState<BoatData | null>(null);
-
-    const fetchBoats = async () => {
-        setIsLoading(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/boats`, {
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // Pass the auth cookie
-                cache: 'no-store'
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setBoats(data);
-            } else {
-                setError('Failed to load your boats. Are you signed in?');
-            }
-        } catch {
-            setError('A network error occurred while fetching boats.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchBoats();
-    }, []);
 
     const handleAddClick = () => {
         setEditingBoat(null);
@@ -55,25 +29,18 @@ export default function MyBoatsPage() {
         if (!confirm('Are you sure you want to delete this boat?')) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/boats/${id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-
-            if (res.ok) {
-                setBoats(boats.filter(b => b.id !== id));
-            } else {
-                alert('Failed to delete boat.');
-            }
-        } catch {
-            alert('A network error occurred.');
+            await apiClient.delete(`/api/boats/${id}`);
+            // Optimistically update or refetch
+            refetch();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to delete boat.');
         }
     };
 
     const handleModalClose = () => {
         setIsModalOpen(false);
         setEditingBoat(null);
-        fetchBoats(); // Refresh the list after an add/edit
+        refetch(); // Refresh the list after an add/edit
     };
 
     return (
@@ -83,13 +50,13 @@ export default function MyBoatsPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-2">My Boats</h1>
                     <p className="text-slate-400">Manage your vessels and their rating certificates.</p>
                 </div>
-                <button
+                <Button
                     onClick={handleAddClick}
-                    className="flex justify-center items-center gap-2 px-6 py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all hover:scale-105 shadow-[0_0_20px_rgba(6,182,212,0.3)] shadow-cyan-500/20"
+                    rounded="full"
                 >
                     <Plus className="w-5 h-5" />
                     <span>Add Boat</span>
-                </button>
+                </Button>
             </div>
 
             {error && (

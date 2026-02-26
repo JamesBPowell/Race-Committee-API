@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, CheckCircle } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
+import Button from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
 
 interface FindRegattaModalProps {
@@ -45,11 +46,8 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
 
     const fetchRegattas = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/regattas`, { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setRegattas(data);
-            }
+            const data = await apiClient.get<Regatta[]>('/api/regattas');
+            setRegattas(data);
         } catch (err) {
             console.error(err);
         }
@@ -57,13 +55,10 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
 
     const fetchBoats = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/boats`, { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setBoats(data);
-                if (data.length > 0) {
-                    setSelectedBoatId(data[0].id.toString());
-                }
+            const data = await apiClient.get<Boat[]>('/api/boats');
+            setBoats(data);
+            if (data.length > 0) {
+                setSelectedBoatId(data[0].id.toString());
             }
         } catch (err) {
             console.error(err);
@@ -76,25 +71,17 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
         setIsLoading(true);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/regattas/${selectedRegattaId}/entries`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ boatId: parseInt(selectedBoatId) })
+            await apiClient.post(`/api/regattas/${selectedRegattaId}/entries`, {
+                boatId: parseInt(selectedBoatId)
             });
 
-            if (!res.ok) {
-                const errData = await res.text();
-                setError(errData || 'Failed to join regatta');
-            } else {
-                setIsSuccess(true);
-                setTimeout(() => {
-                    onClose();
-                    onSuccess();
-                }, 1500);
-            }
-        } catch {
-            setError('A network error occurred');
+            setIsSuccess(true);
+            setTimeout(() => {
+                onClose();
+                onSuccess();
+            }, 1500);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to join regatta or a network error occurred');
         } finally {
             setIsLoading(false);
         }
@@ -172,17 +159,17 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
                                 )}
                             </div>
 
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={isLoading || boats.length === 0}
-                                className="w-full mt-6 flex justify-center items-center py-3.5 px-4 bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={boats.length === 0}
+                                colorTheme="indigo"
+                                fullWidth
+                                size="lg"
+                                isLoading={isLoading}
+                                className="mt-6"
                             >
-                                {isLoading ? (
-                                    <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                ) : (
-                                    'Join Regatta'
-                                )}
-                            </button>
+                                Join Regatta
+                            </Button>
                         </form>
                     )}
                 </div>

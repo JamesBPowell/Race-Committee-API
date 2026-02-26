@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using RaceCommittee.Api.Services;
+
 namespace RaceCommittee.Api.Controllers
 {
     [Route("api/[controller]")]
@@ -14,11 +16,11 @@ namespace RaceCommittee.Api.Controllers
     [Authorize]
     public class RegattasController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IRegattasService _regattasService;
 
-        public RegattasController(ApplicationDbContext context)
+        public RegattasController(IRegattasService regattasService)
         {
-            _context = context;
+            _regattasService = regattasService;
         }
 
         // POST: api/regattas
@@ -31,28 +33,9 @@ namespace RaceCommittee.Api.Controllers
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-            var regatta = new Regatta
-            {
-                Name = dto.Name,
-                Organization = dto.Organization,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                Location = dto.Location,
-                Status = "Upcoming",
-                Slug = GenerateSlug(dto.Name),
-                CommitteeMembers = new List<RegattaCommittee>
-                {
-                    new RegattaCommittee
-                    {
-                        UserId = userId,
-                        Role = "PRO"
-                    }
-                }
-            };
-
-            _context.Regattas.Add(regatta);
-            await _context.SaveChangesAsync();
+            var regatta = await _regattasService.CreateRegattaAsync(dto, userId);
 
             return CreatedAtAction(nameof(GetRegatta), new { id = regatta.Id }, regatta);
         }
@@ -61,7 +44,7 @@ namespace RaceCommittee.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetRegattas()
         {
-            var regattas = await _context.Regattas.ToListAsync();
+            var regattas = await _regattasService.GetRegattasAsync();
             return Ok(regattas);
         }
 
@@ -70,15 +53,9 @@ namespace RaceCommittee.Api.Controllers
         public async Task<IActionResult> GetJoinedRegattas()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-            var regattas = await _context.Entries
-                .Include(e => e.Boat)
-                .Include(e => e.Regatta)
-                .Where(e => e.Boat.OwnerId == userId)
-                .Select(e => e.Regatta)
-                .Distinct()
-                .ToListAsync();
-
+            var regattas = await _regattasService.GetJoinedRegattasAsync(userId);
             return Ok(regattas);
         }
 
@@ -87,12 +64,9 @@ namespace RaceCommittee.Api.Controllers
         public async Task<IActionResult> GetManagingRegattas()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-            var regattas = await _context.Regattas
-                .Include(r => r.CommitteeMembers)
-                .Where(r => r.CommitteeMembers.Any(cm => cm.UserId == userId))
-                .ToListAsync();
-
+            var regattas = await _regattasService.GetManagingRegattasAsync(userId);
             return Ok(regattas);
         }
 
@@ -101,7 +75,7 @@ namespace RaceCommittee.Api.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRegatta(int id)
         {
-            var regatta = await _context.Regattas.FindAsync(id);
+            var regatta = await _regattasService.GetRegattaAsync(id);
 
             if (regatta == null)
             {
@@ -116,51 +90,20 @@ namespace RaceCommittee.Api.Controllers
         public async Task<IActionResult> JoinRegatta(int id, [FromBody] JoinRegattaDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-            // Verify Boat exists and belongs to the user
-            var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Id == dto.BoatId && b.OwnerId == userId);
-            if (boat == null)
+            var result = await _regattasService.JoinRegattaAsync(id, dto, userId);
+
+            if (!result.Success)
             {
-                return BadRequest("Invalid boat selected or boat does not belong to you.");
+                if (result.ErrorMessage == "Regatta not found.")
+                {
+                    return NotFound(result.ErrorMessage);
+                }
+                return BadRequest(result.ErrorMessage);
             }
 
-            // Verify Regatta exists
-            var regatta = await _context.Regattas.FindAsync(id);
-            if (regatta == null)
-            {
-                return NotFound("Regatta not found.");
-            }
-
-            // Check if already entered
-            var existingEntry = await _context.Entries.FirstOrDefaultAsync(e => e.RegattaId == id && e.BoatId == dto.BoatId);
-            if (existingEntry != null)
-            {
-                return BadRequest("This boat is already entered in this regatta.");
-            }
-
-            var entry = new Entry
-            {
-                RegattaId = id,
-                BoatId = dto.BoatId,
-                RegistrationStatus = "Pending"
-            };
-
-            _context.Entries.Add(entry);
-            await _context.SaveChangesAsync();
-
-            return Ok(entry);
-        }
-
-        private string GenerateSlug(string phrase)
-        {
-            string str = phrase.ToLower();
-            // Remove invalid chars
-            str = Regex.Replace(str, @"[^a-z0-9\s-]", "");
-            // Convert multiple spaces into one space
-            str = Regex.Replace(str, @"\s+", " ").Trim();
-            // Replace spaces with hyphens
-            str = Regex.Replace(str, @"\s", "-");
-            return str;
+            return Ok(result.Entry);
         }
     }
 }

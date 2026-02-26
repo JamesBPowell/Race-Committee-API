@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RaceCommittee.Api.Data;
 using RaceCommittee.Api.Models;
+using RaceCommittee.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddControllers();
+
+builder.Services.AddScoped<IBoatsService, BoatsService>();
+builder.Services.AddScoped<IRegattasService, RegattasService>();
 
 var app = builder.Build();
 

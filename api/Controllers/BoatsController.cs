@@ -8,6 +8,8 @@ using RaceCommittee.Api.Data;
 using RaceCommittee.Api.Models;
 using System.Security.Claims;
 
+using RaceCommittee.Api.Services;
+
 namespace api.Controllers
 {
     [Authorize]
@@ -15,12 +17,12 @@ namespace api.Controllers
     [Route("api/[controller]")]
     public class BoatsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IBoatsService _boatsService;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public BoatsController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public BoatsController(IBoatsService boatsService, UserManager<ApplicationUser> userManager)
         {
-            _context = context;
+            _boatsService = boatsService;
             _userManager = userManager;
         }
 
@@ -36,18 +38,7 @@ namespace api.Controllers
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boats = await _context.Boats
-                .Where(b => b.OwnerId == userId)
-                .Select(b => new BoatDto
-                {
-                    Id = b.Id,
-                    BoatName = b.BoatName,
-                    SailNumber = b.SailNumber,
-                    MakeModel = b.MakeModel,
-                    DefaultRating = b.DefaultRating
-                })
-                .ToListAsync();
-
+            var boats = await _boatsService.GetBoatsAsync(userId);
             return Ok(boats);
         }
 
@@ -58,17 +49,7 @@ namespace api.Controllers
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boat = await _context.Boats
-                .Where(b => b.Id == id && b.OwnerId == userId)
-                .Select(b => new BoatDto
-                {
-                    Id = b.Id,
-                    BoatName = b.BoatName,
-                    SailNumber = b.SailNumber,
-                    MakeModel = b.MakeModel,
-                    DefaultRating = b.DefaultRating
-                })
-                .FirstOrDefaultAsync();
+            var boat = await _boatsService.GetBoatAsync(id, userId);
 
             if (boat == null)
             {
@@ -85,28 +66,9 @@ namespace api.Controllers
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boat = new Boat
-            {
-                OwnerId = userId,
-                BoatName = createBoatDto.BoatName,
-                SailNumber = createBoatDto.SailNumber,
-                MakeModel = createBoatDto.MakeModel,
-                DefaultRating = createBoatDto.DefaultRating
-            };
+            var boatDto = await _boatsService.CreateBoatAsync(createBoatDto, userId);
 
-            _context.Boats.Add(boat);
-            await _context.SaveChangesAsync();
-
-            var boatDto = new BoatDto
-            {
-                Id = boat.Id,
-                BoatName = boat.BoatName,
-                SailNumber = boat.SailNumber,
-                MakeModel = boat.MakeModel,
-                DefaultRating = boat.DefaultRating
-            };
-
-            return CreatedAtAction(nameof(GetBoat), new { id = boat.Id }, boatDto);
+            return CreatedAtAction(nameof(GetBoat), new { id = boatDto.Id }, boatDto);
         }
 
         // PUT: api/boats/5
@@ -116,32 +78,11 @@ namespace api.Controllers
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Id == id && b.OwnerId == userId);
+            var success = await _boatsService.UpdateBoatAsync(id, updateBoatDto, userId);
 
-            if (boat == null)
+            if (!success)
             {
                 return NotFound();
-            }
-
-            boat.BoatName = updateBoatDto.BoatName;
-            boat.SailNumber = updateBoatDto.SailNumber;
-            boat.MakeModel = updateBoatDto.MakeModel;
-            boat.DefaultRating = updateBoatDto.DefaultRating;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!BoatExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
             }
 
             return NoContent();
@@ -154,30 +95,18 @@ namespace api.Controllers
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Id == id && b.OwnerId == userId);
-            if (boat == null)
-            {
-                return NotFound();
-            }
+            var result = await _boatsService.DeleteBoatAsync(id, userId);
 
-            // Optional: Prevent deletion if there are active entries. 
-            // EF Core will likely block this due to Restrict cascade delete on Entry,
-            // but handling it gracefully here provides a better API response.
-            var hasEntries = await _context.Entries.AnyAsync(e => e.BoatId == id);
-            if (hasEntries)
+            if (!result.Success)
             {
-                return BadRequest("Cannot delete a boat that is currently entered in a regatta.");
+                if (result.ErrorMessage == "Boat not found.")
+                {
+                    return NotFound();
+                }
+                return BadRequest(result.ErrorMessage);
             }
-
-            _context.Boats.Remove(boat);
-            await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool BoatExists(int id)
-        {
-            return _context.Boats.Any(e => e.Id == id);
         }
     }
 }

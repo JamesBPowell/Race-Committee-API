@@ -1,92 +1,51 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import RegattaFormModal from '@/components/RegattaFormModal';
 import FindRegattaModal from '@/components/FindRegattaModal';
 import { PlusCircle, Search } from 'lucide-react';
-import RegattaCard, { RegattaCardProps } from '@/components/RegattaCard';
-import { API_BASE_URL } from '@/lib/constants';
+import RegattaListSection from '@/components/RegattaListSection';
+import Button from '@/components/ui/Button';
+import { RegattaCardProps } from '@/components/RegattaCard';
+import { useRegattas } from '@/hooks/useRegattas';
 
-interface RegattaResponse {
-    id: number;
-    name: string;
-    organization: string;
-    startDate: string;
-    endDate: string | null;
-    location: string;
-    status: string;
-}
 export default function DashboardPage() {
     const [isRegattaModalOpen, setIsRegattaModalOpen] = useState(false);
     const [isFindModalOpen, setIsFindModalOpen] = useState(false);
-    const [realRcRegattas, setRealRcRegattas] = useState<RegattaCardProps[]>([]);
-    const [realRacerRegattas, setRealRacerRegattas] = useState<RegattaCardProps[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
-    const fetchRcRegattas = async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/regattas/managing`, {
-                credentials: 'include'
-            });
-            if (response.ok) {
-                const data = await response.json();
+    const {
+        managingRegattas,
+        joinedRegattas,
+        isLoading,
+        refetchManaging,
+        refetchJoined
+    } = useRegattas();
 
-                // Map backend Regatta to RegattaCardProps
-                const mappedRegattas = data.map((r: RegattaResponse) => ({
-                    id: r.id.toString(),
-                    name: r.name,
-                    organization: r.organization,
-                    startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                    endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-                    location: r.location,
-                    status: r.status,
-                    role: 'RC', // Defaulting for now
-                    boatsEntered: 0 // Defaulting for now
-                }));
-                // Sort by ID descending so newest are first
-                setRealRcRegattas(mappedRegattas.sort((a: RegattaCardProps, b: RegattaCardProps) => parseInt(b.id) - parseInt(a.id)));
-            }
-        } catch (error) {
-            console.error("Failed to fetch RC regattas:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // Map backend models to RegattaCardProps
+    const realRcRegattas: RegattaCardProps[] = managingRegattas.map(r => ({
+        id: r.id.toString(),
+        name: r.name,
+        organization: r.organization,
+        startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+        location: r.location,
+        status: r.status as RegattaCardProps['status'],
+        role: 'RC' as RegattaCardProps['role'],
+        boatsEntered: 0
+    })).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
-    const fetchJoinedRegattas = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/regattas/joined`, {
-                credentials: 'include'
-            });
-            if (response.ok) {
-                const data = await response.json();
-
-                // Map backend Regatta to RegattaCardProps
-                const mappedRegattas = data.map((r: RegattaResponse) => ({
-                    id: r.id.toString(),
-                    name: r.name,
-                    organization: r.organization,
-                    startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                    endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-                    location: r.location,
-                    status: 'Entered',
-                    role: 'Racer',
-                    boatsEntered: 0 // Defaulting for now
-                }));
-                // Sort by ID descending so newest are first
-                setRealRacerRegattas(mappedRegattas.sort((a: RegattaCardProps, b: RegattaCardProps) => parseInt(b.id) - parseInt(a.id)));
-            }
-        } catch (error) {
-            console.error("Failed to fetch joined regattas:", error);
-        }
-    };
-
-    useEffect(() => {
-        fetchRcRegattas();
-        fetchJoinedRegattas();
-    }, []);
+    const realRacerRegattas: RegattaCardProps[] = joinedRegattas.map(r => ({
+        id: r.id.toString(),
+        name: r.name,
+        organization: r.organization,
+        startDate: new Date(r.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+        location: r.location,
+        status: r.status as RegattaCardProps['status'], // Use the actual server status, not hardcoded 'Entered'
+        role: 'Racer' as RegattaCardProps['role'],
+        boatsEntered: 0
+    })).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
     return (
         <div className="space-y-12">
@@ -100,82 +59,48 @@ export default function DashboardPage() {
 
                 {/* Global Actions */}
                 <div className="flex w-full md:w-auto items-center gap-3">
-                    <button
+                    <Button
                         onClick={() => setIsRegattaModalOpen(true)}
-                        className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                        className="flex-1 md:flex-none"
+                        rounded="full"
+                    >
                         <PlusCircle className="w-5 h-5" />
                         New Regatta
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => setIsFindModalOpen(true)}
-                        className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-full border border-white/20 transition-all duration-300 backdrop-blur-sm"
+                        variant="secondary"
+                        rounded="full"
+                        className="flex-1 md:flex-none"
                     >
                         <Search className="w-5 h-5" />
                         Find Race
-                    </button>
+                    </Button>
                 </div>
             </header>
 
             <div className="space-y-16">
-                {/* Race Committee Section */}
-                <section>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                            <span className="w-2 h-8 rounded-full bg-cyan-500 block"></span>
-                            Managing as RC
-                        </h2>
-                        <span className="text-sm font-medium text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-                            {isLoading ? '...' : realRcRegattas.length} Active Events
-                        </span>
-                    </div>
+                <RegattaListSection
+                    title="Managing as RC"
+                    countLabel="Active Events"
+                    themeColor="cyan"
+                    isLoading={isLoading}
+                    regattas={realRcRegattas}
+                    emptyMessage="You aren't organizing any regattas yet."
+                    emptyActionText="Create your first event"
+                    onEmptyAction={() => setIsRegattaModalOpen(true)}
+                />
 
-                    {isLoading ? (
-                        <div className="w-full h-48 border-2 border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="animate-pulse">Loading regattas...</p>
-                        </div>
-                    ) : realRcRegattas.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {realRcRegattas.map(regatta => (
-                                <RegattaCard key={regatta.id} {...regatta} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="mb-2">You aren&apos;t organizing any regattas yet.</p>
-                            <button onClick={() => setIsRegattaModalOpen(true)} className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">Create your first event &rarr;</button>
-                        </div>
-                    )}
-                </section>
-
-                {/* Racer Section */}
-                <section>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-                            <span className="w-2 h-8 rounded-full bg-indigo-500 block"></span>
-                            Racing
-                        </h2>
-                        <span className="text-sm font-medium text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                            {isLoading ? '...' : realRacerRegattas.length} Entered Events
-                        </span>
-                    </div>
-
-                    {isLoading ? (
-                        <div className="w-full h-48 border-2 border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="animate-pulse">Loading regattas...</p>
-                        </div>
-                    ) : realRacerRegattas.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {realRacerRegattas.map(regatta => (
-                                <RegattaCard key={regatta.id} {...regatta} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="w-full h-48 border-2 border-dashed border-slate-700/50 rounded-2xl flex flex-col items-center justify-center text-slate-400">
-                            <p className="mb-2">You aren&apos;t entered in any upcoming races.</p>
-                            <button onClick={() => setIsFindModalOpen(true)} className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Find a regatta to join &rarr;</button>
-                        </div>
-                    )}
-                </section>
+                <RegattaListSection
+                    title="Racing"
+                    countLabel="Entered Events"
+                    themeColor="indigo"
+                    isLoading={isLoading}
+                    regattas={realRacerRegattas}
+                    emptyMessage="You aren't entered in any upcoming races."
+                    emptyActionText="Find a regatta to join"
+                    onEmptyAction={() => setIsFindModalOpen(true)}
+                />
             </div>
 
             <RegattaFormModal
@@ -183,7 +108,7 @@ export default function DashboardPage() {
                 onClose={() => {
                     setIsRegattaModalOpen(false);
                     // Refresh the list after the modal closes
-                    fetchRcRegattas();
+                    refetchManaging();
                 }}
             />
 
@@ -192,7 +117,7 @@ export default function DashboardPage() {
                 onClose={() => setIsFindModalOpen(false)}
                 onSuccess={() => {
                     // Refresh regattas (specifically entered ones)
-                    fetchJoinedRegattas();
+                    refetchJoined();
                 }}
             />
         </div>
