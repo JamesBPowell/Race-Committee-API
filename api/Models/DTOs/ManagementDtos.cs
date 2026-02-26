@@ -8,6 +8,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public int Id { get; set; }
         public string Name { get; set; }
         public int SequenceOrder { get; set; }
+        public ScoringMethod ScoringMethod { get; set; }
     }
 
     public class CreateFleetDto
@@ -15,6 +16,7 @@ namespace RaceCommittee.Api.Models.DTOs
         [Required]
         public string Name { get; set; }
         public int SequenceOrder { get; set; }
+        public ScoringMethod ScoringMethod { get; set; }
     }
 
     public class UpdateFleetDto
@@ -22,6 +24,7 @@ namespace RaceCommittee.Api.Models.DTOs
         [Required]
         public string Name { get; set; }
         public int SequenceOrder { get; set; }
+        public ScoringMethod ScoringMethod { get; set; }
     }
 
     public class UpdateRegattaDto

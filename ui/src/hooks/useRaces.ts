@@ -1,12 +1,29 @@
 import { useState } from 'react';
 import { apiClient } from '../lib/api';
-import { RaceResponse } from './useRegattas';
+import { RaceResponse, StartType, CourseType } from './useRegattas';
 
 export function useRaces() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const createRace = async (regattaId: number | string, data: { raceNumber: number; scheduledStartTime?: string | null; status?: string }) => {
+    const createRace = async (regattaId: number | string, data: {
+        raceNumber: number;
+        scheduledStartTime?: string | null;
+        status?: string;
+        startType?: StartType;
+        courseType?: CourseType;
+        windSpeed?: number | null;
+        windDirection?: number | null;
+        courseDistance?: number | null;
+        raceFleets?: {
+            fleetId: number;
+            startTimeOffset?: string | null;
+            courseType?: CourseType | null;
+            windSpeed?: number | null;
+            windDirection?: number | null;
+            courseDistance?: number | null;
+        }[];
+    }) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -21,7 +38,26 @@ export function useRaces() {
         }
     };
 
-    const updateRace = async (id: number, data: { raceNumber?: number; scheduledStartTime?: string | null; actualStartTime?: string | null; status?: string }) => {
+    const updateRace = async (id: number, data: {
+        raceNumber?: number;
+        scheduledStartTime?: string | null;
+        actualStartTime?: string | null;
+        status?: string;
+        startType?: StartType;
+        courseType?: CourseType;
+        windSpeed?: number | null;
+        windDirection?: number | null;
+        courseDistance?: number | null;
+        raceFleets?: {
+            id?: number;
+            fleetId: number;
+            startTimeOffset?: string | null;
+            courseType?: CourseType | null;
+            windSpeed?: number | null;
+            windDirection?: number | null;
+            courseDistance?: number | null;
+        }[];
+    }) => {
         setIsLoading(true);
         setError(null);
         try {

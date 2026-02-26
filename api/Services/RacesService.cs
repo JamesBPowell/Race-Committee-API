@@ -39,8 +39,29 @@ namespace RaceCommittee.Api.Services
                 RegattaId = regattaId,
                 RaceNumber = dto.RaceNumber,
                 ScheduledStartTime = dto.ScheduledStartTime,
-                Status = dto.Status ?? "Scheduled"
+                Status = dto.Status ?? "Scheduled",
+                StartType = dto.StartType,
+                CourseType = dto.CourseType,
+                WindSpeed = dto.WindSpeed,
+                WindDirection = dto.WindDirection,
+                CourseDistance = dto.CourseDistance,
+                ScoringParameters = "{}" // Default empty parameters
             };
+
+            var fleets = await _context.Fleets.Where(f => f.RegattaId == regattaId).ToListAsync();
+            race.ParticipatingFleets = fleets.Select(f => {
+                var rfDto = dto.RaceFleets?.FirstOrDefault(rf => rf.FleetId == f.Id);
+                return new RaceFleet
+                {
+                    FleetId = f.Id,
+                    StartTimeOffset = rfDto?.StartTimeOffset,
+                    CourseType = rfDto?.CourseType ?? dto.CourseType,
+                    WindSpeed = rfDto?.WindSpeed ?? dto.WindSpeed,
+                    WindDirection = rfDto?.WindDirection ?? dto.WindDirection,
+                    CourseDistance = rfDto?.CourseDistance ?? dto.CourseDistance,
+                    ScoringParameters = "{}"
+                };
+            }).ToList();
 
             _context.Races.Add(race);
             await _context.SaveChangesAsync();
@@ -53,6 +74,7 @@ namespace RaceCommittee.Api.Services
             var race = await _context.Races
                 .Include(r => r.Regatta)
                 .ThenInclude(reg => reg.CommitteeMembers)
+                .Include(r => r.ParticipatingFleets)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (race == null)
@@ -70,6 +92,41 @@ namespace RaceCommittee.Api.Services
             if (dto.ScheduledStartTime.HasValue) race.ScheduledStartTime = dto.ScheduledStartTime;
             if (dto.ActualStartTime.HasValue) race.ActualStartTime = dto.ActualStartTime;
             if (!string.IsNullOrEmpty(dto.Status)) race.Status = dto.Status;
+            if (dto.StartType.HasValue) race.StartType = dto.StartType.Value;
+            if (dto.CourseType.HasValue) race.CourseType = dto.CourseType.Value;
+            if (dto.WindSpeed.HasValue) race.WindSpeed = dto.WindSpeed.Value;
+            if (dto.WindDirection.HasValue) race.WindDirection = dto.WindDirection.Value;
+            if (dto.CourseDistance.HasValue) race.CourseDistance = dto.CourseDistance.Value;
+
+            if (dto.RaceFleets != null)
+            {
+                foreach (var rfUpdate in dto.RaceFleets)
+                {
+                    var existingRf = race.ParticipatingFleets.FirstOrDefault(rf => rf.Id == rfUpdate.Id && rfUpdate.Id != 0);
+                    if (existingRf != null)
+                    {
+                        if (rfUpdate.StartTimeOffset.HasValue) existingRf.StartTimeOffset = rfUpdate.StartTimeOffset;
+                        if (rfUpdate.CourseType.HasValue) existingRf.CourseType = rfUpdate.CourseType.Value;
+                        if (rfUpdate.WindSpeed.HasValue) existingRf.WindSpeed = rfUpdate.WindSpeed.Value;
+                        if (rfUpdate.WindDirection.HasValue) existingRf.WindDirection = rfUpdate.WindDirection.Value;
+                        if (rfUpdate.CourseDistance.HasValue) existingRf.CourseDistance = rfUpdate.CourseDistance.Value;
+                    }
+                    else if (rfUpdate.FleetId != 0)
+                    {
+                        // Add new RaceFleet override for fleets added after race creation
+                        race.ParticipatingFleets.Add(new RaceFleet
+                        {
+                            FleetId = rfUpdate.FleetId,
+                            StartTimeOffset = rfUpdate.StartTimeOffset,
+                            CourseType = rfUpdate.CourseType ?? race.CourseType,
+                            WindSpeed = rfUpdate.WindSpeed ?? race.WindSpeed,
+                            WindDirection = rfUpdate.WindDirection ?? race.WindDirection,
+                            CourseDistance = rfUpdate.CourseDistance ?? race.CourseDistance,
+                            ScoringParameters = "{}"
+                        });
+                    }
+                }
+            }
 
             _context.Races.Update(race);
             await _context.SaveChangesAsync();

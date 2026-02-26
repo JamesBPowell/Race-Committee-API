@@ -13,6 +13,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Boat> Boats { get; set; }
     public DbSet<Certificate> Certificates { get; set; }
     public DbSet<Entry> Entries { get; set; }
+    public DbSet<RaceFleet> RaceFleets { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -22,6 +23,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Configure RaceFleet relationship
+        builder.Entity<RaceFleet>()
+            .HasOne(rf => rf.Race)
+            .WithMany(r => r.ParticipatingFleets)
+            .HasForeignKey(rf => rf.RaceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<RaceFleet>()
+            .HasOne(rf => rf.Fleet)
+            .WithMany(f => f.ParticipatingInRaces)
+            .HasForeignKey(rf => rf.FleetId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Configure Entry to Boat relationship
         builder.Entity<Entry>()

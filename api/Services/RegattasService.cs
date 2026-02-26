@@ -73,6 +73,8 @@ namespace RaceCommittee.Api.Services
         {
             var regatta = await _context.Regattas
                 .Include(r => r.Races)
+                    .ThenInclude(r => r.ParticipatingFleets)
+                        .ThenInclude(rf => rf.Fleet)
                 .Include(r => r.Entries)
                     .ThenInclude(e => e.Boat)
                 .Include(r => r.Fleets)
@@ -100,7 +102,23 @@ namespace RaceCommittee.Api.Services
                         RaceNumber = r.RaceNumber,
                         ScheduledStartTime = r.ScheduledStartTime,
                         ActualStartTime = r.ActualStartTime,
-                        Status = r.Status
+                        Status = r.Status,
+                        StartType = r.StartType,
+                        CourseType = r.CourseType,
+                        WindSpeed = r.WindSpeed,
+                        WindDirection = r.WindDirection,
+                        CourseDistance = r.CourseDistance,
+                        RaceFleets = r.ParticipatingFleets?.Select(rf => new RaceFleetDto
+                        {
+                            Id = rf.Id,
+                            FleetId = rf.FleetId,
+                            FleetName = rf.Fleet?.Name,
+                            StartTimeOffset = rf.StartTimeOffset,
+                            CourseType = rf.CourseType,
+                            WindSpeed = rf.WindSpeed,
+                            WindDirection = rf.WindDirection,
+                            CourseDistance = rf.CourseDistance
+                        })
                     }),
                 Entries = regatta.Entries?
                     .Select(e => new EntryDto
@@ -117,7 +135,8 @@ namespace RaceCommittee.Api.Services
                     {
                         Id = f.Id,
                         Name = f.Name,
-                        SequenceOrder = f.SequenceOrder
+                        SequenceOrder = f.SequenceOrder,
+                        ScoringMethod = f.ScoringMethod
                     })
             };
         }

@@ -1,6 +1,40 @@
 import { useState, useCallback, useEffect } from 'react';
 import { apiClient } from '../lib/api';
 
+export enum ScoringMethod {
+    OneDesign = 0,
+    PHRF_TOT = 1,
+    PHRF_TOD = 2,
+    ORR_EZ_GPH = 3,
+    ORR_EZ_PC = 4,
+    ORR_Full_PC = 5,
+    Portsmouth = 6
+}
+
+export enum StartType {
+    Single_Gun = 0,
+    Staggered = 1,
+    Pursuit = 2
+}
+
+export enum CourseType {
+    WindwardLeeward = 0,
+    RandomLeg = 1,
+    Triangle = 2,
+    Olympic = 3
+}
+
+export interface RaceFleetResponse {
+    id: number;
+    fleetId: number;
+    fleetName: string;
+    startTimeOffset?: string | null;
+    courseType?: CourseType | null;
+    windSpeed?: number | null;
+    windDirection?: number | null;
+    courseDistance?: number | null;
+}
+
 export interface RaceResponse {
     id: number;
     regattaId: number;
@@ -9,6 +43,12 @@ export interface RaceResponse {
     scheduledStartTime: string | null;
     actualStartTime: string | null;
     status: string;
+    startType: StartType;
+    courseType: CourseType;
+    windSpeed: number | null;
+    windDirection: number | null;
+    courseDistance: number | null;
+    raceFleets?: RaceFleetResponse[];
 }
 
 export interface EntryResponse {
@@ -23,6 +63,7 @@ export interface FleetResponse {
     id: number;
     name: string;
     sequenceOrder: number;
+    scoringMethod: ScoringMethod;
 }
 
 export interface RegattaResponse {
@@ -140,7 +181,7 @@ export function useFleets() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const createFleet = async (regattaId: number, data: { name: string, sequenceOrder: number }) => {
+    const createFleet = async (regattaId: number, data: { name: string, sequenceOrder: number, scoringMethod: ScoringMethod }) => {
         setIsLoading(true);
         try {
             await apiClient.post(`/api/fleets/regatta/${regattaId}`, data);
@@ -152,7 +193,7 @@ export function useFleets() {
         }
     };
 
-    const updateFleet = async (id: number, data: { name: string, sequenceOrder: number }) => {
+    const updateFleet = async (id: number, data: { name: string, sequenceOrder: number, scoringMethod: ScoringMethod }) => {
         setIsLoading(true);
         try {
             await apiClient.put(`/api/fleets/${id}`, data);

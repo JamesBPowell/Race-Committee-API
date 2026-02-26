@@ -13,7 +13,11 @@ namespace RaceCommittee.Api.Models
         public string Name { get; set; }
         public int SequenceOrder { get; set; }
 
+        public ScoringMethod ScoringMethod { get; set; }
+        public string ScoringConfiguration { get; set; } // JSON for method-specific settings (e.g. TOT coefficients)
+
         public ICollection<Entry> Entries { get; set; }
         public ICollection<Race> Races { get; set; }
+        public ICollection<RaceFleet> ParticipatingInRaces { get; set; }
     }
 }

@@ -37,5 +37,23 @@ namespace RaceCommittee.Api.Models.DTOs
         public DateTime? ScheduledStartTime { get; set; }
         public DateTime? ActualStartTime { get; set; }
         public string Status { get; set; }
+        public StartType StartType { get; set; }
+        public CourseType CourseType { get; set; }
+        public float? WindSpeed { get; set; }
+        public float? WindDirection { get; set; }
+        public float? CourseDistance { get; set; }
+        public IEnumerable<RaceFleetDto> RaceFleets { get; set; }
+    }
+
+    public class RaceFleetDto
+    {
+        public int Id { get; set; }
+        public int FleetId { get; set; }
+        public string FleetName { get; set; }
+        public TimeSpan? StartTimeOffset { get; set; }
+        public CourseType? CourseType { get; set; }
+        public float? WindSpeed { get; set; }
+        public float? WindDirection { get; set; }
+        public float? CourseDistance { get; set; }
     }
 }

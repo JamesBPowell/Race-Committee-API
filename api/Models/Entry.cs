@@ -23,6 +23,10 @@ namespace RaceCommittee.Api.Models
         [JsonIgnore]
         public Certificate ActiveCertificate { get; set; }
 
+        public string Configuration { get; set; } // "Spinnaker", "Non-Spinnaker"
+        public float? Rating { get; set; } // Current fixed rating (snapshot)
+        public string RatingSnapshot { get; set; } // JSON of full polar data for ORR (snapshot at regatta start)
+
         public string RegistrationStatus { get; set; } // Pending, Paid, CheckedIn
     }
 }

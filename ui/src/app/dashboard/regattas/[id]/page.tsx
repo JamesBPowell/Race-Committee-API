@@ -7,7 +7,7 @@ import {
     Target, Anchor, Shield, TrendingUp, Loader2,
     Plus, Trash2, Edit, Save, Settings as SettingsIcon
 } from 'lucide-react';
-import { useRegatta, RaceResponse, useFleets, FleetResponse } from '@/hooks/useRegattas';
+import { useRegatta, RaceResponse, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
@@ -26,6 +26,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [isAddFleetOpen, setIsAddFleetOpen] = useState(false);
     const [editingFleet, setEditingFleet] = useState<FleetResponse | null>(null);
     const [fleetName, setFleetName] = useState('');
+    const [scoringMethod, setScoringMethod] = useState<ScoringMethod>(ScoringMethod.PHRF_TOT);
 
     const [regattaSettings, setRegattaSettings] = useState({
         name: '',
@@ -91,8 +92,13 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const handleAddFleet = async () => {
         if (!fleetName.trim()) return;
         try {
-            await createFleet(regatta.id, { name: fleetName, sequenceOrder: (regatta.fleets?.length || 0) + 1 });
+            await createFleet(regatta.id, {
+                name: fleetName,
+                sequenceOrder: (regatta.fleets?.length || 0) + 1,
+                scoringMethod: scoringMethod
+            });
             setFleetName('');
+            setScoringMethod(ScoringMethod.PHRF_TOT);
             setIsAddFleetOpen(false);
             refetch();
         } catch (err) {
@@ -103,7 +109,11 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const handleUpdateFleet = async () => {
         if (!editingFleet || !fleetName.trim()) return;
         try {
-            await updateFleet(editingFleet.id, { name: fleetName, sequenceOrder: editingFleet.sequenceOrder });
+            await updateFleet(editingFleet.id, {
+                name: fleetName,
+                sequenceOrder: editingFleet.sequenceOrder,
+                scoringMethod: scoringMethod
+            });
             setFleetName('');
             setEditingFleet(null);
             refetch();
@@ -287,10 +297,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 <div className="space-y-6">
                     <div className="glass-container">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white">Racing Classes</h2>
+                            <h2 className="text-xl font-bold text-white uppercase tracking-tight">Racing Classes</h2>
                             <button
-                                onClick={() => { setFleetName(''); setIsAddFleetOpen(true); }}
-                                className="action-button-sm py-2 px-4"
+                                onClick={() => {
+                                    setFleetName('');
+                                    setScoringMethod(ScoringMethod.PHRF_TOT);
+                                    setIsAddFleetOpen(true);
+                                }}
+                                className="action-button-sm py-2.5 px-6 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 shadow-lg shadow-cyan-900/20 border-none inline-flex items-center"
                             >
                                 <Plus className="w-4 h-4 mr-2" /> Add Class
                             </button>
@@ -298,57 +312,107 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
                         {/* Inline Add/Edit Class Form */}
                         {(isAddFleetOpen || editingFleet) && (
-                            <div className="mb-8 p-4 bg-slate-800/40 border border-slate-700/50 rounded-xl flex items-center gap-4">
-                                <input
-                                    type="text"
-                                    value={fleetName}
-                                    onChange={(e) => setFleetName(e.target.value)}
-                                    placeholder="Class Name (e.g. J/70, PHRF A)"
-                                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                                    autoFocus
-                                />
-                                <button
-                                    onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
-                                    disabled={isManagingFleets}
-                                    className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center"
-                                >
-                                    {isManagingFleets ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                    {editingFleet ? 'Update' : 'Save'}
-                                </button>
-                                <button
-                                    onClick={() => { setIsAddFleetOpen(false); setEditingFleet(null); setFleetName(''); }}
-                                    className="text-slate-400 hover:text-white px-2"
-                                >
-                                    Cancel
-                                </button>
+                            <div className="mb-8 p-6 bg-slate-800/50 border border-white/10 rounded-2xl flex flex-col md:flex-row items-end gap-4 shadow-xl">
+                                <div className="flex-1 space-y-1.5 w-full">
+                                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest ml-1">Class Name</label>
+                                    <input
+                                        type="text"
+                                        value={fleetName}
+                                        onChange={(e) => setFleetName(e.target.value)}
+                                        placeholder="e.g. J/70, PHRF A, ILCA 7"
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all font-medium"
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="w-full md:w-64 space-y-1.5 ">
+                                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest ml-1">Scoring Method</label>
+                                    <select
+                                        value={scoringMethod}
+                                        onChange={(e) => setScoringMethod(parseInt(e.target.value))}
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all font-medium"
+                                    >
+                                        <option value={ScoringMethod.OneDesign}>One Design (No Handicap)</option>
+                                        <option value={ScoringMethod.PHRF_TOT}>PHRF Time-on-Time</option>
+                                        <option value={ScoringMethod.PHRF_TOD}>PHRF Time-on-Distance</option>
+                                        <option value={ScoringMethod.ORR_EZ_GPH}>ORR-EZ General (GPH)</option>
+                                        <option value={ScoringMethod.ORR_EZ_PC}>ORR-EZ Performance Curve</option>
+                                        <option value={ScoringMethod.ORR_Full_PC}>ORR Full Performance Curve</option>
+                                        <option value={ScoringMethod.Portsmouth}>Portsmouth Yardstick</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+                                    <button
+                                        onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
+                                        disabled={isManagingFleets}
+                                        className="flex-1 md:flex-none bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold py-2.5 px-8 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-emerald-900/20"
+                                    >
+                                        {isManagingFleets ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                        {editingFleet ? 'Update Class' : 'Create Class'}
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsAddFleetOpen(false); setEditingFleet(null); setFleetName(''); }}
+                                        className="text-slate-400 hover:text-white px-4 py-2.5 font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
                             </div>
                         )}
 
                         {!regatta.fleets || regatta.fleets.length === 0 ? (
-                            <div className="text-center py-12 text-slate-400 border border-dashed border-slate-700 rounded-2xl">
-                                No racing classes configured yet.
+                            <div className="text-center py-20 text-slate-500 border border-dashed border-slate-800 rounded-3xl bg-slate-900/20">
+                                <Anchor className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                <p className="text-lg font-medium">No racing classes configured yet.</p>
+                                <p className="text-sm opacity-60">Add a class to start registering boats and scheduling races.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {regatta.fleets.map((fleet) => (
-                                    <div key={fleet.id} className="p-5 bg-slate-800/30 border border-slate-700/50 rounded-2xl flex items-center justify-between group hover:border-cyan-500/30 transition-all">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-white">{fleet.name}</h3>
-                                            <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">Sequence: {fleet.sequenceOrder}</p>
+                                    <div key={fleet.id} className="group relative p-6 bg-slate-800/30 border border-white/5 rounded-2xl flex flex-col hover:bg-slate-800/50 hover:border-cyan-500/30 transition-all duration-300 shadow-lg">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-white tracking-tight">{fleet.name}</h3>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded uppercase tracking-wider border border-cyan-500/20">
+                                                        {ScoringMethod[fleet.scoringMethod]?.replace(/_/g, ' ')}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                                        Order: {fleet.sequenceOrder}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingFleet(fleet);
+                                                        setFleetName(fleet.name);
+                                                        setScoringMethod(fleet.scoringMethod);
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteFleet(fleet.id)}
+                                                    className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => { setEditingFleet(fleet); setFleetName(fleet.name); }}
-                                                className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteFleet(fleet.id)}
-                                                className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+
+                                        <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                                            <div className="flex -space-x-2">
+                                                {/* Placeholder for boat counts/icons */}
+                                                {[1, 2, 3].map(i => (
+                                                    <div key={i} className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center">
+                                                        <Anchor className="w-3 h-3 text-slate-400" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <span className="text-xs font-medium text-slate-400">
+                                                {regatta.entries?.filter(e => e.boatType === fleet.name).length || 0} Boats
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
@@ -469,6 +533,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                     <thead>
                                         <tr className="border-b border-white/10 text-slate-400 text-sm">
                                             <th className="pb-3 font-medium">Race</th>
+                                            <th className="pb-3 font-medium">Type</th>
+                                            <th className="pb-3 font-medium">Course</th>
                                             <th className="pb-3 font-medium">Status</th>
                                             <th className="pb-3 font-medium">Start Time</th>
                                             <th className="pb-3 text-right font-medium">Actions</th>
@@ -476,37 +542,70 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                     </thead>
                                     <tbody className="text-sm">
                                         {regatta.races.map((race) => (
-                                            <tr key={race.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                                                <td className="py-4 text-white font-medium">
-                                                    Race {race.raceNumber}
-                                                </td>
-                                                <td className="py-4">
-                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${race.status === 'Completed' ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' :
-                                                        race.status === 'Racing' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                                            'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
-                                                        }`}>
-                                                        {race.status || 'Scheduled'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 text-slate-300">
-                                                    {race.scheduledStartTime ? new Date(race.scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}
-                                                </td>
-                                                <td className="py-4 text-right">
-                                                    <button
-                                                        onClick={() => setEditingRace(race)}
-                                                        className="mr-3 text-cyan-400 hover:text-cyan-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteRace(race.id)}
-                                                        disabled={isDeleting}
-                                                        className="text-rose-400 hover:text-rose-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
+                                            <React.Fragment key={race.id}>
+                                                <tr className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                                    <td className="py-4 text-white font-bold">
+                                                        Race {race.raceNumber}
+                                                    </td>
+                                                    <td className="py-4 text-slate-300 font-medium">
+                                                        {StartType[race.startType]?.replace(/_/g, ' ')}
+                                                    </td>
+                                                    <td className="py-4 text-slate-300 font-medium">
+                                                        {CourseType[race.courseType]?.replace(/([A-Z])/g, ' $1').trim()}
+                                                    </td>
+                                                    <td className="py-4">
+                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${race.status === 'Completed' ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' :
+                                                            race.status === 'Racing' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                                                'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                                                            }`}>
+                                                            {race.status || 'Scheduled'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4 text-slate-300 font-medium">
+                                                        {race.scheduledStartTime ? new Date(race.scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}
+                                                    </td>
+                                                    <td className="py-4 text-right">
+                                                        <button
+                                                            onClick={() => setEditingRace(race)}
+                                                            className="mr-3 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            Details
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteRace(race.id)}
+                                                            disabled={isDeleting}
+                                                            className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {race.raceFleets && race.raceFleets.length > 0 && (
+                                                    <tr className="border-b border-white/5 bg-slate-900/30">
+                                                        <td colSpan={6} className="py-2 px-2">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {race.raceFleets.map(rf => {
+                                                                    const parts = [];
+                                                                    if (rf.startTimeOffset) parts.push(`+${rf.startTimeOffset}`);
+                                                                    if (rf.courseType != null && rf.courseType !== race.courseType) parts.push(CourseType[rf.courseType]?.replace(/([A-Z])/g, ' $1').trim());
+                                                                    if (rf.windSpeed != null && rf.windSpeed !== race.windSpeed) parts.push(`${rf.windSpeed}kts`);
+                                                                    if (rf.windDirection != null && rf.windDirection !== race.windDirection) parts.push(`${rf.windDirection}°`);
+                                                                    if (rf.courseDistance != null && rf.courseDistance !== race.courseDistance) parts.push(`${rf.courseDistance}nm`);
+
+                                                                    if (parts.length === 0) return null;
+
+                                                                    return (
+                                                                        <div key={rf.id} className="text-[10px] bg-slate-800/80 border border-slate-700 rounded px-2 py-1 text-slate-400 inline-flex items-center gap-1.5">
+                                                                            <span className="font-bold text-slate-300">{rf.fleetName}:</span>
+                                                                            <span>{parts.join(' | ')}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         ))}
                                     </tbody>
                                 </table>
@@ -520,6 +619,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 isOpen={isAddRaceOpen}
                 onClose={() => setIsAddRaceOpen(false)}
                 regattaId={regatta.id}
+                fleets={regatta.fleets || []}
                 onSuccess={refetch}
             />
 
@@ -527,6 +627,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 isOpen={!!editingRace}
                 onClose={() => setEditingRace(null)}
                 race={editingRace}
+                fleets={regatta.fleets || []}
                 onSuccess={refetch}
             />
         </div>

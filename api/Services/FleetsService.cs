@@ -33,7 +33,9 @@ namespace RaceCommittee.Api.Services
             {
                 RegattaId = regattaId,
                 Name = dto.Name,
-                SequenceOrder = dto.SequenceOrder
+                SequenceOrder = dto.SequenceOrder,
+                ScoringMethod = dto.ScoringMethod,
+                ScoringConfiguration = "{}" // Default empty config
             };
 
             _context.Fleets.Add(fleet);
@@ -54,6 +56,7 @@ namespace RaceCommittee.Api.Services
 
             fleet.Name = dto.Name;
             fleet.SequenceOrder = dto.SequenceOrder;
+            fleet.ScoringMethod = dto.ScoringMethod;
 
             await _context.SaveChangesAsync();
             return fleet;
