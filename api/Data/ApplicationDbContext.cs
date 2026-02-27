@@ -30,7 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(rf => rf.Race)
             .WithMany(r => r.ParticipatingFleets)
             .HasForeignKey(rf => rf.RaceId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<RaceFleet>()
             .HasOne(rf => rf.Fleet)
@@ -57,7 +57,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(f => f.Race)
             .WithMany(r => r.Finishes)
             .HasForeignKey(f => f.RaceId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<Finish>()
             .HasOne(f => f.Entry)

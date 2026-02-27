@@ -1,0 +1,23 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:auth": "npx playwright test tests/01-auth.spec.ts",
+    "test:boats": "npx playwright test tests/02-boats.spec.ts",
+    "test:regattas": "npx playwright test tests/03-regattas.spec.ts",
+    "test:ui": "npx playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.3.2",
+    "typescript": "^5.9.3"
+  }
+}

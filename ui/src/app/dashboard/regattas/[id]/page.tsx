@@ -494,12 +494,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         setFleetName(fleet.name);
                                                         setScoringMethod(fleet.scoringMethod);
                                                     }}
+                                                    title="Edit Class"
                                                     className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteFleet(fleet.id)}
+                                                    title="Delete Class"
                                                     className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -681,12 +683,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         )}
                                                         <button
                                                             onClick={() => { setScoringTab('record'); setScoringRace(race); }}
+                                                            title="Score Race"
                                                             className="mr-3 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             Score
                                                         </button>
                                                         <button
                                                             onClick={() => setEditingRace(race)}
+                                                            title="Race Details"
                                                             className="mr-3 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             Details
@@ -694,6 +698,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         <button
                                                             onClick={() => handleDeleteRace(race.id)}
                                                             disabled={isDeleting}
+                                                            title="Delete Race"
                                                             className="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             Delete

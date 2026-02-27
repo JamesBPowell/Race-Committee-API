@@ -191,10 +191,15 @@ namespace RaceCommittee.Api.Services
                 return (false, "This boat is already entered in this regatta.", null);
             }
 
+            // Get available fleets for this regatta and default to the first one
+            var fleets = await _context.Fleets.Where(f => f.RegattaId == id).ToListAsync();
+            int? defaultFleetId = fleets.OrderBy(f => f.Id).FirstOrDefault()?.Id;
+
             var entry = new Entry
             {
                 RegattaId = id,
                 BoatId = dto.BoatId,
+                FleetId = defaultFleetId,
                 Rating = boat.DefaultRating,
                 RatingSnapshot = "{}",
                 Configuration = "Spinnaker",
