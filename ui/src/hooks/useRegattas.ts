@@ -28,6 +28,7 @@ export interface RaceFleetResponse {
     id: number;
     fleetId: number;
     fleetName: string;
+    raceNumber?: number | null;
     startTimeOffset?: string | null;
     courseType?: CourseType | null;
     windSpeed?: number | null;
@@ -39,7 +40,7 @@ export interface RaceResponse {
     id: number;
     regattaId: number;
     fleetId: number | null;
-    raceNumber: number;
+    name: string;
     scheduledStartTime: string | null;
     actualStartTime: string | null;
     status: string;
@@ -57,6 +58,8 @@ export interface EntryResponse {
     boatName: string;
     boatType: string;
     sailNumber: string;
+    ownerName: string;
+    rating?: number | null;
     registrationStatus: string;
 }
 

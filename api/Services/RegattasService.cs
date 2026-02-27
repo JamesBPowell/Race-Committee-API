@@ -77,6 +77,7 @@ namespace RaceCommittee.Api.Services
                         .ThenInclude(rf => rf.Fleet)
                 .Include(r => r.Entries)
                     .ThenInclude(e => e.Boat)
+                        .ThenInclude(b => b.Owner)
                 .Include(r => r.Fleets)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -95,11 +96,11 @@ namespace RaceCommittee.Api.Services
                 ClassesCount = regatta.Fleets?.Count ?? 0,
                 ScheduledRacesCount = regatta.Races?.Count ?? 0,
                 Races = regatta.Races?
-                    .OrderBy(r => r.RaceNumber)
+                    .OrderBy(r => r.Name)
                     .Select(r => new RaceDto
                     {
                         Id = r.Id,
-                        RaceNumber = r.RaceNumber,
+                        Name = r.Name,
                         ScheduledStartTime = r.ScheduledStartTime,
                         ActualStartTime = r.ActualStartTime,
                         Status = r.Status,
@@ -113,6 +114,7 @@ namespace RaceCommittee.Api.Services
                             Id = rf.Id,
                             FleetId = rf.FleetId,
                             FleetName = rf.Fleet?.Name,
+                            RaceNumber = rf.RaceNumber,
                             StartTimeOffset = rf.StartTimeOffset,
                             CourseType = rf.CourseType,
                             WindSpeed = rf.WindSpeed,
@@ -128,8 +130,11 @@ namespace RaceCommittee.Api.Services
                         BoatName = e.Boat?.BoatName ?? "Unknown Boat",
                         BoatType = e.Boat?.MakeModel ?? "Unknown Type",
                         SailNumber = e.Boat?.SailNumber ?? "None",
+                        OwnerName = e.Boat?.Owner?.FirstName != null ? $"{e.Boat.Owner.FirstName} {e.Boat.Owner.LastName}" : "Unknown Owner",
+                        Rating = e.Rating,
                         RegistrationStatus = e.RegistrationStatus
-                    }),
+                    })
+                    .ToList(), // Materialize to list
                 Fleets = regatta.Fleets?
                     .OrderBy(f => f.SequenceOrder)
                     .Select(f => new FleetDto
@@ -190,6 +195,9 @@ namespace RaceCommittee.Api.Services
             {
                 RegattaId = id,
                 BoatId = dto.BoatId,
+                Rating = boat.DefaultRating,
+                RatingSnapshot = "{}",
+                Configuration = "Spinnaker",
                 RegistrationStatus = "Pending"
             };
 
@@ -213,6 +221,10 @@ namespace RaceCommittee.Api.Services
             if (entry == null) return null;
 
             entry.FleetId = dto.FleetId;
+            if (dto.Rating.HasValue)
+            {
+                entry.Rating = dto.Rating;
+            }
             if (!string.IsNullOrEmpty(dto.RegistrationStatus))
             {
                 entry.RegistrationStatus = dto.RegistrationStatus;

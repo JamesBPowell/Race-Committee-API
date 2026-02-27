@@ -18,7 +18,7 @@ namespace RaceCommittee.Api.Models
         public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
 
-        public int RaceNumber { get; set; }
+        public string Name { get; set; } // e.g. "Saturday Race 1", "Pursuit"
         
         public DateTime? ScheduledStartTime { get; set; }
         public DateTime? ActualStartTime { get; set; }

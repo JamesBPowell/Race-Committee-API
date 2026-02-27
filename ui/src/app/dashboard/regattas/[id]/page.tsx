@@ -21,7 +21,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
     // Entry Edit State
     const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
-    const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; registrationStatus: string }>({ fleetId: null, registrationStatus: 'Pending' });
+    const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; rating: number | null; registrationStatus: string }>({ fleetId: null, rating: null, registrationStatus: 'Pending' });
     const { deleteRace, isLoading: isDeleting } = useRaces();
     const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
 
@@ -284,9 +284,11 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                     <thead>
                                         <tr className="border-b border-white/10 text-slate-400 text-sm">
                                             <th className="pb-3 font-medium">Boat Name</th>
+                                            <th className="pb-3 font-medium">Owner</th>
                                             <th className="pb-3 font-medium">Design / Model</th>
                                             <th className="pb-3 font-medium">Class / Fleet</th>
-                                            <th className="pb-3 font-medium">Status</th>
+                                            <th className="pb-3 font-medium">Rating</th>
+                                            <th className="pb-0 font-medium">Status</th>
                                             <th className="pb-3 text-right font-medium">Actions</th>
                                         </tr>
                                     </thead>
@@ -294,6 +296,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                         {regatta.entries.map((entry) => (
                                             <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
                                                 <td className="py-4 text-white font-medium">{entry.boatName} <span className="text-slate-500 text-xs block">{entry.sailNumber !== 'None' ? `Sail: ${entry.sailNumber}` : ''}</span></td>
+                                                <td className="py-4 text-slate-300">{entry.ownerName}</td>
                                                 <td className="py-4 text-slate-300">{entry.boatType}</td>
                                                 <td className="py-4">
                                                     {editingEntryId === entry.id ? (
@@ -309,6 +312,20 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         </select>
                                                     ) : (
                                                         <span className="text-cyan-400 font-medium">{regatta.fleets?.find(f => f.id === entry.fleetId)?.name || 'Unassigned'}</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4">
+                                                    {editingEntryId === entry.id ? (
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            value={editEntryData.rating ?? ''}
+                                                            onChange={(e) => setEditEntryData({ ...editEntryData, rating: e.target.value ? parseFloat(e.target.value) : null })}
+                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm w-20"
+                                                            placeholder="e.g. 120"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-slate-300 font-medium">{entry.rating ?? '—'}</span>
                                                     )}
                                                 </td>
                                                 <td className="py-4">
@@ -351,7 +368,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         <button
                                                             onClick={() => {
                                                                 setEditingEntryId(entry.id);
-                                                                setEditEntryData({ fleetId: entry.fleetId || null, registrationStatus: entry.registrationStatus });
+                                                                setEditEntryData({ fleetId: entry.fleetId || null, rating: entry.rating ?? null, registrationStatus: entry.registrationStatus });
                                                             }}
                                                             className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                                         >
@@ -621,7 +638,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                             <React.Fragment key={race.id}>
                                                 <tr className="border-b border-white/5 hover:bg-white/5 transition-colors group">
                                                     <td className="py-4 text-white font-bold">
-                                                        Race {race.raceNumber}
+                                                        {race.name || 'Unnamed Race'}
                                                     </td>
                                                     <td className="py-4 text-slate-300 font-medium">
                                                         {StartType[race.startType]?.replace(/_/g, ' ')}

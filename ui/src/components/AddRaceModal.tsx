@@ -19,7 +19,7 @@ interface AddRaceModalProps {
 export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuccess }: AddRaceModalProps) {
     const { createRace, isLoading, error } = useRaces();
     const [formData, setFormData] = useState({
-        raceNumber: 1,
+        name: 'Race 1',
         scheduledStartTime: '',
         status: 'Scheduled',
         startType: StartType.Staggered,
@@ -30,6 +30,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
         raceFleets: [] as {
             fleetId: number;
             fleetName: string;
+            raceNumber: number;
             startTimeOffset: string;
             courseType: CourseType;
             windSpeed: number;
@@ -46,6 +47,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             raceFleets: fleets.map(f => ({
                 fleetId: f.id,
                 fleetName: f.name,
+                raceNumber: 1,
                 startTimeOffset: '',
                 courseType: prev.courseType,
                 windSpeed: prev.windSpeed,
@@ -64,7 +66,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
 
         try {
             await createRace(regattaId, {
-                raceNumber: formData.raceNumber,
+                name: formData.name,
                 scheduledStartTime: formData.scheduledStartTime ? new Date(formData.scheduledStartTime).toISOString() : null,
                 status: formData.status,
                 startType: formData.startType,
@@ -74,6 +76,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 courseDistance: formData.courseDistance || null,
                 raceFleets: formData.raceFleets.map(rf => ({
                     fleetId: rf.fleetId,
+                    raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
                     windSpeed: rf.windSpeed || null,
@@ -83,7 +86,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             });
 
             setFormData({
-                raceNumber: formData.raceNumber + 1,
+                name: 'Race ' + (parseInt(formData.name.replace(/\D/g, '')) + 1 || 1),
                 scheduledStartTime: '',
                 status: 'Scheduled',
                 startType: StartType.Staggered,
@@ -119,13 +122,12 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label required>Race Number</Label>
+                            <Label required>Race Name</Label>
                             <Input
-                                type="number"
-                                min="1"
+                                type="text"
                                 required
-                                value={formData.raceNumber}
-                                onChange={(e) => setFormData({ ...formData, raceNumber: parseInt(e.target.value) || 1 })}
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             />
                         </div>
                         <div>

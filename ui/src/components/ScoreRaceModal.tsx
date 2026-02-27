@@ -110,11 +110,15 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
         const finishesArr = Object.values(finishesMap).map(f => {
             const dto: RecordFinishDto = { ...f };
-            // Empty string to null
+            // Empty string to null for nullable fields
             if (!dto.finishTime) dto.finishTime = null;
             if (!dto.code) dto.code = '';
-            if (!dto.timePenalty) dto.timePenalty = null;
+            // timePenalty must be null or a valid TimeSpan string - empty string breaks ASP.NET deserialization
+            if (!dto.timePenalty || dto.timePenalty.trim() === '') {
+                delete dto.timePenalty;
+            }
             if (!dto.pointPenalty) dto.pointPenalty = null;
+            if (!dto.notes) dto.notes = '';
 
             // If finishTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
             if (dto.finishTime) {
@@ -163,7 +167,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                             <Calculator className="h-5 w-5 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Score Race {race.raceNumber}</h2>
+                            <h2 className="text-xl font-bold text-white">Score: {race.name}</h2>
                             <p className="text-xs text-slate-400">
                                 {race.status === 'Racing' ? <span className="text-emerald-400 font-bold">In Progress</span> : race.status}
                                 {race.actualStartTime && ` • Started: ${new Date(race.actualStartTime).toLocaleTimeString()}`}

@@ -34,7 +34,7 @@ interface EditRaceModalProps {
 export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess }: EditRaceModalProps) {
     const { updateRace, isLoading, error } = useRaces();
     const [formData, setFormData] = useState({
-        raceNumber: 1,
+        name: '',
         scheduledStartTime: '',
         actualStartTime: '',
         status: 'Scheduled',
@@ -47,6 +47,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             id: number;
             fleetId: number;
             fleetName: string;
+            raceNumber: number;
             startTimeOffset: string;
             courseType: CourseType;
             windSpeed: number;
@@ -60,7 +61,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
     if (race && race.id !== prevRaceId) {
         setPrevRaceId(race.id);
         setFormData({
-            raceNumber: race.raceNumber,
+            name: race.name || '',
             scheduledStartTime: formatDateTimeLocal(race.scheduledStartTime),
             actualStartTime: formatDateTimeLocal(race.actualStartTime),
             status: race.status || 'Scheduled',
@@ -76,6 +77,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     fleetId: f.id,
                     fleetName: f.name,
                     startTimeOffset: rf?.startTimeOffset || '',
+                    raceNumber: rf?.raceNumber ?? 1,
                     courseType: rf?.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
                     windSpeed: rf?.windSpeed ?? race.windSpeed ?? 0,
                     windDirection: rf?.windDirection ?? race.windDirection ?? 0,
@@ -92,7 +94,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
 
         try {
             await updateRace(race.id, {
-                raceNumber: formData.raceNumber,
+                name: formData.name,
                 scheduledStartTime: formData.scheduledStartTime ? new Date(formData.scheduledStartTime).toISOString() : null,
                 actualStartTime: formData.actualStartTime ? new Date(formData.actualStartTime).toISOString() : null,
                 status: formData.status,
@@ -104,6 +106,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                 raceFleets: formData.raceFleets.map(rf => ({
                     id: rf.id,
                     fleetId: rf.fleetId,
+                    raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
                     windSpeed: rf.windSpeed || null,
@@ -123,7 +126,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         <div className="modal-overlay">
             <div className="modal-container max-w-lg">
                 <div className="modal-header">
-                    <h2 className="text-xl font-bold text-white uppercase tracking-tight">Race {race.raceNumber} Configuration</h2>
+                    <h2 className="text-xl font-bold text-white uppercase tracking-tight">{race.name || 'Race'} Configuration</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -138,13 +141,12 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label required>Race Number</Label>
+                            <Label required>Race Name</Label>
                             <Input
-                                type="number"
-                                min="1"
+                                type="text"
                                 required
-                                value={formData.raceNumber}
-                                onChange={(e) => setFormData({ ...formData, raceNumber: parseInt(e.target.value) || 1 })}
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             />
                         </div>
                         <div>
@@ -264,22 +266,38 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                                     <div key={fleet.id} className="p-3 bg-slate-900/50 rounded-lg border border-white/5">
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-sm font-bold text-white">{fleet.fleetName}</span>
-                                            {formData.startType === StartType.Staggered && (
+                                            <div className="flex items-center gap-4">
                                                 <div className="flex items-center gap-2">
-                                                    <Label className="text-[10px] m-0">Start Offset</Label>
+                                                    <Label className="text-[10px] m-0">Race #</Label>
                                                     <Input
-                                                        type="time"
-                                                        step="1"
-                                                        value={fleet.startTimeOffset || ''}
+                                                        type="number"
+                                                        min="1"
+                                                        value={fleet.raceNumber}
                                                         onChange={(e) => {
                                                             const newFleets = [...formData.raceFleets];
-                                                            newFleets[index].startTimeOffset = e.target.value;
+                                                            newFleets[index].raceNumber = parseInt(e.target.value) || 1;
                                                             setFormData({ ...formData, raceFleets: newFleets });
                                                         }}
-                                                        className="h-7 w-28 text-xs px-2"
+                                                        className="h-7 w-16 text-xs px-2"
                                                     />
                                                 </div>
-                                            )}
+                                                {formData.startType === StartType.Staggered && (
+                                                    <div className="flex items-center gap-2">
+                                                        <Label className="text-[10px] m-0">Start Offset</Label>
+                                                        <Input
+                                                            type="time"
+                                                            step="1"
+                                                            value={fleet.startTimeOffset || ''}
+                                                            onChange={(e) => {
+                                                                const newFleets = [...formData.raceFleets];
+                                                                newFleets[index].startTimeOffset = e.target.value;
+                                                                setFormData({ ...formData, raceFleets: newFleets });
+                                                            }}
+                                                            className="h-7 w-28 text-xs px-2"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-4 gap-2">
                                             <div>

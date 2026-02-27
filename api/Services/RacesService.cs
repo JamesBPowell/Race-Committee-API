@@ -37,7 +37,7 @@ namespace RaceCommittee.Api.Services
             var race = new Race
             {
                 RegattaId = regattaId,
-                RaceNumber = dto.RaceNumber,
+                Name = dto.Name,
                 ScheduledStartTime = dto.ScheduledStartTime,
                 Status = dto.Status ?? "Scheduled",
                 StartType = dto.StartType,
@@ -54,6 +54,7 @@ namespace RaceCommittee.Api.Services
                 return new RaceFleet
                 {
                     FleetId = f.Id,
+                    RaceNumber = rfDto?.RaceNumber,
                     StartTimeOffset = rfDto?.StartTimeOffset,
                     CourseType = rfDto?.CourseType ?? dto.CourseType,
                     WindSpeed = rfDto?.WindSpeed ?? dto.WindSpeed,
@@ -88,7 +89,7 @@ namespace RaceCommittee.Api.Services
                 throw new UnauthorizedAccessException("You don't have permission to manage this race");
             }
 
-            if (dto.RaceNumber.HasValue) race.RaceNumber = dto.RaceNumber.Value;
+            if (!string.IsNullOrEmpty(dto.Name)) race.Name = dto.Name;
             if (dto.ScheduledStartTime.HasValue) race.ScheduledStartTime = dto.ScheduledStartTime;
             if (dto.ActualStartTime.HasValue) race.ActualStartTime = dto.ActualStartTime;
             if (!string.IsNullOrEmpty(dto.Status)) race.Status = dto.Status;
@@ -105,6 +106,7 @@ namespace RaceCommittee.Api.Services
                     var existingRf = race.ParticipatingFleets.FirstOrDefault(rf => rf.Id == rfUpdate.Id && rfUpdate.Id != 0);
                     if (existingRf != null)
                     {
+                        if (rfUpdate.RaceNumber.HasValue) existingRf.RaceNumber = rfUpdate.RaceNumber;
                         if (rfUpdate.StartTimeOffset.HasValue) existingRf.StartTimeOffset = rfUpdate.StartTimeOffset;
                         if (rfUpdate.CourseType.HasValue) existingRf.CourseType = rfUpdate.CourseType.Value;
                         if (rfUpdate.WindSpeed.HasValue) existingRf.WindSpeed = rfUpdate.WindSpeed.Value;
@@ -117,6 +119,7 @@ namespace RaceCommittee.Api.Services
                         race.ParticipatingFleets.Add(new RaceFleet
                         {
                             FleetId = rfUpdate.FleetId,
+                            RaceNumber = rfUpdate.RaceNumber,
                             StartTimeOffset = rfUpdate.StartTimeOffset,
                             CourseType = rfUpdate.CourseType ?? race.CourseType,
                             WindSpeed = rfUpdate.WindSpeed ?? race.WindSpeed,

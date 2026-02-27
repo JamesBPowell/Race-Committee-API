@@ -28,13 +28,14 @@ namespace RaceCommittee.Api.Models.DTOs
         public string BoatType { get; set; }
         public string SailNumber { get; set; }
         public string OwnerName { get; set; }
+        public float? Rating { get; set; }
         public string RegistrationStatus { get; set; }
     }
 
     public class RaceDto
     {
         public int Id { get; set; }
-        public int RaceNumber { get; set; }
+        public string Name { get; set; }
         public DateTime? ScheduledStartTime { get; set; }
         public DateTime? ActualStartTime { get; set; }
         public string Status { get; set; }
@@ -51,6 +52,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public int Id { get; set; }
         public int FleetId { get; set; }
         public string FleetName { get; set; }
+        public int? RaceNumber { get; set; }
         public TimeSpan? StartTimeOffset { get; set; }
         public CourseType? CourseType { get; set; }
         public float? WindSpeed { get; set; }

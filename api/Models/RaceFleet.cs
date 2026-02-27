@@ -13,6 +13,7 @@ namespace RaceCommittee.Api.Models
         public Fleet Fleet { get; set; }
 
         public TimeSpan? StartTimeOffset { get; set; } // Used for staggered starts
+        public int? RaceNumber { get; set; } // Series race number for this fleet in this event
         public CourseType? CourseType { get; set; }
         public float? WindSpeed { get; set; }
         public float? WindDirection { get; set; }

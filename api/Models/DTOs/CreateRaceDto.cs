@@ -6,7 +6,7 @@ namespace RaceCommittee.Api.Models.DTOs
     public class CreateRaceDto
     {
         [Required]
-        public int RaceNumber { get; set; }
+        public string Name { get; set; }
         
         public DateTime? ScheduledStartTime { get; set; }
         
@@ -24,6 +24,7 @@ namespace RaceCommittee.Api.Models.DTOs
     public class CreateRaceFleetDto
     {
         public int FleetId { get; set; }
+        public int? RaceNumber { get; set; }
         public TimeSpan? StartTimeOffset { get; set; }
         public CourseType? CourseType { get; set; }
         public float? WindSpeed { get; set; }

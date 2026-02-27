@@ -34,7 +34,7 @@ export function useRaces() {
     const [error, setError] = useState<string | null>(null);
 
     const createRace = async (regattaId: number | string, data: {
-        raceNumber: number;
+        name: string;
         scheduledStartTime?: string | null;
         status?: string;
         startType?: StartType;
@@ -44,6 +44,7 @@ export function useRaces() {
         courseDistance?: number | null;
         raceFleets?: {
             fleetId: number;
+            raceNumber?: number | null;
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             windSpeed?: number | null;
@@ -66,7 +67,7 @@ export function useRaces() {
     };
 
     const updateRace = async (id: number, data: {
-        raceNumber?: number;
+        name?: string;
         scheduledStartTime?: string | null;
         actualStartTime?: string | null;
         status?: string;
@@ -78,6 +79,7 @@ export function useRaces() {
         raceFleets?: {
             id?: number;
             fleetId: number;
+            raceNumber?: number | null;
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             windSpeed?: number | null;
