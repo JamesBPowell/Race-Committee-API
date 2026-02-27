@@ -58,7 +58,7 @@ test.describe('Scoring Flow', () => {
         await expect(page.getByText(/racer boat/i)).toBeVisible({ timeout: 10_000 });
     });
 
-    test('should be able to save finishes and score', async ({ page }) => {
+    test('should be able to set wind conditions and save finishes', async ({ page }) => {
         await page.goto(`/dashboard/regattas/${testState.regattaId}`);
         await page.getByRole('button', { name: 'Races', exact: true }).click();
         await expect(page.getByText('Race 1')).toBeVisible({ timeout: 5_000 });
@@ -68,21 +68,35 @@ test.describe('Scoring Flow', () => {
         await raceRow.getByRole('button', { name: 'Score', exact: true }).click();
 
         // Wait for the modal to fully load
-        await expect(page.getByText(/record finishes|finishes/i)).toBeVisible({ timeout: 5_000 });
+        await expect(page.getByRole('heading', { name: /Score: Race/i })).toBeVisible({ timeout: 10_000 });
 
-        // Try to find Save & Score button and click it
-        const saveBtn = page.getByRole('button', { name: 'Save & Score' });
-        if (await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-            await saveBtn.click();
+        // Fill Wind Speed
+        const windSpeedInput = page.getByTitle(/Wind Speed/i);
+        await expect(windSpeedInput).toBeVisible();
+        await windSpeedInput.fill('12');
 
-            // After saving, try scoring
-            const scoreBtn = page.getByRole('button', { name: /score race|calculate/i });
-            if (await scoreBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-                await scoreBtn.click();
-            }
+        // Fill Wind Direction
+        const windDirInput = page.getByTitle(/Wind Direction/i);
+        await expect(windDirInput).toBeVisible();
+        await windDirInput.fill('270');
+
+        // Find and fill the first boat's finish time (if visible)
+        // Note: The UI has 'HH:MM:SS' placeholder for the input
+        const timeInput = page.locator('input[placeholder="HH:MM:SS"]').first();
+        if (await timeInput.isVisible()) {
+            await timeInput.fill('12:00:00');
         }
 
-        // This test passes if the UI flow doesn't crash — specifics depend on data state
+        // Click "Save & Score"
+        const saveBtn = page.getByRole('button', { name: 'Save & Score' });
+        await expect(saveBtn).toBeEnabled();
+        await saveBtn.click();
+
+        // Should see success or transition to results
+        // Actually, the modal transitions to Results tab on success
+        await expect(page.getByRole('button', { name: 'Record Finishes' })).toBeVisible();
+        // The success state transitions to results tab in the code
+        // await expect(page.getByText(/results/i)).toBeVisible({ timeout: 10_000 });
     });
 
     test('should view results tab', async ({ page }) => {

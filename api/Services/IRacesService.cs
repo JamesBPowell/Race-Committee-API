@@ -9,6 +9,6 @@ namespace RaceCommittee.Api.Services
         Task<Race> CreateRaceAsync(int regattaId, CreateRaceDto dto, string userId);
         Task<Race> UpdateRaceAsync(int id, UpdateRaceDto dto, string userId);
         Task<bool> DeleteRaceAsync(int id, string userId);
-        Task<bool> SaveFinishesAsync(int raceId, System.Collections.Generic.List<RecordFinishDto> finishes, string userId);
+        Task<bool> SaveFinishesAsync(int raceId, RecordRaceFinishesDto data, string userId);
     }
 }

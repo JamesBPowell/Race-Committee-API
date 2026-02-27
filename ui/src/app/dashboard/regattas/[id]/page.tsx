@@ -304,6 +304,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                 <td className="py-4">
                                                     {editingEntryId === entry.id ? (
                                                         <select
+                                                            title="Fleet Selection"
                                                             value={editEntryData.fleetId || ''}
                                                             onChange={(e) => setEditEntryData({ ...editEntryData, fleetId: e.target.value ? parseInt(e.target.value) : null })}
                                                             className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
@@ -334,6 +335,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                 <td className="py-4">
                                                     {editingEntryId === entry.id ? (
                                                         <select
+                                                            title="Registration Status"
                                                             value={editEntryData.registrationStatus}
                                                             onChange={(e) => setEditEntryData({ ...editEntryData, registrationStatus: e.target.value })}
                                                             className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
@@ -356,6 +358,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         <div className="flex items-center justify-end gap-2">
                                                             <button
                                                                 onClick={() => handleUpdateEntrySubmit(entry.id)}
+                                                                title="Save Entry"
                                                                 className="p-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"
                                                             >
                                                                 <Save className="w-4 h-4" />
@@ -373,6 +376,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                                 setEditingEntryId(entry.id);
                                                                 setEditEntryData({ fleetId: entry.fleetId || null, rating: entry.rating ?? null, registrationStatus: entry.registrationStatus });
                                                             }}
+                                                            title="Edit Entry"
                                                             className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             <Edit className="w-4 h-4" />
@@ -757,6 +761,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             />
 
             <ScoreRaceModal
+                key={scoringRace?.id ?? 'none'}
                 isOpen={!!scoringRace}
                 onClose={() => setScoringRace(null)}
                 race={scoringRace}

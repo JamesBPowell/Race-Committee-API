@@ -66,14 +66,14 @@ namespace RaceCommittee.Api.Controllers
 
         // POST api/races/5/finishes
         [HttpPost("{id}/finishes")]
-        public async Task<IActionResult> SaveFinishes(int id, [FromBody] System.Collections.Generic.List<RecordFinishDto> finishes)
+        public async Task<IActionResult> SaveFinishes(int id, [FromBody] RecordRaceFinishesDto data)
         {
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (userId == null) return Unauthorized();
 
-                var success = await _racesService.SaveFinishesAsync(id, finishes, userId);
+                var success = await _racesService.SaveFinishesAsync(id, data, userId);
                 if (!success) return NotFound();
 
                 return Ok();

@@ -40,8 +40,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         status: 'Scheduled',
         startType: StartType.Staggered,
         courseType: CourseType.WindwardLeeward,
-        windSpeed: 0,
-        windDirection: 0,
         courseDistance: 0,
         raceFleets: [] as {
             id: number;
@@ -50,8 +48,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             raceNumber: number;
             startTimeOffset: string;
             courseType: CourseType;
-            windSpeed: number;
-            windDirection: number;
             courseDistance: number;
         }[]
     });
@@ -67,8 +63,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             status: race.status || 'Scheduled',
             startType: race.startType ?? StartType.Staggered,
             courseType: race.courseType ?? CourseType.WindwardLeeward,
-            windSpeed: race.windSpeed ?? 0,
-            windDirection: race.windDirection ?? 0,
             courseDistance: race.courseDistance ?? 0,
             raceFleets: fleets.map(f => {
                 const rf = race.raceFleets?.find(r => r.fleetId === f.id);
@@ -79,8 +73,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     startTimeOffset: rf?.startTimeOffset || '',
                     raceNumber: rf?.raceNumber ?? 1,
                     courseType: rf?.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
-                    windSpeed: rf?.windSpeed ?? race.windSpeed ?? 0,
-                    windDirection: rf?.windDirection ?? race.windDirection ?? 0,
                     courseDistance: rf?.courseDistance ?? race.courseDistance ?? 0
                 };
             })
@@ -100,8 +92,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                 status: formData.status,
                 startType: formData.startType,
                 courseType: formData.courseType,
-                windSpeed: formData.windSpeed || null,
-                windDirection: formData.windDirection || null,
                 courseDistance: formData.courseDistance || null,
                 raceFleets: formData.raceFleets.map(rf => ({
                     id: rf.id,
@@ -109,8 +99,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
-                    windSpeed: rf.windSpeed || null,
-                    windDirection: rf.windDirection || null,
                     courseDistance: rf.courseDistance || null
                 }))
             });
@@ -127,7 +115,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             <div className="modal-container max-w-lg">
                 <div className="modal-header">
                     <h2 className="text-xl font-bold text-white uppercase tracking-tight">{race.name || 'Race'} Configuration</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+                    <button onClick={onClose} title="Close Modal" className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -153,6 +141,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                             <Label>Status</Label>
                             <select
                                 value={formData.status}
+                                title="Race Status"
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                                 className="form-select"
                             >
@@ -171,6 +160,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                             <Label>Start Type</Label>
                             <select
                                 value={formData.startType}
+                                title="Start Type"
                                 onChange={(e) => setFormData({ ...formData, startType: parseInt(e.target.value) })}
                                 className="form-select"
                             >
@@ -183,6 +173,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                             <Label>Course Type</Label>
                             <select
                                 value={formData.courseType}
+                                title="Course Type"
                                 onChange={(e) => setFormData({ ...formData, courseType: parseInt(e.target.value) })}
                                 className="form-select"
                             >
@@ -216,37 +207,12 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     </div>
 
                     <div className="p-4 bg-slate-800/50 rounded-xl border border-white/5 space-y-4">
-                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Race Conditions</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
-                                <Label className="flex items-center gap-2 text-[10px]">
-                                    <Wind className="w-3 h-3 text-sky-400" />
-                                    Wind (kts)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={formData.windSpeed}
-                                    onChange={(e) => setFormData({ ...formData, windSpeed: parseFloat(e.target.value) || 0 })}
-                                />
-                            </div>
-                            <div>
-                                <Label className="flex items-center gap-2 text-[10px]">
-                                    <Navigation className="w-3 h-3 text-rose-400" />
-                                    Dir (deg)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="359"
-                                    value={formData.windDirection}
-                                    onChange={(e) => setFormData({ ...formData, windDirection: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
+                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Race Parameters</h3>
+                        <div className="grid grid-cols-1">
                             <div>
                                 <Label className="flex items-center gap-2 text-[10px]">
                                     <Ruler className="w-3 h-3 text-emerald-400" />
-                                    Dist (nm)
+                                    Default Dist (nm)
                                 </Label>
                                 <Input
                                     type="number"

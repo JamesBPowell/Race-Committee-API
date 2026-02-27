@@ -14,8 +14,6 @@ namespace RaceCommittee.Api.Models.DTOs
 
         public StartType? StartType { get; set; }
         public CourseType? CourseType { get; set; }
-        public float? WindSpeed { get; set; }
-        public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
 
         public IEnumerable<UpdateRaceFleetDto>? RaceFleets { get; set; }
@@ -28,8 +26,6 @@ namespace RaceCommittee.Api.Models.DTOs
         public int? RaceNumber { get; set; }
         public TimeSpan? StartTimeOffset { get; set; }
         public CourseType? CourseType { get; set; }
-        public float? WindSpeed { get; set; }
-        public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
     }
 }

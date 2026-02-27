@@ -42,8 +42,6 @@ namespace RaceCommittee.Api.Services
                 Status = dto.Status ?? "Scheduled",
                 StartType = dto.StartType,
                 CourseType = dto.CourseType,
-                WindSpeed = dto.WindSpeed,
-                WindDirection = dto.WindDirection,
                 CourseDistance = dto.CourseDistance,
                 ScoringParameters = "{}" // Default empty parameters
             };
@@ -57,8 +55,6 @@ namespace RaceCommittee.Api.Services
                     RaceNumber = rfDto?.RaceNumber,
                     StartTimeOffset = rfDto?.StartTimeOffset,
                     CourseType = rfDto?.CourseType ?? dto.CourseType,
-                    WindSpeed = rfDto?.WindSpeed ?? dto.WindSpeed,
-                    WindDirection = rfDto?.WindDirection ?? dto.WindDirection,
                     CourseDistance = rfDto?.CourseDistance ?? dto.CourseDistance,
                     ScoringParameters = "{}"
                 };
@@ -95,8 +91,6 @@ namespace RaceCommittee.Api.Services
             if (!string.IsNullOrEmpty(dto.Status)) race.Status = dto.Status;
             if (dto.StartType.HasValue) race.StartType = dto.StartType.Value;
             if (dto.CourseType.HasValue) race.CourseType = dto.CourseType.Value;
-            if (dto.WindSpeed.HasValue) race.WindSpeed = dto.WindSpeed.Value;
-            if (dto.WindDirection.HasValue) race.WindDirection = dto.WindDirection.Value;
             if (dto.CourseDistance.HasValue) race.CourseDistance = dto.CourseDistance.Value;
 
             if (dto.RaceFleets != null)
@@ -109,8 +103,6 @@ namespace RaceCommittee.Api.Services
                         if (rfUpdate.RaceNumber.HasValue) existingRf.RaceNumber = rfUpdate.RaceNumber;
                         if (rfUpdate.StartTimeOffset.HasValue) existingRf.StartTimeOffset = rfUpdate.StartTimeOffset;
                         if (rfUpdate.CourseType.HasValue) existingRf.CourseType = rfUpdate.CourseType.Value;
-                        if (rfUpdate.WindSpeed.HasValue) existingRf.WindSpeed = rfUpdate.WindSpeed.Value;
-                        if (rfUpdate.WindDirection.HasValue) existingRf.WindDirection = rfUpdate.WindDirection.Value;
                         if (rfUpdate.CourseDistance.HasValue) existingRf.CourseDistance = rfUpdate.CourseDistance.Value;
                     }
                     else if (rfUpdate.FleetId != 0)
@@ -122,8 +114,6 @@ namespace RaceCommittee.Api.Services
                             RaceNumber = rfUpdate.RaceNumber,
                             StartTimeOffset = rfUpdate.StartTimeOffset,
                             CourseType = rfUpdate.CourseType ?? race.CourseType,
-                            WindSpeed = rfUpdate.WindSpeed ?? race.WindSpeed,
-                            WindDirection = rfUpdate.WindDirection ?? race.WindDirection,
                             CourseDistance = rfUpdate.CourseDistance ?? race.CourseDistance,
                             ScoringParameters = "{}"
                         });
@@ -161,7 +151,7 @@ namespace RaceCommittee.Api.Services
             return true;
         }
 
-        public async Task<bool> SaveFinishesAsync(int raceId, System.Collections.Generic.List<RecordFinishDto> finishes, string userId)
+        public async Task<bool> SaveFinishesAsync(int raceId, RecordRaceFinishesDto data, string userId)
         {
             var race = await _context.Races
                 .Include(r => r.Regatta)
@@ -176,12 +166,16 @@ namespace RaceCommittee.Api.Services
             {
                 throw new UnauthorizedAccessException("You don't have permission to manage this race");
             }
+ 
+            // Update race-level conditions
+            if (data.WindSpeed.HasValue) race.WindSpeed = data.WindSpeed;
+            if (data.WindDirection.HasValue) race.WindDirection = data.WindDirection;
 
             // Remove existing finishes
             _context.Finishes.RemoveRange(race.Finishes);
 
             // Add new finishes
-            foreach (var finishDto in finishes)
+            foreach (var finishDto in data.Finishes)
             {
                 _context.Finishes.Add(new Finish
                 {

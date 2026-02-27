@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { apiClient } from '../lib/api';
 import { RaceResponse, StartType, CourseType } from './useRegattas';
 
@@ -9,6 +9,12 @@ export interface RecordFinishDto {
     pointPenalty?: number | null;
     code?: string;
     notes?: string;
+}
+
+export interface RecordRaceFinishes {
+    windSpeed?: number | null;
+    windDirection?: number | null;
+    finishes: RecordFinishDto[];
 }
 
 export interface FinishResultDto {
@@ -33,22 +39,18 @@ export function useRaces() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const createRace = async (regattaId: number | string, data: {
+    const createRace = useCallback(async (regattaId: number | string, data: {
         name: string;
         scheduledStartTime?: string | null;
         status?: string;
         startType?: StartType;
         courseType?: CourseType;
-        windSpeed?: number | null;
-        windDirection?: number | null;
         courseDistance?: number | null;
         raceFleets?: {
             fleetId: number;
             raceNumber?: number | null;
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
-            windSpeed?: number | null;
-            windDirection?: number | null;
             courseDistance?: number | null;
         }[];
     }) => {
@@ -64,17 +66,15 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const updateRace = async (id: number, data: {
+    const updateRace = useCallback(async (id: number, data: {
         name?: string;
         scheduledStartTime?: string | null;
         actualStartTime?: string | null;
         status?: string;
         startType?: StartType;
         courseType?: CourseType;
-        windSpeed?: number | null;
-        windDirection?: number | null;
         courseDistance?: number | null;
         raceFleets?: {
             id?: number;
@@ -82,8 +82,6 @@ export function useRaces() {
             raceNumber?: number | null;
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
-            windSpeed?: number | null;
-            windDirection?: number | null;
             courseDistance?: number | null;
         }[];
     }) => {
@@ -99,9 +97,9 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const deleteRace = async (id: number) => {
+    const deleteRace = useCallback(async (id: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -114,13 +112,13 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const saveFinishes = async (raceId: number, finishes: RecordFinishDto[]) => {
+    const saveFinishes = useCallback(async (raceId: number, data: RecordRaceFinishes) => {
         setIsLoading(true);
         setError(null);
         try {
-            await apiClient.post(`/api/races/${raceId}/finishes`, finishes);
+            await apiClient.post(`/api/races/${raceId}/finishes`, data);
             return true;
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to save finishes';
@@ -129,9 +127,9 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const scoreRace = async (raceId: number) => {
+    const scoreRace = useCallback(async (raceId: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -144,9 +142,9 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const getRaceResults = async (raceId: number) => {
+    const getRaceResults = useCallback(async (raceId: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -159,7 +157,7 @@ export function useRaces() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     return {
         createRace,

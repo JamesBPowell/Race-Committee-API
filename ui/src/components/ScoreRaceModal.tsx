@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Check, Calculator, AlertTriangle, Save, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, Calculator, AlertTriangle, Save, RefreshCw, Wind, Navigation } from 'lucide-react';
 import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
 import { useRaces, RecordFinishDto, FinishResultDto } from '@/hooks/useRaces';
 
@@ -15,58 +15,57 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     const { saveFinishes, scoreRace, getRaceResults, isLoading, error } = useRaces();
     const [activeTab, setActiveTab] = useState<'record' | 'results'>(defaultTab);
 
-    useEffect(() => {
-        if (isOpen) {
-            setActiveTab(defaultTab);
-        }
-    }, [isOpen, defaultTab]);
+    // Initial map setup moved to useMemo to allow useState initialization
+    const initialFinishesMap = useMemo(() => {
+        if (!race || !regatta.entries) return {};
+        const initialMap: Record<number, RecordFinishDto> = {};
+        const participatingFleetIds = race.raceFleets?.map(rf => rf.fleetId) || [];
+        const relevantEntries = regatta.entries.filter(e =>
+            e.fleetId && (participatingFleetIds.length === 0 || participatingFleetIds.includes(e.fleetId))
+        );
+        relevantEntries.forEach(entry => {
+            initialMap[entry.id] = {
+                entryId: entry.id,
+                finishTime: '',
+                timePenalty: '',
+                pointPenalty: 0,
+                code: '',
+                notes: ''
+            };
+        });
+        return initialMap;
+    }, [race, regatta.entries]);
 
-    // State for recording finishes
-    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>({});
+    // State for recording finishes - initialized from memo to avoid useEffect cascade
+    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
+
+    // State for race conditions (wind) - initialized from props
+    const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
+    const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
 
     // State for displaying results
     const [results, setResults] = useState<FinishResultDto[]>([]);
 
-    // Initialize record form when opened
-    useEffect(() => {
-        if (isOpen && race && regatta.entries) {
-            // Group entries by fleet, but only fleets participating in this race
-            const initialMap: Record<number, RecordFinishDto> = {};
-            const participatingFleetIds = race.raceFleets?.map(rf => rf.fleetId) || [];
-
-            // If raceFleets implies all fleets or specific fleets? If Empty, assume all?
-            const relevantEntries = regatta.entries.filter(e =>
-                e.fleetId && (participatingFleetIds.length === 0 || participatingFleetIds.includes(e.fleetId))
-            );
-
-            relevantEntries.forEach(entry => {
-                initialMap[entry.id] = {
-                    entryId: entry.id,
-                    finishTime: '',
-                    timePenalty: '',
-                    pointPenalty: 0,
-                    code: '',
-                    notes: ''
-                };
-            });
-
-            setFinishesMap(initialMap);
-
-            // Fetch existing results to see if there are already finishes recorded
-            loadExistingResults(race.id);
+    const handleScoreRace = useCallback(async () => {
+        if (!race) return;
+        try {
+            const computedResults = await scoreRace(race.id);
+            setResults(computedResults);
+        } catch (err) {
+            console.error(err);
         }
-    }, [isOpen, race, regatta.entries]);
+    }, [race, scoreRace]);
 
-    const loadExistingResults = async (raceId: number) => {
+    const loadExistingResults = useCallback(async (raceId: number) => {
         try {
             const data = await getRaceResults(raceId);
             setResults(data);
 
             // If we have results, populate the finishesMap so editing is easy
             if (data.length > 0) {
-                setFinishesMap(prev => {
+                setFinishesMap((prev: Record<number, RecordFinishDto>) => {
                     const newMap = { ...prev };
-                    data.forEach(result => {
+                    data.forEach((result: FinishResultDto) => {
                         let localTimeStr = '';
                         if (result.finishTime) {
                             const d = new Date(result.finishTime);
@@ -90,7 +89,14 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         } catch (err) {
             console.error(err);
         }
-    };
+    }, [getRaceResults]);
+
+    // Initialize results when opened
+    useEffect(() => {
+        if (isOpen && race) {
+            loadExistingResults(race.id);
+        }
+    }, [isOpen, race, loadExistingResults]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
@@ -134,21 +140,15 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             return dto;
         });
 
-        const success = await saveFinishes(race.id, finishesArr);
+        const success = await saveFinishes(race.id, {
+            windSpeed,
+            windDirection,
+            finishes: finishesArr
+        });
         if (success) {
             // Auto-trigger calculation
             await handleScoreRace();
             setActiveTab('results');
-        }
-    };
-
-    const handleScoreRace = async () => {
-        if (!race) return;
-        try {
-            const computedResults = await scoreRace(race.id);
-            setResults(computedResults);
-        } catch (err) {
-            console.error(err);
         }
     };
 
@@ -174,7 +174,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                    <button onClick={onClose} title="Close Modal" className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
@@ -206,6 +206,40 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
                     {activeTab === 'record' && (
                         <div className="space-y-8">
+                            <div className="p-4 bg-slate-800/60 rounded-xl border border-white/10 flex flex-wrap items-center gap-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Wind className="h-4 w-4 text-sky-400" />
+                                        <label className="text-sm font-bold text-slate-300">Wind Strength (kts):</label>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        title="Wind Speed"
+                                        placeholder="0.0"
+                                        className="w-20 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                                        value={windSpeed}
+                                        onChange={e => setWindSpeed(parseFloat(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Navigation className="h-4 w-4 text-rose-400" />
+                                        <label className="text-sm font-bold text-slate-300">Wind Direction (deg):</label>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        max="359"
+                                        title="Wind Direction"
+                                        placeholder="000"
+                                        className="w-20 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                                        value={windDirection}
+                                        onChange={e => setWindDirection(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div className="ml-auto text-[10px] text-slate-500 font-mono italic">CAPTURE CONDITIONS AT TIME OF RACE</div>
+                            </div>
+
                             {relevantFleets.map(fleet => {
                                 const fleetEntries = (regatta.entries || []).filter(e => e.fleetId === fleet.id);
                                 if (fleetEntries.length === 0) return null;
@@ -222,9 +256,9 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                     <tr>
                                                         <th className="px-5 py-3 font-medium">Sail</th>
                                                         <th className="px-5 py-3 font-medium">Boat</th>
-                                                        <th className="px-5 py-3 font-medium w-48">Time (HH:MM:SS)</th>
-                                                        <th className="px-5 py-3 font-medium w-32">Status Code</th>
-                                                        <th className="px-5 py-3 font-medium">Penalty</th>
+                                                        <th className="px-5 py-3 font-medium w-48" id="time-header">Time (HH:MM:SS)</th>
+                                                        <th className="px-5 py-3 font-medium w-32" id="status-header">Status Code</th>
+                                                        <th className="px-5 py-3 font-medium" id="penalty-header">Penalty</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/5">
@@ -240,6 +274,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                     <input
                                                                         type="text"
                                                                         placeholder="HH:MM:SS"
+                                                                        title="Finish Time"
+                                                                        aria-labelledby="time-header"
                                                                         className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
                                                                         value={fState.finishTime || ''}
                                                                         onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, finishTime: e.target.value } })}
@@ -250,6 +286,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                     <select
                                                                         className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
                                                                         value={fState.code || ''}
+                                                                        title="Status Code"
                                                                         onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, code: e.target.value } })}
                                                                     >
                                                                         <option value="">Finished</option>
@@ -266,6 +303,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                     <input
                                                                         type="text"
                                                                         placeholder="+mm:ss"
+                                                                        title="Time Penalty"
+                                                                        aria-labelledby="penalty-header"
                                                                         className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
                                                                         value={fState.timePenalty || ''}
                                                                         onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, timePenalty: e.target.value } })}
@@ -312,7 +351,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         </button>
                                     </div>
                                     {relevantFleets.map(fleet => {
-                                        const fleetResults = results.filter(r => r.fleetId === fleet.id).sort((a, b) => (a.points || 0) - (b.points || 0));
+                                        const fleetResults = results.filter((r: FinishResultDto) => r.fleetId === fleet.id).sort((a: FinishResultDto, b: FinishResultDto) => (a.points || 0) - (b.points || 0));
                                         if (fleetResults.length === 0) return null;
 
                                         return (

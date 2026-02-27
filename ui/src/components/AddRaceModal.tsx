@@ -24,8 +24,6 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
         status: 'Scheduled',
         startType: StartType.Staggered,
         courseType: CourseType.WindwardLeeward,
-        windSpeed: 0,
-        windDirection: 0,
         courseDistance: 0,
         raceFleets: [] as {
             fleetId: number;
@@ -33,8 +31,6 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             raceNumber: number;
             startTimeOffset: string;
             courseType: CourseType;
-            windSpeed: number;
-            windDirection: number;
             courseDistance: number;
         }[]
     });
@@ -50,8 +46,6 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 raceNumber: 1,
                 startTimeOffset: '',
                 courseType: prev.courseType,
-                windSpeed: prev.windSpeed,
-                windDirection: prev.windDirection,
                 courseDistance: prev.courseDistance
             }))
         }));
@@ -71,16 +65,12 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 status: formData.status,
                 startType: formData.startType,
                 courseType: formData.courseType,
-                windSpeed: formData.windSpeed || null,
-                windDirection: formData.windDirection || null,
                 courseDistance: formData.courseDistance || null,
                 raceFleets: formData.raceFleets.map(rf => ({
                     fleetId: rf.fleetId,
                     raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
-                    windSpeed: rf.windSpeed || null,
-                    windDirection: rf.windDirection || null,
                     courseDistance: rf.courseDistance || null
                 }))
             });
@@ -91,8 +81,6 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 status: 'Scheduled',
                 startType: StartType.Staggered,
                 courseType: CourseType.WindwardLeeward,
-                windSpeed: 0,
-                windDirection: 0,
                 courseDistance: 0,
                 raceFleets: []
             });
@@ -108,7 +96,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             <div className="modal-container max-w-lg">
                 <div className="modal-header">
                     <h2 className="text-xl font-bold text-white uppercase tracking-tight">Configure New Race</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+                    <button onClick={onClose} title="Close Modal" className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -134,6 +122,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                             <Label>Start Type</Label>
                             <select
                                 value={formData.startType}
+                                title="Start Type"
                                 onChange={(e) => setFormData({ ...formData, startType: parseInt(e.target.value) })}
                                 className="form-select"
                             >
@@ -149,6 +138,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                             <Label>Course Type</Label>
                             <select
                                 value={formData.courseType}
+                                title="Course Type"
                                 onChange={(e) => setFormData({ ...formData, courseType: parseInt(e.target.value) })}
                                 className="form-select"
                             >
@@ -171,46 +161,18 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
 
                     <div className="p-4 bg-slate-800/50 rounded-xl border border-white/5 space-y-4">
                         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Race Parameters</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
-                                <Label className="flex items-center gap-2 text-[10px]">
-                                    <Wind className="w-3 h-3 text-sky-400" />
-                                    Wind (kts)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    value={formData.windSpeed}
-                                    onChange={(e) => setFormData({ ...formData, windSpeed: parseFloat(e.target.value) || 0 })}
-                                />
-                            </div>
-                            <div>
-                                <Label className="flex items-center gap-2 text-[10px]">
-                                    <Navigation className="w-3 h-3 text-rose-400" />
-                                    Dir (deg)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="359"
-                                    value={formData.windDirection}
-                                    onChange={(e) => setFormData({ ...formData, windDirection: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
-                            <div>
-                                <Label className="flex items-center gap-2 text-[10px]">
-                                    <Ruler className="w-3 h-3 text-emerald-400" />
-                                    Dist (nm)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={formData.courseDistance}
-                                    onChange={(e) => setFormData({ ...formData, courseDistance: parseFloat(e.target.value) || 0 })}
-                                />
-                            </div>
+                        <div className="col-span-3">
+                            <Label className="flex items-center gap-2 text-[10px]">
+                                <Ruler className="w-3 h-3 text-emerald-400" />
+                                Default Dist (nm)
+                            </Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.courseDistance}
+                                onChange={(e) => setFormData({ ...formData, courseDistance: parseFloat(e.target.value) || 0 })}
+                            />
                         </div>
                     </div>
 
