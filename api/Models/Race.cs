@@ -27,5 +27,6 @@ namespace RaceCommittee.Api.Models
         public string ScoringParameters { get; set; } // JSON for race-specific scoring data (e.g. course mix for ORR-EZ)
 
         public ICollection<RaceFleet> ParticipatingFleets { get; set; }
+        public ICollection<Finish> Finishes { get; set; }
     }
 }

@@ -53,6 +53,7 @@ export interface RaceResponse {
 
 export interface EntryResponse {
     id: number;
+    fleetId?: number | null;
     boatName: string;
     boatType: string;
     sailNumber: string;
@@ -168,12 +169,26 @@ export function useRegatta(id: string | number) {
         }
     };
 
+    const updateEntry = async (entryId: number, data: { fleetId?: number | null, registrationStatus: string }) => {
+        setIsLoading(true);
+        try {
+            await apiClient.put(`/api/regattas/${id}/entries/${entryId}`, data);
+            await fetchRegatta();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update entry");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return {
         regatta,
         isLoading,
         error,
         refetch: fetchRegatta,
-        updateRegatta
+        updateRegatta,
+        updateEntry
     };
 }
 

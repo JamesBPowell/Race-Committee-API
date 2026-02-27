@@ -14,6 +14,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Certificate> Certificates { get; set; }
     public DbSet<Entry> Entries { get; set; }
     public DbSet<RaceFleet> RaceFleets { get; set; }
+    public DbSet<Finish> Finishes { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -49,6 +50,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(e => e.ActiveCertificate)
             .WithMany()
             .HasForeignKey(e => e.ActiveCertificateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure Finish relationships to prevent multiple cascade paths
+        builder.Entity<Finish>()
+            .HasOne(f => f.Race)
+            .WithMany(r => r.Finishes)
+            .HasForeignKey(f => f.RaceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Finish>()
+            .HasOne(f => f.Entry)
+            .WithMany(e => e.Finishes)
+            .HasForeignKey(f => f.EntryId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

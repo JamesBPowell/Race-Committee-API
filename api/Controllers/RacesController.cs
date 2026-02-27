@@ -14,10 +14,12 @@ namespace RaceCommittee.Api.Controllers
     public class RacesController : ControllerBase
     {
         private readonly IRacesService _racesService;
+        private readonly IScoringService _scoringService;
 
-        public RacesController(IRacesService racesService)
+        public RacesController(IRacesService racesService, IScoringService scoringService)
         {
             _racesService = racesService;
+            _scoringService = scoringService;
         }
 
         // PUT api/races/5
@@ -59,6 +61,60 @@ namespace RaceCommittee.Api.Controllers
             catch (UnauthorizedAccessException)
             {
                 return Forbid();
+            }
+        }
+
+        // POST api/races/5/finishes
+        [HttpPost("{id}/finishes")]
+        public async Task<IActionResult> SaveFinishes(int id, [FromBody] System.Collections.Generic.List<RecordFinishDto> finishes)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userId == null) return Unauthorized();
+
+                var success = await _racesService.SaveFinishesAsync(id, finishes, userId);
+                if (!success) return NotFound();
+
+                return Ok();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        // POST api/races/5/score
+        [HttpPost("{id}/score")]
+        public async Task<IActionResult> ScoreRace(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            // Additional permission checks could be added here
+            var results = await _scoringService.CalculateRaceScoresAsync(id);
+            return Ok(results);
+        }
+
+        // GET api/races/5/results
+        [HttpGet("{id}/results")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetRaceResults(int id)
+        {
+            var results = await _scoringService.CalculateRaceScoresAsync(id);
+            return Ok(results);
+        }
+
+        // POST api/races/5/score-test
+        [HttpPost("{id}/score-test")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ScoreRaceTest(int id)
+        {
+            try {
+                var results = await _scoringService.CalculateRaceScoresAsync(id);
+                return Ok(results);
+            } catch (Exception ex) {
+                return StatusCode(500, ex.ToString());
             }
         }
     }

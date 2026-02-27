@@ -23,6 +23,7 @@ namespace RaceCommittee.Api.Models.DTOs
     public class EntryDto
     {
         public int Id { get; set; }
+        public int? FleetId { get; set; }
         public string BoatName { get; set; }
         public string BoatType { get; set; }
         public string SailNumber { get; set; }

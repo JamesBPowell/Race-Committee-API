@@ -29,7 +29,8 @@ export const apiClient = {
         if (!res.ok) {
             throw new Error(`API POST request failed: ${res.statusText}`);
         }
-        return res.json();
+        const text = await res.text();
+        return text ? JSON.parse(text) : {} as T;
     },
 
     async put<T>(endpoint: string, data: unknown): Promise<T> {

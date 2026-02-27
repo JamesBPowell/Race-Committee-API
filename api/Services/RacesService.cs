@@ -157,5 +157,43 @@ namespace RaceCommittee.Api.Services
 
             return true;
         }
+
+        public async Task<bool> SaveFinishesAsync(int raceId, System.Collections.Generic.List<RecordFinishDto> finishes, string userId)
+        {
+            var race = await _context.Races
+                .Include(r => r.Regatta)
+                .ThenInclude(reg => reg.CommitteeMembers)
+                .Include(r => r.Finishes)
+                .FirstOrDefaultAsync(r => r.Id == raceId);
+
+            if (race == null) return false;
+
+            // Verify the user is a committee member for the regatta
+            if (!race.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
+            {
+                throw new UnauthorizedAccessException("You don't have permission to manage this race");
+            }
+
+            // Remove existing finishes
+            _context.Finishes.RemoveRange(race.Finishes);
+
+            // Add new finishes
+            foreach (var finishDto in finishes)
+            {
+                _context.Finishes.Add(new Finish
+                {
+                    RaceId = raceId,
+                    EntryId = finishDto.EntryId,
+                    FinishTime = finishDto.FinishTime,
+                    TimePenalty = finishDto.TimePenalty,
+                    PointPenalty = finishDto.PointPenalty,
+                    Code = finishDto.Code ?? string.Empty,
+                    Notes = finishDto.Notes ?? string.Empty
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

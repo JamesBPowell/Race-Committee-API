@@ -28,5 +28,7 @@ namespace RaceCommittee.Api.Models
         public string RatingSnapshot { get; set; } // JSON of full polar data for ORR (snapshot at regatta start)
 
         public string RegistrationStatus { get; set; } // Pending, Paid, CheckedIn
+
+        public ICollection<Finish> Finishes { get; set; }
     }
 }

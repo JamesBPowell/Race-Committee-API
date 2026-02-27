@@ -133,6 +133,26 @@ namespace RaceCommittee.Api.Controllers
             return Ok(result.Entry);
         }
 
+        // PUT: api/regattas/{id}/entries/{entryId}
+        [HttpPut("{id}/entries/{entryId}")]
+        public async Task<IActionResult> UpdateEntry(int id, int entryId, [FromBody] UpdateEntryDto dto)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userId == null) return Unauthorized();
+
+                var entry = await _regattasService.UpdateEntryAsync(id, entryId, dto, userId);
+                if (entry == null) return NotFound();
+
+                return Ok(entry);
+            }
+            catch (System.UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
         // POST: api/regattas/{id}/races
         [HttpPost("{id}/races")]
         public async Task<IActionResult> CreateRace(int id, [FromBody] CreateRaceDto dto)

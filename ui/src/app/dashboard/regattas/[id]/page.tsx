@@ -11,17 +11,23 @@ import { useRegatta, RaceResponse, useFleets, FleetResponse, ScoringMethod, Star
 import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
+import { ScoreRaceModal } from '@/components/ScoreRaceModal';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const { regatta, isLoading, error, refetch, updateRegatta } = useRegatta(id);
+    const { regatta, isLoading, error, refetch, updateRegatta, updateEntry } = useRegatta(id);
 
     const [activeTab, setActiveTab] = useState<'Overview' | 'Entries' | 'Classes' | 'Races' | 'Settings'>('Overview');
+
+    // Entry Edit State
+    const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+    const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; registrationStatus: string }>({ fleetId: null, registrationStatus: 'Pending' });
     const { deleteRace, isLoading: isDeleting } = useRaces();
     const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
 
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
+    const [scoringRace, setScoringRace] = useState<RaceResponse | null>(null);
 
     const [isAddFleetOpen, setIsAddFleetOpen] = useState(false);
     const [editingFleet, setEditingFleet] = useState<FleetResponse | null>(null);
@@ -141,6 +147,16 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             } catch {
                 alert('Failed to delete race');
             }
+        }
+    };
+
+    const handleUpdateEntrySubmit = async (entryId: number) => {
+        try {
+            await updateEntry(entryId, editEntryData);
+            setEditingEntryId(null);
+        } catch (err) {
+            console.error("Failed to update entry:", err);
+            alert("Failed to update entry");
         }
     };
 
@@ -268,20 +284,79 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                         <tr className="border-b border-white/10 text-slate-400 text-sm">
                                             <th className="pb-3 font-medium">Boat Name</th>
                                             <th className="pb-3 font-medium">Design / Model</th>
-                                            <th className="pb-3 font-medium">Sail #</th>
+                                            <th className="pb-3 font-medium">Class / Fleet</th>
                                             <th className="pb-3 font-medium">Status</th>
+                                            <th className="pb-3 text-right font-medium">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-sm">
                                         {regatta.entries.map((entry) => (
-                                            <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                <td className="py-4 text-white font-medium">{entry.boatName}</td>
+                                            <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                                <td className="py-4 text-white font-medium">{entry.boatName} <span className="text-slate-500 text-xs block">{entry.sailNumber !== 'None' ? `Sail: ${entry.sailNumber}` : ''}</span></td>
                                                 <td className="py-4 text-slate-300">{entry.boatType}</td>
-                                                <td className="py-4 text-slate-300">{entry.sailNumber}</td>
                                                 <td className="py-4">
-                                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                                                        {entry.registrationStatus}
-                                                    </span>
+                                                    {editingEntryId === entry.id ? (
+                                                        <select
+                                                            value={editEntryData.fleetId || ''}
+                                                            onChange={(e) => setEditEntryData({ ...editEntryData, fleetId: e.target.value ? parseInt(e.target.value) : null })}
+                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
+                                                        >
+                                                            <option value="">-- No Class --</option>
+                                                            {regatta.fleets?.map(f => (
+                                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span className="text-cyan-400 font-medium">{regatta.fleets?.find(f => f.id === entry.fleetId)?.name || 'Unassigned'}</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4">
+                                                    {editingEntryId === entry.id ? (
+                                                        <select
+                                                            value={editEntryData.registrationStatus}
+                                                            onChange={(e) => setEditEntryData({ ...editEntryData, registrationStatus: e.target.value })}
+                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
+                                                        >
+                                                            <option value="Pending">Pending</option>
+                                                            <option value="Approved">Approved</option>
+                                                            <option value="Rejected">Rejected</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${entry.registrationStatus === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                                entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                                    'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                                            }`}>
+                                                            {entry.registrationStatus}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 text-right">
+                                                    {editingEntryId === entry.id ? (
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleUpdateEntrySubmit(entry.id)}
+                                                                className="p-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"
+                                                            >
+                                                                <Save className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingEntryId(null)}
+                                                                className="p-1.5 bg-slate-700/50 text-slate-400 hover:bg-slate-700 rounded-lg transition-colors"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingEntryId(entry.id);
+                                                                setEditEntryData({ fleetId: entry.fleetId || null, registrationStatus: entry.registrationStatus });
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -566,6 +641,12 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                     </td>
                                                     <td className="py-4 text-right">
                                                         <button
+                                                            onClick={() => setScoringRace(race)}
+                                                            className="mr-3 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            Score
+                                                        </button>
+                                                        <button
                                                             onClick={() => setEditingRace(race)}
                                                             className="mr-3 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
@@ -629,6 +710,13 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 race={editingRace}
                 fleets={regatta.fleets || []}
                 onSuccess={refetch}
+            />
+
+            <ScoreRaceModal
+                isOpen={!!scoringRace}
+                onClose={() => setScoringRace(null)}
+                race={scoringRace}
+                regatta={regatta}
             />
         </div>
     );

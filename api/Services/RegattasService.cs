@@ -124,6 +124,7 @@ namespace RaceCommittee.Api.Services
                     .Select(e => new EntryDto
                     {
                         Id = e.Id,
+                        FleetId = e.FleetId,
                         BoatName = e.Boat?.BoatName ?? "Unknown Boat",
                         BoatType = e.Boat?.MakeModel ?? "Unknown Type",
                         SailNumber = e.Boat?.SailNumber ?? "None",
@@ -196,6 +197,29 @@ namespace RaceCommittee.Api.Services
             await _context.SaveChangesAsync();
 
             return (true, string.Empty, entry);
+        }
+
+        public async Task<Entry?> UpdateEntryAsync(int regattaId, int entryId, UpdateEntryDto dto, string userId)
+        {
+            var regatta = await _context.Regattas
+                .Include(r => r.CommitteeMembers)
+                .FirstOrDefaultAsync(r => r.Id == regattaId);
+
+            if (regatta == null) return null;
+            if (!regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
+                throw new System.UnauthorizedAccessException("Not authorized to update entries for this regatta");
+
+            var entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
+            if (entry == null) return null;
+
+            entry.FleetId = dto.FleetId;
+            if (!string.IsNullOrEmpty(dto.RegistrationStatus))
+            {
+                entry.RegistrationStatus = dto.RegistrationStatus;
+            }
+
+            await _context.SaveChangesAsync();
+            return entry;
         }
 
         private string GenerateSlug(string phrase)
