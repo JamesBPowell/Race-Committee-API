@@ -12,6 +12,7 @@ import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal } from '@/components/ScoreRaceModal';
+import RaceOverridesModal from '@/components/RaceOverridesModal';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -28,6 +29,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
     const [scoringRace, setScoringRace] = useState<RaceResponse | null>(null);
+    const [isRaceOverridesOpen, setIsRaceOverridesOpen] = useState(false);
+    const [selectedFleetForOverrides, setSelectedFleetForOverrides] = useState<FleetResponse | null>(null);
     const [scoringTab, setScoringTab] = useState<'record' | 'results'>('record');
 
     const [isAddFleetOpen, setIsAddFleetOpen] = useState(false);
@@ -477,6 +480,16 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => {
+                                                        setSelectedFleetForOverrides(fleet);
+                                                        setIsRaceOverridesOpen(true);
+                                                    }}
+                                                    title="Race Overrides"
+                                                    className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all"
+                                                >
+                                                    <SettingsIcon className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
                                                         setEditingFleet(fleet);
                                                         setFleetName(fleet.name);
                                                         setScoringMethod(fleet.scoringMethod);
@@ -744,6 +757,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 race={scoringRace}
                 regatta={regatta}
                 defaultTab={scoringTab}
+            />
+
+            <RaceOverridesModal
+                isOpen={isRaceOverridesOpen}
+                onClose={() => setIsRaceOverridesOpen(false)}
+                fleet={selectedFleetForOverrides}
+                races={regatta.races || []}
+                onSuccess={refetch}
             />
         </div>
     );

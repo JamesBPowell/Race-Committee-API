@@ -4,13 +4,13 @@ namespace RaceCommittee.Api.Models.DTOs
 {
     public class UpdateRaceDto
     {
-        public string Name { get; set; }
+        public string? Name { get; set; }
         
         public DateTime? ScheduledStartTime { get; set; }
         
         public DateTime? ActualStartTime { get; set; }
         
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
         public StartType? StartType { get; set; }
         public CourseType? CourseType { get; set; }
