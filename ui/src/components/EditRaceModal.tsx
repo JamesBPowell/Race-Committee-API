@@ -8,6 +8,21 @@ import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 
+// Format UTC date string to local YYYY-MM-DDTHH:mm for datetime-local inputs
+function formatDateTimeLocal(utcDateString: string | null | undefined): string {
+    if (!utcDateString) return '';
+    const d = new Date(utcDateString);
+    if (isNaN(d.getTime())) return '';
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 interface EditRaceModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -46,8 +61,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         setPrevRaceId(race.id);
         setFormData({
             raceNumber: race.raceNumber,
-            scheduledStartTime: race.scheduledStartTime ? new Date(race.scheduledStartTime).toISOString().slice(0, 16) : '',
-            actualStartTime: race.actualStartTime ? new Date(race.actualStartTime).toISOString().slice(0, 16) : '',
+            scheduledStartTime: formatDateTimeLocal(race.scheduledStartTime),
+            actualStartTime: formatDateTimeLocal(race.actualStartTime),
             status: race.status || 'Scheduled',
             startType: race.startType ?? StartType.Staggered,
             courseType: race.courseType ?? CourseType.WindwardLeeward,

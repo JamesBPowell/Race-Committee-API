@@ -8,11 +8,18 @@ interface ScoreRaceModalProps {
     onClose: () => void;
     race: RaceResponse | null;
     regatta: RegattaResponse;
+    defaultTab?: 'record' | 'results';
 }
 
-export function ScoreRaceModal({ isOpen, onClose, race, regatta }: ScoreRaceModalProps) {
+export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'record' }: ScoreRaceModalProps) {
     const { saveFinishes, scoreRace, getRaceResults, isLoading, error } = useRaces();
-    const [activeTab, setActiveTab] = useState<'record' | 'results'>('record');
+    const [activeTab, setActiveTab] = useState<'record' | 'results'>(defaultTab);
+
+    useEffect(() => {
+        if (isOpen) {
+            setActiveTab(defaultTab);
+        }
+    }, [isOpen, defaultTab]);
 
     // State for recording finishes
     const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>({});
@@ -60,11 +67,17 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta }: ScoreRaceModa
                 setFinishesMap(prev => {
                     const newMap = { ...prev };
                     data.forEach(result => {
-                        // Use string mapping for inputs
-                        const hhmmss = result.finishTime ? new Date(result.finishTime).toISOString().substring(11, 19) : '';
+                        let localTimeStr = '';
+                        if (result.finishTime) {
+                            const d = new Date(result.finishTime);
+                            const hours = String(d.getHours()).padStart(2, '0');
+                            const minutes = String(d.getMinutes()).padStart(2, '0');
+                            const seconds = String(d.getSeconds()).padStart(2, '0');
+                            localTimeStr = `${hours}:${minutes}:${seconds}`;
+                        }
                         newMap[result.entryId] = {
                             entryId: result.entryId,
-                            finishTime: hhmmss,
+                            finishTime: localTimeStr,
                             code: result.code || '',
                             timePenalty: result.timePenalty || '',
                             pointPenalty: 0, // DTO doesn't expose point penalty directly in results yet, using 0
@@ -83,8 +96,17 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta }: ScoreRaceModa
         if (!race) return;
 
         // Convert map to array and format finish time correctly
-        // Assuming actualStartTime is a full ISO date string from the backend
-        const baseDateString = race.actualStartTime ? new Date(race.actualStartTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        let year = new Date().getFullYear();
+        let month = String(new Date().getMonth() + 1).padStart(2, '0');
+        let day = String(new Date().getDate()).padStart(2, '0');
+
+        if (race.actualStartTime) {
+            const d = new Date(race.actualStartTime);
+            year = d.getFullYear();
+            month = String(d.getMonth() + 1).padStart(2, '0');
+            day = String(d.getDate()).padStart(2, '0');
+        }
+        const localDateString = `${year}-${month}-${day}`;
 
         const finishesArr = Object.values(finishesMap).map(f => {
             const dto: RecordFinishDto = { ...f };
@@ -94,11 +116,15 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta }: ScoreRaceModa
             if (!dto.timePenalty) dto.timePenalty = null;
             if (!dto.pointPenalty) dto.pointPenalty = null;
 
-            // If finishTime is provided (e.g. HH:mm:ss), combine it with the base date
+            // If finishTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
             if (dto.finishTime) {
-                // simple validation - this assumes format HH:mm:ss matches exactly
                 try {
-                    dto.finishTime = `${baseDateString}T${dto.finishTime}Z`;
+                    // Combine local date and local time "YYYY-MM-DDTHH:mm:ss"
+                    const localDateTimeStr = `${localDateString}T${dto.finishTime}`;
+                    const localDateTime = new Date(localDateTimeStr);
+                    if (!isNaN(localDateTime.getTime())) {
+                        dto.finishTime = localDateTime.toISOString();
+                    }
                 } catch { }
             }
             return dto;

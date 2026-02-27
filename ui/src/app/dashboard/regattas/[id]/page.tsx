@@ -28,6 +28,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
     const [scoringRace, setScoringRace] = useState<RaceResponse | null>(null);
+    const [scoringTab, setScoringTab] = useState<'record' | 'results'>('record');
 
     const [isAddFleetOpen, setIsAddFleetOpen] = useState(false);
     const [editingFleet, setEditingFleet] = useState<FleetResponse | null>(null);
@@ -323,8 +324,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         </select>
                                                     ) : (
                                                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${entry.registrationStatus === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                                                entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                                    'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                                            entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                                'bg-rose-500/10 text-rose-400 border-rose-500/20'
                                                             }`}>
                                                             {entry.registrationStatus}
                                                         </span>
@@ -640,8 +641,16 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         {race.scheduledStartTime ? new Date(race.scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}
                                                     </td>
                                                     <td className="py-4 text-right">
+                                                        {(race.status === 'Completed' || race.status === 'Racing') && (
+                                                            <button
+                                                                onClick={() => { setScoringTab('results'); setScoringRace(race); }}
+                                                                className="mr-3 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                Results
+                                                            </button>
+                                                        )}
                                                         <button
-                                                            onClick={() => setScoringRace(race)}
+                                                            onClick={() => { setScoringTab('record'); setScoringRace(race); }}
                                                             className="mr-3 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             Score
@@ -717,6 +726,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 onClose={() => setScoringRace(null)}
                 race={scoringRace}
                 regatta={regatta}
+                defaultTab={scoringTab}
             />
         </div>
     );
