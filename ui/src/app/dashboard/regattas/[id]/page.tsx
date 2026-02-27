@@ -504,7 +504,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                 ))}
                                             </div>
                                             <span className="text-xs font-medium text-slate-400">
-                                                {regatta.entries?.filter(e => e.boatType === fleet.name).length || 0} Boats
+                                                {regatta.entries?.filter(e => e.fleetId === fleet.id).length || 0} Boats
                                             </span>
                                         </div>
                                     </div>
