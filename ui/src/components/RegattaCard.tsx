@@ -96,5 +96,9 @@ export default function RegattaCard({
         );
     }
 
-    return cardContent;
+    return (
+        <Link href={`/dashboard/regattas/${id}`} className="block h-full">
+            {cardContent}
+        </Link>
+    );
 }

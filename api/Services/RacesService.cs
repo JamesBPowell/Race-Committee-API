@@ -193,6 +193,7 @@ namespace RaceCommittee.Api.Services
                 });
             }
 
+            race.Status = "Completed";
             await _context.SaveChangesAsync();
             return true;
         }

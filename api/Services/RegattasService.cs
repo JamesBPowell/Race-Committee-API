@@ -69,7 +69,7 @@ namespace RaceCommittee.Api.Services
                 .ToListAsync();
         }
 
-        public async Task<RegattaDetailsDto?> GetRegattaAsync(int id)
+        public async Task<RegattaDetailsDto?> GetRegattaAsync(int id, string? userId = null)
         {
             var regatta = await _context.Regattas
                 .Include(r => r.Races)
@@ -79,9 +79,17 @@ namespace RaceCommittee.Api.Services
                     .ThenInclude(e => e.Boat)
                         .ThenInclude(b => b.Owner)
                 .Include(r => r.Fleets)
+                .Include(r => r.CommitteeMembers)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (regatta == null) return null;
+
+            var isCommittee = userId != null && regatta.CommitteeMembers.Any(cm => cm.UserId == userId);
+            int? myEntryId = null;
+            if (userId != null)
+            {
+                myEntryId = regatta.Entries?.FirstOrDefault(e => e.Boat?.OwnerId == userId)?.Id;
+            }
 
             return new RegattaDetailsDto
             {
@@ -95,6 +103,8 @@ namespace RaceCommittee.Api.Services
                 BoatsEnteredCount = regatta.Entries?.Count ?? 0,
                 ClassesCount = regatta.Fleets?.Count ?? 0,
                 ScheduledRacesCount = regatta.Races?.Count ?? 0,
+                IsCommitteeMember = isCommittee,
+                MyEntryId = myEntryId,
                 Races = regatta.Races?
                     .OrderBy(r => r.Name)
                     .Select(r => new RaceDto
@@ -119,7 +129,8 @@ namespace RaceCommittee.Api.Services
                             CourseType = rf.CourseType,
                             WindSpeed = rf.WindSpeed,
                             WindDirection = rf.WindDirection,
-                            CourseDistance = rf.CourseDistance
+                            CourseDistance = rf.CourseDistance,
+                            IncludeInOverall = rf.IncludeInOverall
                         })
                     }),
                 Entries = regatta.Entries?

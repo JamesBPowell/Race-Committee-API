@@ -164,6 +164,8 @@ namespace RaceCommittee.Api.Services
                         FleetId = fleetId,
                         BoatName = finish.Entry.Boat.BoatName,
                         SailNumber = finish.Entry.Boat.SailNumber,
+                        BoatMakeModel = finish.Entry.Boat.MakeModel,
+                        Rating = finish.Entry.Rating ?? finish.Entry.Boat.DefaultRating,
                         FleetName = fleet.Name,
                         FinishTime = finish.FinishTime,
                         ElapsedDuration = finish.ElapsedDuration,

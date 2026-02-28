@@ -15,6 +15,8 @@ namespace RaceCommittee.Api.Models.DTOs
         public int BoatsEnteredCount { get; set; }
         public int ClassesCount { get; set; }
         public int ScheduledRacesCount { get; set; }
+        public bool IsCommitteeMember { get; set; }
+        public int? MyEntryId { get; set; }
         public IEnumerable<RaceDto> Races { get; set; }
         public IEnumerable<EntryDto> Entries { get; set; }
         public IEnumerable<FleetDto> Fleets { get; set; }
@@ -58,5 +60,6 @@ namespace RaceCommittee.Api.Models.DTOs
         public float? WindSpeed { get; set; }
         public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
+        public bool IncludeInOverall { get; set; }
     }
 }

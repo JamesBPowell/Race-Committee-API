@@ -75,9 +75,11 @@ namespace RaceCommittee.Api.Controllers
         // GET: api/regattas/5
         // Required for CreatedAtAction to work correctly, even if we don't fully implement it yet
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetRegatta(int id)
         {
-            var regatta = await _regattasService.GetRegattaAsync(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var regatta = await _regattasService.GetRegattaAsync(id, userId);
 
             if (regatta == null)
             {

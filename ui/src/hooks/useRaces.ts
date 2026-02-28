@@ -25,6 +25,8 @@ export interface FinishResultDto {
     fleetId: number;
     boatName: string;
     sailNumber: string;
+    boatMakeModel: string;
+    rating?: number | null;
     fleetName: string;
     finishTime?: string | null;
     elapsedDuration?: string | null;

@@ -111,17 +111,18 @@ test.describe('Scoring Flow', () => {
         const resultsBtn = raceRow.getByRole('button', { name: 'Results' }); // In the table, it's 'Results'
         if (await resultsBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
             await resultsBtn.click();
-            // Should show results view
-            await expect(page.getByText(/results|position|place/i)).toBeVisible({ timeout: 5_000 });
+            // Should show results view - check for the heading and the table headers
+            await expect(page.getByRole('heading', { name: /results/i }).first()).toBeVisible({ timeout: 5_000 });
+            await expect(page.getByText('Corrected')).toBeVisible();
         } else {
             // If no Results button, the race hasn't been scored yet — click Score instead
             await raceRow.getByRole('button', { name: 'Score', exact: true }).click();
             await expect(page.getByText(/record finishes|finishes/i)).toBeVisible({ timeout: 5_000 });
 
             // Try switching to results tab if available
-            const resultsTab = page.getByRole('button', { name: /results/i }).first();
+            const resultsTab = page.getByRole('button', { name: 'Calculated Results' });
             if (await resultsTab.isVisible({ timeout: 2_000 }).catch(() => false)) {
-                await resultsTab.click();
+                await resultsTab.click({ force: true });
             }
         }
     });

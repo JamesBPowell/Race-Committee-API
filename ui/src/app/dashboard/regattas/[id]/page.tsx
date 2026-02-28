@@ -3,9 +3,8 @@
 import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
-    ChevronLeft, Calendar, MapPin, Users,
-    Target, Anchor, Shield, TrendingUp, Loader2,
-    Plus, Trash2, Edit, Save, Settings as SettingsIcon
+    ChevronLeft, Calendar, MapPin, Anchor, Target, TrendingUp, Shield,
+    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon
 } from 'lucide-react';
 import { useRegatta, RaceResponse, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
@@ -13,18 +12,20 @@ import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal } from '@/components/ScoreRaceModal';
 import RaceOverridesModal from '@/components/RaceOverridesModal';
+import RacerRegattaPage from '@/components/RacerRegattaPage';
+import RegattaResultsView from '@/components/RegattaResultsView';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const { regatta, isLoading, error, refetch, updateRegatta, updateEntry } = useRegatta(id);
+    const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
+    const { deleteRace, isLoading: isDeleting } = useRaces();
 
-    const [activeTab, setActiveTab] = useState<'Overview' | 'Entries' | 'Classes' | 'Races' | 'Settings'>('Overview');
+    const [activeTab, setActiveTab] = useState<'Overview' | 'Entries' | 'Classes' | 'Races' | 'Results' | 'Settings'>('Overview');
 
     // Entry Edit State
     const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
     const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; rating: number | null; registrationStatus: string }>({ fleetId: null, rating: null, registrationStatus: 'Pending' });
-    const { deleteRace, isLoading: isDeleting } = useRaces();
-    const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
 
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
@@ -74,6 +75,11 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 {error || "Regatta not found"}
             </div>
         );
+    }
+
+    // Role-based routing: if user is a racer (has entry, not committee), show racer view
+    if (!regatta.isCommitteeMember && regatta.myEntryId) {
+        return <RacerRegattaPage regatta={regatta} />;
     }
 
     const regattaName = regatta.name;
@@ -234,6 +240,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 <Tab active={activeTab === 'Entries'} label="Entries" onClick={() => setActiveTab('Entries')} />
                 <Tab active={activeTab === 'Classes'} label="Classes" onClick={() => setActiveTab('Classes')} />
                 <Tab active={activeTab === 'Races'} label="Races" onClick={() => setActiveTab('Races')} />
+                <Tab active={activeTab === 'Results'} label="Results" onClick={() => setActiveTab('Results')} />
                 <Tab active={activeTab === 'Settings'} label="Settings" onClick={() => setActiveTab('Settings')} />
             </div>
 
@@ -532,6 +539,18 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'Results' && (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                            <Trophy className="w-6 h-6 text-cyan-400" />
+                            Regatta Results
+                        </h2>
+                    </div>
+                    <RegattaResultsView regatta={regatta} />
                 </div>
             )}
 

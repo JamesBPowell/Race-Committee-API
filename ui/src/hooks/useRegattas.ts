@@ -82,6 +82,8 @@ export interface RegattaResponse {
     boatsEnteredCount?: number;
     classesCount?: number;
     scheduledRacesCount?: number;
+    isCommitteeMember?: boolean;
+    myEntryId?: number | null;
     races: RaceResponse[];
     entries?: EntryResponse[];
     fleets?: FleetResponse[];

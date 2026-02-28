@@ -122,8 +122,27 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
         const finishesArr = Object.values(finishesMap).map(f => {
             const dto: RecordFinishDto = { ...f };
-            // Empty string to null for nullable fields
-            if (!dto.finishTime) dto.finishTime = null;
+            const rawTime = dto.finishTime?.trim();
+
+            // Default to null
+            dto.finishTime = null;
+
+            if (rawTime) {
+                // If it's already an ISO string (starts with YYYY-), keep it
+                if (rawTime.includes('T') || rawTime.includes('-')) {
+                    dto.finishTime = rawTime;
+                } else {
+                    // Try to parse HH:MM:SS
+                    try {
+                        const localDateTimeStr = `${localDateString}T${rawTime}`;
+                        const localDateTime = new Date(localDateTimeStr);
+                        if (!isNaN(localDateTime.getTime())) {
+                            dto.finishTime = localDateTime.toISOString();
+                        }
+                    } catch { }
+                }
+            }
+
             if (!dto.code) dto.code = '';
             // timePenalty must be null or a valid TimeSpan string - empty string breaks ASP.NET deserialization
             if (!dto.timePenalty || dto.timePenalty.trim() === '') {
@@ -132,30 +151,23 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             if (!dto.pointPenalty) dto.pointPenalty = null;
             if (!dto.notes) dto.notes = '';
 
-            // If finishTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
-            if (dto.finishTime) {
-                try {
-                    // Combine local date and local time "YYYY-MM-DDTHH:mm:ss"
-                    const localDateTimeStr = `${localDateString}T${dto.finishTime}`;
-                    const localDateTime = new Date(localDateTimeStr);
-                    if (!isNaN(localDateTime.getTime())) {
-                        dto.finishTime = localDateTime.toISOString();
-                    }
-                } catch { }
-            }
             return dto;
         });
 
         // If ActualStartTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
         let startTimeISO = null;
-        if (actualStartTime) {
-            try {
-                const localDateTimeStr = `${localDateString}T${actualStartTime}`;
-                const localDateTime = new Date(localDateTimeStr);
-                if (!isNaN(localDateTime.getTime())) {
-                    startTimeISO = localDateTime.toISOString();
-                }
-            } catch { }
+        if (actualStartTime && actualStartTime.trim()) {
+            if (actualStartTime.includes('T') || actualStartTime.includes('-')) {
+                startTimeISO = actualStartTime;
+            } else {
+                try {
+                    const localDateTimeStr = `${localDateString}T${actualStartTime.trim()}`;
+                    const localDateTime = new Date(localDateTimeStr);
+                    if (!isNaN(localDateTime.getTime())) {
+                        startTimeISO = localDateTime.toISOString();
+                    }
+                } catch { }
+            }
         }
 
         const success = await saveFinishes(race.id, {

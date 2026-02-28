@@ -43,7 +43,7 @@ export default function DashboardPage() {
         endDate: r.endDate ? new Date(r.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
         location: r.location,
         status: r.status as RegattaCardProps['status'], // Use the actual server status, not hardcoded 'Entered'
-        role: 'Racer' as RegattaCardProps['role'],
+        role: 'Competitor' as RegattaCardProps['role'],
         boatsEntered: 0
     })).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 

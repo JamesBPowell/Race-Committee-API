@@ -11,6 +11,8 @@ namespace RaceCommittee.Api.Models.DTOs
         
         public string BoatName { get; set; }
         public string SailNumber { get; set; }
+        public string BoatMakeModel { get; set; }
+        public float? Rating { get; set; }
         public string FleetName { get; set; }
         
         public DateTime? FinishTime { get; set; }
