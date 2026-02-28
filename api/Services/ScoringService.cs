@@ -177,6 +177,58 @@ namespace RaceCommittee.Api.Services
                 }
             }
 
+            // Third pass: Calculate Overall Rankings for matching methodologies and race parameters
+            var fleetsInOverall = race.ParticipatingFleets.Where(rf => rf.IncludeInOverall).ToList();
+            var fleetIdsInOverall = fleetsInOverall.Select(rf => rf.FleetId).ToHashSet();
+
+            var overallGroups = results
+                .Where(r => fleetIdsInOverall.Contains(r.FleetId))
+                .GroupBy(r => {
+                    var rf = fleetsInOverall.First(f => f.FleetId == r.FleetId);
+                    return new { 
+                        Method = r.ScoringMethodUsed, 
+                        Distance = rf.CourseDistance ?? race.CourseDistance ?? 0,
+                        Course = rf.CourseType ?? race.CourseType
+                    };
+                })
+                .ToList();
+
+            foreach (var group in overallGroups)
+            {
+                var sortedOverall = group
+                    .OrderBy(f => string.IsNullOrEmpty(f.Code) ? 0 : 1) // Finishers first
+                    .ThenBy(f => f.CorrectedDuration) // Then by corrected time
+                    .ToList();
+
+                int overallRank = 1;
+                int totalInOverallGroup = group.Count();
+                float overallPenaltyPoints = totalInOverallGroup + 1;
+
+                foreach (var res in sortedOverall)
+                {
+                    res.OverallRank = overallRank;
+                    
+                    if (!string.IsNullOrEmpty(res.Code))
+                    {
+                        res.OverallPoints = overallPenaltyPoints;
+                    }
+                    else
+                    {
+                        res.OverallPoints = overallRank;
+                    }
+
+                    // Map these back to the entity for persistence
+                    var finishToUpdate = race.Finishes.FirstOrDefault(f => f.Id == res.FinishId);
+                    if (finishToUpdate != null)
+                    {
+                        finishToUpdate.OverallRank = res.OverallRank;
+                        finishToUpdate.OverallPoints = res.OverallPoints;
+                    }
+
+                    overallRank++;
+                }
+            }
+
             // Save the computed fields back to the DB to persist the results
             await _context.SaveChangesAsync();
 

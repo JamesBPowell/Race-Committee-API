@@ -56,6 +56,7 @@ namespace RaceCommittee.Api.Services
                     StartTimeOffset = rfDto?.StartTimeOffset,
                     CourseType = rfDto?.CourseType ?? dto.CourseType,
                     CourseDistance = rfDto?.CourseDistance ?? dto.CourseDistance,
+                    IncludeInOverall = rfDto?.IncludeInOverall ?? true,
                     ScoringParameters = "{}"
                 };
             }).ToList();
@@ -104,6 +105,7 @@ namespace RaceCommittee.Api.Services
                         if (rfUpdate.StartTimeOffset.HasValue) existingRf.StartTimeOffset = rfUpdate.StartTimeOffset;
                         if (rfUpdate.CourseType.HasValue) existingRf.CourseType = rfUpdate.CourseType.Value;
                         if (rfUpdate.CourseDistance.HasValue) existingRf.CourseDistance = rfUpdate.CourseDistance.Value;
+                        if (rfUpdate.IncludeInOverall.HasValue) existingRf.IncludeInOverall = rfUpdate.IncludeInOverall.Value;
                     }
                     else if (rfUpdate.FleetId != 0)
                     {
@@ -115,6 +117,7 @@ namespace RaceCommittee.Api.Services
                             StartTimeOffset = rfUpdate.StartTimeOffset,
                             CourseType = rfUpdate.CourseType ?? race.CourseType,
                             CourseDistance = rfUpdate.CourseDistance ?? race.CourseDistance,
+                            IncludeInOverall = rfUpdate.IncludeInOverall ?? true,
                             ScoringParameters = "{}"
                         });
                     }
@@ -170,6 +173,7 @@ namespace RaceCommittee.Api.Services
             // Update race-level conditions
             if (data.WindSpeed.HasValue) race.WindSpeed = data.WindSpeed;
             if (data.WindDirection.HasValue) race.WindDirection = data.WindDirection;
+            if (data.ActualStartTime.HasValue) race.ActualStartTime = data.ActualStartTime;
 
             // Remove existing finishes
             _context.Finishes.RemoveRange(race.Finishes);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Wind, Ruler, Navigation, Save, Calendar } from 'lucide-react';
+import { X, Loader2, Ruler, Save, Calendar } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { RaceResponse, CourseType, FleetResponse, StartType } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
@@ -16,15 +16,27 @@ interface RaceOverridesModalProps {
     onSuccess: () => void;
 }
 
+interface RaceFleetOverride {
+    id: number;
+    fleetId: number;
+    raceNumber: number;
+    startTimeOffset: string | null;
+    courseType: CourseType;
+    windSpeed: number;
+    windDirection: number;
+    courseDistance: number;
+    includeInOverall: boolean;
+}
+
 export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSuccess }: RaceOverridesModalProps) {
-    const { updateRace, isLoading } = useRaces();
-    const [overrides, setOverrides] = useState<Record<number, any>>({});
+    const { updateRace } = useRaces();
+    const [overrides, setOverrides] = useState<Record<number, RaceFleetOverride>>({});
     const [pendingChanges, setPendingChanges] = useState<Set<number>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isOpen && fleet && races.length > 0) {
-            const initialOverrides: Record<number, any> = {};
+            const initialOverrides: Record<number, RaceFleetOverride> = {};
             races.forEach(race => {
                 const rf = race.raceFleets?.find(r => r.fleetId === fleet.id);
                 if (rf) {
@@ -36,7 +48,8 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                         courseType: rf.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
                         windSpeed: rf.windSpeed ?? race.windSpeed ?? 0,
                         windDirection: rf.windDirection ?? race.windDirection ?? 0,
-                        courseDistance: rf.courseDistance ?? race.courseDistance ?? 0
+                        courseDistance: rf.courseDistance ?? race.courseDistance ?? 0,
+                        includeInOverall: rf.includeInOverall ?? true
                     };
                 }
             });
@@ -47,7 +60,7 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
 
     if (!isOpen || !fleet) return null;
 
-    const handleFieldChange = (raceId: number, field: string, value: any) => {
+    const handleFieldChange = (raceId: number, field: keyof RaceFleetOverride, value: string | number | boolean | null) => {
         setOverrides(prev => ({
             ...prev,
             [raceId]: {
@@ -101,7 +114,11 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                             <p className="text-xs text-slate-400">Configure class-specific parameters for each race</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                        title="Close overrides modal"
+                    >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -150,7 +167,7 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                             <Input
                                                                 type="time"
                                                                 step="1"
-                                                                value={override.startTimeOffset}
+                                                                value={override.startTimeOffset || ''}
                                                                 onChange={(e) => handleFieldChange(race.id, 'startTimeOffset', e.target.value)}
                                                                 className="h-8 w-28 text-xs px-2 bg-slate-800 border-none"
                                                             />
@@ -167,37 +184,13 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                     value={override.courseType}
                                                     onChange={(e) => handleFieldChange(race.id, 'courseType', parseInt(e.target.value))}
                                                     className="w-full bg-slate-800 border-none rounded-lg py-1 px-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                                                    title="Select course type"
                                                 >
                                                     <option value={CourseType.WindwardLeeward}>Windward/Leeward</option>
                                                     <option value={CourseType.RandomLeg}>Random Leg</option>
                                                     <option value={CourseType.Triangle}>Triangle</option>
                                                     <option value={CourseType.Olympic}>Olympic</option>
                                                 </select>
-                                            </div>
-                                            <div className="bg-slate-900/30 p-2 rounded-xl">
-                                                <Label className="text-[10px] text-slate-500 mb-1 flex items-center gap-1.5">
-                                                    <Wind className="w-3 h-3 text-sky-400" /> Wind (kts)
-                                                </Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.1"
-                                                    value={override.windSpeed}
-                                                    onChange={(e) => handleFieldChange(race.id, 'windSpeed', parseFloat(e.target.value) || 0)}
-                                                    className="h-7 text-sm px-2 bg-slate-800 border-none"
-                                                />
-                                            </div>
-                                            <div className="bg-slate-900/30 p-2 rounded-xl">
-                                                <Label className="text-[10px] text-slate-500 mb-1 flex items-center gap-1.5">
-                                                    <Navigation className="w-3 h-3 text-rose-400" /> Dir (deg)
-                                                </Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    max="359"
-                                                    value={override.windDirection}
-                                                    onChange={(e) => handleFieldChange(race.id, 'windDirection', parseInt(e.target.value) || 0)}
-                                                    className="h-7 text-sm px-2 bg-slate-800 border-none"
-                                                />
                                             </div>
                                             <div className="bg-slate-900/30 p-2 rounded-xl">
                                                 <Label className="text-[10px] text-slate-500 mb-1 flex items-center gap-1.5">
@@ -211,6 +204,19 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                     className="h-7 text-sm px-2 bg-slate-800 border-none"
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center gap-2 px-1">
+                                            <input
+                                                type="checkbox"
+                                                id={`include-overall-${race.id}`}
+                                                checked={override.includeInOverall}
+                                                onChange={(e) => handleFieldChange(race.id, 'includeInOverall', e.target.checked)}
+                                                className="w-4 h-4 rounded border-white/10 bg-slate-900/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0 transition-all cursor-pointer"
+                                                title="Include this fleet in overall results"
+                                            />
+                                            <Label htmlFor={`include-overall-${race.id}`} className="text-xs text-slate-400 cursor-pointer font-medium hover:text-slate-300 transition-colors">
+                                                Include this fleet in overall race results
+                                            </Label>
                                         </div>
                                     </div>
                                 );

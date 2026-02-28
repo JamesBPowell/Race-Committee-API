@@ -22,6 +22,8 @@ namespace RaceCommittee.Api.Models.DTOs
         public string Notes { get; set; }
         
         public float? Points { get; set; }
+        public float? OverallPoints { get; set; }
+        public int? OverallRank { get; set; }
         
         public string ScoringMethodUsed { get; set; }
     }

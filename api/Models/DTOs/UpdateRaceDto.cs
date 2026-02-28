@@ -27,5 +27,6 @@ namespace RaceCommittee.Api.Models.DTOs
         public TimeSpan? StartTimeOffset { get; set; }
         public CourseType? CourseType { get; set; }
         public float? CourseDistance { get; set; }
+        public bool? IncludeInOverall { get; set; }
     }
 }

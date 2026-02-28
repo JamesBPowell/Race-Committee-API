@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Loader2, Wind, Ruler, Navigation } from 'lucide-react';
+import { X, Loader2, Ruler } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { RaceResponse, StartType, CourseType, FleetResponse } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
@@ -49,6 +49,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             startTimeOffset: string;
             courseType: CourseType;
             courseDistance: number;
+            includeInOverall: boolean;
         }[]
     });
     const [prevRaceId, setPrevRaceId] = useState<number | null>(null);
@@ -73,7 +74,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     startTimeOffset: rf?.startTimeOffset || '',
                     raceNumber: rf?.raceNumber ?? 1,
                     courseType: rf?.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
-                    courseDistance: rf?.courseDistance ?? race.courseDistance ?? 0
+                    courseDistance: rf?.courseDistance ?? race.courseDistance ?? 0,
+                    includeInOverall: rf?.includeInOverall ?? true
                 };
             })
         });
@@ -99,7 +101,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
-                    courseDistance: rf.courseDistance || null
+                    courseDistance: rf.courseDistance || null,
+                    includeInOverall: rf.includeInOverall
                 }))
             });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Loader2, Wind, Ruler, Navigation } from 'lucide-react';
+import { X, Loader2, Ruler } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { StartType, CourseType, FleetResponse } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
@@ -32,6 +32,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             startTimeOffset: string;
             courseType: CourseType;
             courseDistance: number;
+            includeInOverall: boolean;
         }[]
     });
     const [wasOpen, setWasOpen] = useState(false);
@@ -46,7 +47,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 raceNumber: 1,
                 startTimeOffset: '',
                 courseType: prev.courseType,
-                courseDistance: prev.courseDistance
+                courseDistance: prev.courseDistance,
+                includeInOverall: true
             }))
         }));
     } else if (!isOpen && wasOpen) {
@@ -71,7 +73,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                     raceNumber: rf.raceNumber,
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
-                    courseDistance: rf.courseDistance || null
+                    courseDistance: rf.courseDistance || null,
+                    includeInOverall: rf.includeInOverall
                 }))
             });
 

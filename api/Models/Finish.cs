@@ -23,6 +23,9 @@ namespace RaceCommittee.Api.Models
         
         public float? Points { get; set; }
         public float? PointPenalty { get; set; }
+
+        public int? OverallRank { get; set; }
+        public float? OverallPoints { get; set; }
         
         public string Code { get; set; } // DNF, DNS, DNC, DSQ, RET, OCS, UFD, BFD, SCP, RDG
         

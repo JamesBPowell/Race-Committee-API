@@ -427,6 +427,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <div className="w-full md:w-64 space-y-1.5 ">
                                     <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest ml-1">Scoring Method</label>
                                     <select
+                                        title="Scoring Method"
                                         value={scoringMethod}
                                         onChange={(e) => setScoringMethod(parseInt(e.target.value))}
                                         className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all font-medium"
@@ -546,6 +547,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <label className="text-sm font-medium text-slate-400 ml-1">Regatta Name</label>
                                 <input
                                     type="text"
+                                    title="Regatta Name"
                                     value={regattaSettings.name}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, name: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
@@ -555,6 +557,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <label className="text-sm font-medium text-slate-400 ml-1">Organization</label>
                                 <input
                                     type="text"
+                                    title="Organization"
                                     value={regattaSettings.organization}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, organization: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
@@ -564,6 +567,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <label className="text-sm font-medium text-slate-400 ml-1">Location</label>
                                 <input
                                     type="text"
+                                    title="Location"
                                     value={regattaSettings.location}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, location: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
@@ -572,6 +576,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-slate-400 ml-1">Status</label>
                                 <select
+                                    title="Status"
                                     value={regattaSettings.status}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, status: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
@@ -586,6 +591,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <label className="text-sm font-medium text-slate-400 ml-1">Start Date</label>
                                 <input
                                     type="date"
+                                    title="Start Date"
                                     value={regattaSettings.startDate}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, startDate: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"
@@ -595,6 +601,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                 <label className="text-sm font-medium text-slate-400 ml-1">End Date</label>
                                 <input
                                     type="date"
+                                    title="End Date"
                                     value={regattaSettings.endDate}
                                     onChange={(e) => setRegattaSettings({ ...regattaSettings, endDate: e.target.value })}
                                     className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all"

@@ -34,6 +34,7 @@ export interface RaceFleetResponse {
     windSpeed?: number | null;
     windDirection?: number | null;
     courseDistance?: number | null;
+    includeInOverall: boolean;
 }
 
 export interface RaceResponse {

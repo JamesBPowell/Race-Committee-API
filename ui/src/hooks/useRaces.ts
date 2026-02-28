@@ -14,6 +14,7 @@ export interface RecordFinishDto {
 export interface RecordRaceFinishes {
     windSpeed?: number | null;
     windDirection?: number | null;
+    actualStartTime?: string | null;
     finishes: RecordFinishDto[];
 }
 
@@ -32,6 +33,8 @@ export interface FinishResultDto {
     code?: string;
     notes?: string;
     points?: number | null;
+    overallPoints?: number | null;
+    overallRank?: number | null;
     scoringMethodUsed: string;
 }
 
@@ -52,6 +55,7 @@ export function useRaces() {
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             courseDistance?: number | null;
+            includeInOverall?: boolean;
         }[];
     }) => {
         setIsLoading(true);
@@ -83,6 +87,7 @@ export function useRaces() {
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             courseDistance?: number | null;
+            includeInOverall?: boolean;
         }[];
     }) => {
         setIsLoading(true);

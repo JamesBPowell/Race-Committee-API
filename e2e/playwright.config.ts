@@ -46,7 +46,7 @@ export default defineConfig({
         },
         {
             name: 'rc-scoring-tests',
-            testMatch: '07-scoring.spec.ts',
+            testMatch: ['07-scoring.spec.ts', '08-overall-scoring.spec.ts'],
             use: {
                 storageState: 'auth/rc-user.json',
             },

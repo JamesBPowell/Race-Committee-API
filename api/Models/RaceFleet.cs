@@ -18,6 +18,7 @@ namespace RaceCommittee.Api.Models
         public float? WindSpeed { get; set; }
         public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
+        public bool IncludeInOverall { get; set; } = true;
         public string ScoringParameters { get; set; }
     }
 }

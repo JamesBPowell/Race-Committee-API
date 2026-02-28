@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calculator, AlertTriangle, Save, RefreshCw, Wind, Navigation } from 'lucide-react';
+import { X, Calculator, AlertTriangle, Save, RefreshCw, Wind, Navigation, Clock } from 'lucide-react';
 import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
 import { useRaces, RecordFinishDto, FinishResultDto } from '@/hooks/useRaces';
 
@@ -39,11 +39,14 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     // State for recording finishes - initialized from memo to avoid useEffect cascade
     const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
 
-    // State for race conditions (wind) - initialized from props
+    // State for race results and conditions - initialized from props
     const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
     const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
-
-    // State for displaying results
+    const [actualStartTime, setActualStartTime] = useState<string>(() => {
+        if (!race?.actualStartTime) return '';
+        const d = new Date(race.actualStartTime);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+    });
     const [results, setResults] = useState<FinishResultDto[]>([]);
 
     const handleScoreRace = useCallback(async () => {
@@ -56,47 +59,50 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         }
     }, [race, scoreRace]);
 
-    const loadExistingResults = useCallback(async (raceId: number) => {
-        try {
-            const data = await getRaceResults(raceId);
-            setResults(data);
-
-            // If we have results, populate the finishesMap so editing is easy
-            if (data.length > 0) {
-                setFinishesMap((prev: Record<number, RecordFinishDto>) => {
-                    const newMap = { ...prev };
-                    data.forEach((result: FinishResultDto) => {
-                        let localTimeStr = '';
-                        if (result.finishTime) {
-                            const d = new Date(result.finishTime);
-                            const hours = String(d.getHours()).padStart(2, '0');
-                            const minutes = String(d.getMinutes()).padStart(2, '0');
-                            const seconds = String(d.getSeconds()).padStart(2, '0');
-                            localTimeStr = `${hours}:${minutes}:${seconds}`;
-                        }
-                        newMap[result.entryId] = {
-                            entryId: result.entryId,
-                            finishTime: localTimeStr,
-                            code: result.code || '',
-                            timePenalty: result.timePenalty || '',
-                            pointPenalty: 0, // DTO doesn't expose point penalty directly in results yet, using 0
-                            notes: result.notes || ''
-                        };
-                    });
-                    return newMap;
-                });
-            }
-        } catch (err) {
-            console.error(err);
-        }
-    }, [getRaceResults]);
-
     // Initialize results when opened
     useEffect(() => {
+        let isMounted = true;
         if (isOpen && race) {
-            loadExistingResults(race.id);
+            // Fetch results
+            const fetchResults = async () => {
+                try {
+                    const data = await getRaceResults(race.id);
+                    if (isMounted) {
+                        setResults(data);
+                        // If we have results, populate the finishesMap so editing is easy
+                        if (data.length > 0) {
+                            setFinishesMap((prev: Record<number, RecordFinishDto>) => {
+                                const newMap = { ...prev };
+                                data.forEach((result: FinishResultDto) => {
+                                    let localTimeStr = '';
+                                    if (result.finishTime) {
+                                        const d = new Date(result.finishTime);
+                                        const hours = String(d.getHours()).padStart(2, '0');
+                                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                                        const seconds = String(d.getSeconds()).padStart(2, '0');
+                                        localTimeStr = `${hours}:${minutes}:${seconds}`;
+                                    }
+                                    newMap[result.entryId] = {
+                                        entryId: result.entryId,
+                                        finishTime: localTimeStr,
+                                        code: result.code || '',
+                                        timePenalty: result.timePenalty || '',
+                                        pointPenalty: 0,
+                                        notes: result.notes || ''
+                                    };
+                                });
+                                return newMap;
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+            fetchResults();
         }
-    }, [isOpen, race, loadExistingResults]);
+        return () => { isMounted = false; };
+    }, [isOpen, race, getRaceResults]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
@@ -140,9 +146,22 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             return dto;
         });
 
+        // If ActualStartTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
+        let startTimeISO = null;
+        if (actualStartTime) {
+            try {
+                const localDateTimeStr = `${localDateString}T${actualStartTime}`;
+                const localDateTime = new Date(localDateTimeStr);
+                if (!isNaN(localDateTime.getTime())) {
+                    startTimeISO = localDateTime.toISOString();
+                }
+            } catch { }
+        }
+
         const success = await saveFinishes(race.id, {
             windSpeed,
             windDirection,
+            actualStartTime: startTimeISO,
             finishes: finishesArr
         });
         if (success) {
@@ -235,6 +254,20 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         className="w-20 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
                                         value={windDirection}
                                         onChange={e => setWindDirection(parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4 text-emerald-400" />
+                                        <label className="text-sm font-bold text-slate-300">Actual Start:</label>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="HH:MM:SS"
+                                        title="Actual Start Time"
+                                        className="w-24 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                                        value={actualStartTime}
+                                        onChange={e => setActualStartTime(e.target.value)}
                                     />
                                 </div>
                                 <div className="ml-auto text-[10px] text-slate-500 font-mono italic">CAPTURE CONDITIONS AT TIME OF RACE</div>
@@ -369,7 +402,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                 <th className="px-5 py-3 font-medium">Boat</th>
                                                                 <th className="px-5 py-3 font-medium">Elapsed</th>
                                                                 <th className="px-5 py-3 font-medium">Corrected</th>
-                                                                <th className="px-5 py-3 font-medium">Pts</th>
+                                                                <th className="px-5 py-3 font-medium w-16 text-center">Pts</th>
+                                                                <th className="px-5 py-3 font-medium w-20 text-center">Overall</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-white/5">
@@ -384,7 +418,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                     </td>
                                                                     <td className="px-5 py-3 text-slate-400">{result.elapsedDuration ? result.elapsedDuration.substring(0, 8) : '-'}</td>
                                                                     <td className="px-5 py-3 text-indigo-300 font-medium">{result.correctedDuration ? result.correctedDuration.substring(0, 8) : '-'}</td>
-                                                                    <td className="px-5 py-3 text-emerald-400 font-bold">{result.points !== null ? result.points : '-'}</td>
+                                                                    <td className="px-5 py-3 text-emerald-400 font-bold text-center">{result.points !== null ? result.points : '-'}</td>
+                                                                    <td className="px-5 py-3 text-slate-500 text-xs font-medium text-center">{result.overallRank !== null ? result.overallRank : '-'}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
