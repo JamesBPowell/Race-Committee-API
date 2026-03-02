@@ -257,7 +257,7 @@ namespace api.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Boats");
+                    b.ToTable("Boats", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Certificate", b =>
@@ -296,7 +296,7 @@ namespace api.Migrations
 
                     b.HasIndex("BoatId");
 
-                    b.ToTable("Certificates");
+                    b.ToTable("Certificates", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Entry", b =>
@@ -344,7 +344,7 @@ namespace api.Migrations
 
                     b.HasIndex("RegattaId");
 
-                    b.ToTable("Entries");
+                    b.ToTable("Entries", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Finish", b =>
@@ -399,7 +399,7 @@ namespace api.Migrations
 
                     b.HasIndex("RaceId");
 
-                    b.ToTable("Finishes");
+                    b.ToTable("Finishes", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Fleet", b =>
@@ -431,7 +431,7 @@ namespace api.Migrations
 
                     b.HasIndex("RegattaId");
 
-                    b.ToTable("Fleets");
+                    b.ToTable("Fleets", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Race", b =>
@@ -487,7 +487,7 @@ namespace api.Migrations
 
                     b.HasIndex("RegattaId");
 
-                    b.ToTable("Races");
+                    b.ToTable("Races", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.RaceFleet", b =>
@@ -535,7 +535,7 @@ namespace api.Migrations
 
                     b.HasIndex("RaceId");
 
-                    b.ToTable("RaceFleets");
+                    b.ToTable("RaceFleets", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.Regatta", b =>
@@ -574,7 +574,7 @@ namespace api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Regattas");
+                    b.ToTable("Regattas", (string)null);
                 });
 
             modelBuilder.Entity("RaceCommittee.Api.Models.RegattaCommittee", b =>
@@ -602,7 +602,7 @@ namespace api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RegattaCommittees");
+                    b.ToTable("RegattaCommittees", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
