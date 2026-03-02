@@ -30,8 +30,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
             fleetName: string;
             raceNumber: number;
             startTimeOffset: string;
-            courseType: CourseType;
-            courseDistance: number;
+            courseType: CourseType | null;
+            courseDistance: number | null;
             includeInOverall: boolean;
         }[]
     });
@@ -46,8 +46,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 fleetName: f.name,
                 raceNumber: 1,
                 startTimeOffset: '',
-                courseType: prev.courseType,
-                courseDistance: prev.courseDistance,
+                courseType: null,
+                courseDistance: null,
                 includeInOverall: true
             }))
         }));

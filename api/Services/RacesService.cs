@@ -54,8 +54,8 @@ namespace RaceCommittee.Api.Services
                     FleetId = f.Id,
                     RaceNumber = rfDto?.RaceNumber,
                     StartTimeOffset = rfDto?.StartTimeOffset,
-                    CourseType = rfDto?.CourseType ?? dto.CourseType,
-                    CourseDistance = rfDto?.CourseDistance ?? dto.CourseDistance,
+                    CourseType = rfDto?.CourseType,
+                    CourseDistance = rfDto?.CourseDistance,
                     IncludeInOverall = rfDto?.IncludeInOverall ?? true,
                     ScoringParameters = "{}"
                 };
@@ -115,8 +115,8 @@ namespace RaceCommittee.Api.Services
                             FleetId = rfUpdate.FleetId,
                             RaceNumber = rfUpdate.RaceNumber,
                             StartTimeOffset = rfUpdate.StartTimeOffset,
-                            CourseType = rfUpdate.CourseType ?? race.CourseType,
-                            CourseDistance = rfUpdate.CourseDistance ?? race.CourseDistance,
+                            CourseType = rfUpdate.CourseType,
+                            CourseDistance = rfUpdate.CourseDistance,
                             IncludeInOverall = rfUpdate.IncludeInOverall ?? true,
                             ScoringParameters = "{}"
                         });

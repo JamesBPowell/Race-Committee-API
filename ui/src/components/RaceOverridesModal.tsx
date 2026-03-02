@@ -21,11 +21,19 @@ interface RaceFleetOverride {
     fleetId: number;
     raceNumber: number;
     startTimeOffset: string | null;
-    courseType: CourseType;
-    windSpeed: number;
-    windDirection: number;
-    courseDistance: number;
+    courseType: CourseType | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+    courseDistance: number | null;
     includeInOverall: boolean;
+}
+
+function courseLabel(ct: CourseType | null | undefined): string {
+    if (ct == null) return '';
+    const labels: Record<number, string> = {
+        0: 'W/L', 1: 'Random', 2: 'Triangle', 3: 'Olympic'
+    };
+    return labels[ct] ?? '';
 }
 
 export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSuccess }: RaceOverridesModalProps) {
@@ -45,10 +53,10 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                         fleetId: fleet.id,
                         raceNumber: rf.raceNumber ?? 1,
                         startTimeOffset: rf.startTimeOffset || '',
-                        courseType: rf.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
-                        windSpeed: rf.windSpeed ?? race.windSpeed ?? 0,
-                        windDirection: rf.windDirection ?? race.windDirection ?? 0,
-                        courseDistance: rf.courseDistance ?? race.courseDistance ?? 0,
+                        courseType: rf.courseType ?? null,
+                        windSpeed: rf.windSpeed ?? null,
+                        windDirection: rf.windDirection ?? null,
+                        courseDistance: rf.courseDistance ?? null,
                         includeInOverall: rf.includeInOverall ?? true
                     };
                 }
@@ -181,11 +189,12 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                             <div className="bg-slate-900/30 p-2 rounded-xl">
                                                 <Label className="text-[10px] text-slate-500 mb-1 block">Course Type</Label>
                                                 <select
-                                                    value={override.courseType}
-                                                    onChange={(e) => handleFieldChange(race.id, 'courseType', parseInt(e.target.value))}
+                                                    value={override.courseType ?? ''}
+                                                    onChange={(e) => handleFieldChange(race.id, 'courseType', e.target.value === '' ? null : parseInt(e.target.value))}
                                                     className="w-full bg-slate-800 border-none rounded-lg py-1 px-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                                                     title="Select course type"
                                                 >
+                                                    <option value="">Default ({courseLabel(race.courseType)})</option>
                                                     <option value={CourseType.WindwardLeeward}>Windward/Leeward</option>
                                                     <option value={CourseType.RandomLeg}>Random Leg</option>
                                                     <option value={CourseType.Triangle}>Triangle</option>
@@ -199,8 +208,9 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                 <Input
                                                     type="number"
                                                     step="0.01"
-                                                    value={override.courseDistance}
-                                                    onChange={(e) => handleFieldChange(race.id, 'courseDistance', parseFloat(e.target.value) || 0)}
+                                                    value={override.courseDistance ?? ''}
+                                                    placeholder={race.courseDistance?.toString() || '0.00'}
+                                                    onChange={(e) => handleFieldChange(race.id, 'courseDistance', e.target.value === '' ? null : parseFloat(e.target.value))}
                                                     className="h-7 text-sm px-2 bg-slate-800 border-none"
                                                 />
                                             </div>

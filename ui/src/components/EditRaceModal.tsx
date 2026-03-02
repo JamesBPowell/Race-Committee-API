@@ -47,8 +47,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             fleetName: string;
             raceNumber: number;
             startTimeOffset: string;
-            courseType: CourseType;
-            courseDistance: number;
+            courseType: CourseType | null;
+            courseDistance: number | null;
             includeInOverall: boolean;
         }[]
     });
@@ -73,8 +73,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     fleetName: f.name,
                     startTimeOffset: rf?.startTimeOffset || '',
                     raceNumber: rf?.raceNumber ?? 1,
-                    courseType: rf?.courseType ?? race.courseType ?? CourseType.WindwardLeeward,
-                    courseDistance: rf?.courseDistance ?? race.courseDistance ?? 0,
+                    courseType: rf?.courseType ?? null,
+                    courseDistance: rf?.courseDistance ?? null,
                     includeInOverall: rf?.includeInOverall ?? true
                 };
             })
