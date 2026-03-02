@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trophy, Wind, Navigation, Clock, Loader2 } from 'lucide-react';
+import { Trophy, Wind, Navigation, Clock, Loader2, Ruler } from 'lucide-react';
 import { RegattaResponse, FleetResponse, ScoringMethod, CourseType } from '@/hooks/useRegattas';
 import { useRaces, FinishResultDto } from '@/hooks/useRaces';
 
@@ -189,6 +189,7 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
                     results={raceResults}
                     fleets={regatta.fleets || []}
                     myEntryId={myEntryId}
+                    race={allRaces.find(r => r.id === selectedRaceId) || null}
                 />
             )}
 
@@ -260,7 +261,12 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
     );
 }
 
-function RaceResultTables({ results, fleets, myEntryId }: { results: FinishResultDto[]; fleets: FleetResponse[]; myEntryId?: number | null }) {
+function RaceResultTables({ results, fleets, myEntryId, race }: {
+    results: FinishResultDto[];
+    fleets: FleetResponse[];
+    myEntryId?: number | null;
+    race: import('@/hooks/useRegattas').RaceResponse | null;
+}) {
     const grouped: Record<number, FinishResultDto[]> = {};
     for (const r of results) {
         if (!grouped[r.fleetId]) grouped[r.fleetId] = [];
@@ -285,13 +291,49 @@ function RaceResultTables({ results, fleets, myEntryId }: { results: FinishResul
                 const fleetResults = grouped[fleet.id];
                 if (!fleetResults || fleetResults.length === 0) return null;
 
+                const override = race?.raceFleets?.find(rf => rf.fleetId === fleet.id);
+
                 return (
                     <div key={fleet.id} className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden">
-                        <div className="px-5 py-3 bg-slate-800/80 border-b border-white/5 font-bold text-indigo-300 flex justify-between items-center">
-                            <span>{fleet.name}</span>
-                            <span className="text-xs font-normal text-slate-400">
-                                {ScoringMethod[fleet.scoringMethod]?.replace(/_/g, ' ')} · {fleetResults.length} entries
-                            </span>
+                        <div className="px-5 py-3 bg-slate-800/80 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-lg font-bold text-white uppercase tracking-tight">{fleet.name}</span>
+                                    <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">
+                                        {ScoringMethod[fleet.scoringMethod]?.replace(/_/g, ' ')}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                    {override?.courseDistance !== undefined && override?.courseDistance !== null && (
+                                        <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                            <Ruler className="h-3 w-3 text-emerald-400/70" />
+                                            <span>{override.courseDistance} NM</span>
+                                        </div>
+                                    )}
+                                    {override?.courseType !== undefined && override?.courseType !== null && (
+                                        <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                            <Navigation className="h-3 w-3 text-sky-400/70" />
+                                            <span>{courseLabel(override.courseType)}</span>
+                                        </div>
+                                    )}
+                                    {override?.startTimeOffset && override.startTimeOffset !== '00:00:00' && (
+                                        <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                            <Clock className="h-3 w-3 text-indigo-400/70" />
+                                            <span>+{override.startTimeOffset}</span>
+                                        </div>
+                                    )}
+                                    {(override?.windSpeed || override?.windDirection) ? (
+                                        <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                            <Wind className="h-3 w-3 text-amber-400/70" />
+                                            <span>{override.windSpeed || 0}KT / {override.windDirection || 0}°</span>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Fleet Class</div>
+                                <div className="text-xs font-medium text-slate-400">{fleetResults.length} Boats Scored</div>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
