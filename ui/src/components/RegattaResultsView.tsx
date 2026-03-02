@@ -327,6 +327,10 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
                                         <th className="px-4 py-3 font-medium">Sail</th>
                                         <th className="px-4 py-3 font-medium">Boat</th>
                                         <th className="px-4 py-3 font-medium">Make/Model</th>
+                                        <th className="px-4 py-3 font-medium">Rating</th>
+                                        <th className="px-4 py-3 font-medium">Elapsed</th>
+                                        <th className="px-4 py-3 font-medium">Corrected</th>
+                                        <th className="px-4 py-3 font-medium">Delta</th>
                                         <th className="px-4 py-3 font-medium text-center">Pts</th>
                                         <th className="px-4 py-3 font-medium text-right w-20">Overall</th>
                                     </tr>
@@ -343,6 +347,16 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
                                                     {isMe && <span className="ml-2 text-[10px] text-indigo-400 font-bold uppercase">(You)</span>}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs">{r.boatMakeModel || '—'}</td>
+                                                <td className="px-4 py-3 text-slate-400 text-xs">{r.rating ?? '—'}</td>
+                                                <td className="px-4 py-3 text-slate-300 font-mono text-xs">
+                                                    {r.code && r.code !== 'SCP' ? <span className="text-rose-400 font-bold">{r.code}</span> : formatDuration(r.elapsedDuration)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-300 font-mono text-xs">
+                                                    {r.code && r.code !== 'SCP' ? '—' : formatDuration(r.correctedDuration)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+                                                    {r.code && r.code !== 'SCP' ? '—' : formatDelta(r.timeDelta)}
+                                                </td>
                                                 <td className={`px-4 py-3 text-center font-bold ${isMe ? 'text-indigo-300' : 'text-emerald-400'}`}>
                                                     {r.points ?? '—'}
                                                 </td>
@@ -362,9 +376,19 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
     );
 }
 
+interface SeriesStanding {
+    entryId: number;
+    boatName: string;
+    sailNumber: string;
+    boatMakeModel: string;
+    rating: number | null;
+    racePoints: Record<number, number>;
+    total: number;
+}
+
 function SeriesStandingsTable({ standings, scoredRaces, myEntryId }: {
-    standings: any[];
-    scoredRaces: any[];
+    standings: SeriesStanding[];
+    scoredRaces: import('@/hooks/useRegattas').RaceResponse[];
     myEntryId?: number | null
 }) {
     return (
