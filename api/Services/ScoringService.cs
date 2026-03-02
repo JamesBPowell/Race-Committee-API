@@ -125,6 +125,10 @@ namespace RaceCommittee.Api.Services
                      // This is a basic approximation for DNF penalty
                 }
 
+                var winnerCorrected = sortedFinishes
+                    .FirstOrDefault(f => string.IsNullOrEmpty(f.Code) && f.CorrectedDuration.HasValue)?
+                    .CorrectedDuration;
+
                 int rank = 1;
                 foreach (var finish in sortedFinishes)
                 {
@@ -156,6 +160,13 @@ namespace RaceCommittee.Api.Services
                          finish.Points += finish.PointPenalty.Value;
                     }
 
+                    TimeSpan? timeDelta = null;
+                    if (finish.CorrectedDuration.HasValue && winnerCorrected.HasValue)
+                    {
+                        timeDelta = finish.CorrectedDuration.Value - winnerCorrected.Value;
+                        if (timeDelta < TimeSpan.Zero) timeDelta = TimeSpan.Zero;
+                    }
+
                     results.Add(new FinishResultDto
                     {
                         FinishId = finish.Id,
@@ -170,6 +181,7 @@ namespace RaceCommittee.Api.Services
                         FinishTime = finish.FinishTime,
                         ElapsedDuration = finish.ElapsedDuration,
                         CorrectedDuration = finish.CorrectedDuration,
+                        TimeDelta = timeDelta,
                         TimePenalty = finish.TimePenalty,
                         Code = finish.Code,
                         Notes = finish.Notes,

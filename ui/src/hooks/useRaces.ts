@@ -31,6 +31,7 @@ export interface FinishResultDto {
     finishTime?: string | null;
     elapsedDuration?: string | null;
     correctedDuration?: string | null;
+    timeDelta?: string | null;
     timePenalty?: string | null;
     code?: string;
     notes?: string;

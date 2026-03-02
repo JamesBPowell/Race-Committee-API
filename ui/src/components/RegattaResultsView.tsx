@@ -21,6 +21,17 @@ function formatDuration(isoOrTimeSpan: string | null | undefined): string {
     return `${h}:${m}:${s}`;
 }
 
+function formatDelta(isoOrTimeSpan: string | null | undefined): string {
+    if (!isoOrTimeSpan) return '—';
+    const parts = isoOrTimeSpan.replace(/\.\d+$/, '').split(':');
+    if (parts.length < 2) return isoOrTimeSpan;
+    const h = parseInt(parts[0]);
+    const m = parts[1].padStart(2, '0');
+    const s = parts.length > 2 ? parts[2].padStart(2, '0') : '00';
+    if (h === 0 && parseInt(m) === 0 && parseInt(s) === 0) return '—';
+    return `+${h > 0 ? h + ':' : ''}${m}:${s}`;
+}
+
 function courseLabel(ct: CourseType | null | undefined): string {
     if (ct == null) return '';
     const labels: Record<number, string> = {
@@ -293,6 +304,7 @@ function RaceResultTables({ results, fleets, myEntryId }: { results: FinishResul
                                         <th className="px-4 py-3 font-medium">Rating</th>
                                         <th className="px-4 py-3 font-medium">Elapsed</th>
                                         <th className="px-4 py-3 font-medium">Corrected</th>
+                                        <th className="px-4 py-3 font-medium">Delta</th>
                                         <th className="px-4 py-3 font-medium text-right">Pts</th>
                                     </tr>
                                 </thead>
@@ -314,6 +326,9 @@ function RaceResultTables({ results, fleets, myEntryId }: { results: FinishResul
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-300 font-mono text-xs">
                                                     {r.code && r.code !== 'SCP' ? '—' : formatDuration(r.correctedDuration)}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+                                                    {r.code && r.code !== 'SCP' ? '—' : formatDelta(r.timeDelta)}
                                                 </td>
                                                 <td className={`px-4 py-3 text-right font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>
                                                     {r.points ?? '—'}
