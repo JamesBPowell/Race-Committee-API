@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calculator, AlertTriangle, Save, RefreshCw, Wind, Navigation, Clock } from 'lucide-react';
+import { X, Calculator, AlertTriangle, Save, RefreshCw, Wind, Navigation, Clock, Ruler } from 'lucide-react';
 import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
 import { useRaces, RecordFinishDto, FinishResultDto } from '@/hooks/useRaces';
 
@@ -399,11 +399,11 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                             <table className="w-full text-sm text-left">
                                                 <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
                                                     <tr>
-                                                        <th className="px-5 py-3 font-medium">Sail</th>
+                                                        <th className="px-5 py-3 font-medium w-20">Sail</th>
                                                         <th className="px-5 py-3 font-medium">Boat</th>
-                                                        <th className="px-5 py-3 font-medium w-48" id="time-header">Finish Time (ToD)</th>
-                                                        <th className="px-5 py-3 font-medium w-32" id="status-header">Status Code</th>
-                                                        <th className="px-5 py-3 font-medium" id="penalty-header">Penalty</th>
+                                                        <th className="px-5 py-3 font-medium w-80" id="time-header">Finish Time (ToD)</th>
+                                                        <th className="px-5 py-3 font-medium w-40" id="status-header">Status Code</th>
+                                                        <th className="px-5 py-3 font-medium w-32" id="penalty-header">Penalty</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/5">
@@ -521,11 +521,49 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         const fleetResults = results.filter((r: FinishResultDto) => r.fleetId === fleet.id).sort((a: FinishResultDto, b: FinishResultDto) => (a.points || 0) - (b.points || 0));
                                         if (fleetResults.length === 0) return null;
 
+                                        const override = race.raceFleets?.find(rf => rf.fleetId === fleet.id);
+
                                         return (
                                             <div key={fleet.id} className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden">
-                                                <div className="px-5 py-3 bg-slate-800/80 border-b border-white/5 font-bold flex justify-between items-center">
-                                                    <span className="text-indigo-300">{fleet.name} Fleet Results</span>
-                                                    <span className="text-xs font-normal text-slate-400">{fleet.scoringMethod}</span>
+                                                <div className="px-5 py-3 bg-slate-800/80 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-lg font-bold text-white uppercase tracking-tight">{fleet.name}</span>
+                                                            <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">
+                                                                {fleet.scoringMethod}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                                            {override?.courseDistance !== undefined && (
+                                                                <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    <Ruler className="h-3 w-3 text-emerald-400/70" />
+                                                                    <span>{override.courseDistance} NM</span>
+                                                                </div>
+                                                            )}
+                                                            {override?.courseType !== undefined && (
+                                                                <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    <Navigation className="h-3 w-3 text-sky-400/70" />
+                                                                    <span className="uppercase">{override.courseType === 0 ? 'W/L' : override.courseType === 1 ? 'Random' : override.courseType === 2 ? 'Triangle' : 'Olympic'}</span>
+                                                                </div>
+                                                            )}
+                                                            {override?.startTimeOffset && override.startTimeOffset !== '00:00:00' && (
+                                                                <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    <Clock className="h-3 w-3 text-indigo-400/70" />
+                                                                    <span>+{override.startTimeOffset}</span>
+                                                                </div>
+                                                            )}
+                                                            {(override?.windSpeed || override?.windDirection) ? (
+                                                                <div className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    <Wind className="h-3 w-3 text-amber-400/70" />
+                                                                    <span>{override.windSpeed || 0}KT / {override.windDirection || 0}°</span>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Fleet Class</div>
+                                                        <div className="text-xs font-medium text-slate-400">{fleetResults.length} Boats Scored</div>
+                                                    </div>
                                                 </div>
                                                 <div className="p-0">
                                                     <table className="w-full text-sm text-left">
