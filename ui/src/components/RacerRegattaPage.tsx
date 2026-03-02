@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Trophy, Calendar, Anchor, Users, Target, Info
@@ -41,7 +41,10 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
     const myFleetId = myEntry?.fleetId;
     const myFleet = regatta.fleets?.find(f => f.id === myFleetId);
 
-    const scoredRaces = (regatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing');
+    const scoredRaces = useMemo(() =>
+        (regatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing'),
+        [regatta.races]
+    );
     const allRaces = regatta.races || [];
 
     // Standing summary for hero banner
@@ -53,12 +56,15 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
     const [standings, setStandings] = useState<BoatStanding[]>([]);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchAndCompute = async () => {
             if (!myFleetId) return;
             const boatMap: Record<number, BoatStanding> = {};
             for (const race of scoredRaces) {
+                if (!isMounted) return;
                 try {
                     const results = await getRaceResults(race.id);
+                    if (!isMounted) return;
                     for (const r of results) {
                         if (r.fleetId !== myFleetId) continue;
                         if (!boatMap[r.entryId]) {
@@ -69,9 +75,12 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
                     }
                 } catch { /* skip */ }
             }
-            setStandings(Object.values(boatMap).sort((a, b) => a.total - b.total));
+            if (isMounted) {
+                setStandings(Object.values(boatMap).sort((a, b) => a.total - b.total));
+            }
         };
         fetchAndCompute();
+        return () => { isMounted = false; };
     }, [myFleetId, myEntryId, scoredRaces, getRaceResults]);
 
     const myPosition = standings.findIndex(s => s.entryId === myEntryId) + 1;

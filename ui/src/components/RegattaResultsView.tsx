@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Wind, Navigation, Clock, Loader2, Ruler } from 'lucide-react';
 import { RegattaResponse, FleetResponse, ScoringMethod, CourseType } from '@/hooks/useRegattas';
 import { useRaces, FinishResultDto } from '@/hooks/useRaces';
@@ -47,7 +47,10 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
     const [raceResults, setRaceResults] = useState<FinishResultDto[]>([]);
     const [allRaceResults, setAllRaceResults] = useState<Record<number, FinishResultDto[]>>({});
 
-    const scoredRaces = (regatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing');
+    const scoredRaces = useMemo(() =>
+        (regatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing'),
+        [regatta.races]
+    );
     const allRaces = regatta.races || [];
 
     useEffect(() => {
