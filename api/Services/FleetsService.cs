@@ -67,11 +67,28 @@ namespace RaceCommittee.Api.Services
             var fleet = await _context.Fleets
                 .Include(f => f.Regatta)
                     .ThenInclude(r => r.CommitteeMembers)
+                .Include(f => f.ParticipatingInRaces)
+                .Include(f => f.Entries)
+                .Include(f => f.Races)
                 .FirstOrDefaultAsync(f => f.Id == id);
 
             if (fleet == null) return false;
             if (!fleet.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 throw new UnauthorizedAccessException("Not a committee member");
+
+            // Manually clear related data that would otherwise conflict 
+            // or where we want to preserve the record but unlink the class
+            _context.RaceFleets.RemoveRange(fleet.ParticipatingInRaces);
+            
+            foreach (var entry in fleet.Entries)
+            {
+                entry.FleetId = null;
+            }
+
+            foreach (var race in fleet.Races)
+            {
+                race.FleetId = null;
+            }
 
             _context.Fleets.Remove(fleet);
             await _context.SaveChangesAsync();
