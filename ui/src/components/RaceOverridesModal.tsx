@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Ruler, Save, Calendar } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
-import { RaceResponse, CourseType, FleetResponse, StartType } from '@/hooks/useRegattas';
+import { RaceResponse, CourseType, FleetResponse } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
@@ -161,18 +161,16 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                             className="h-8 w-16 text-xs px-2 bg-slate-800 border-none"
                                                         />
                                                     </div>
-                                                    {race.startType === StartType.Staggered && (
-                                                        <div className="space-y-1">
-                                                            <Label className="text-[10px] m-0 leading-none">Start Offset</Label>
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="HH:MM:SS"
-                                                                value={override.startTimeOffset || ''}
-                                                                onChange={(e) => handleFieldChange(race.id, 'startTimeOffset', e.target.value)}
-                                                                className="h-8 w-28 text-xs px-2 bg-slate-800 border-none"
-                                                            />
-                                                        </div>
-                                                    )}
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px] m-0 leading-none">Start Offset</Label>
+                                                        <Input
+                                                            type="text"
+                                                            placeholder="HH:MM:SS"
+                                                            value={override.startTimeOffset || ''}
+                                                            onChange={(e) => handleFieldChange(race.id, 'startTimeOffset', e.target.value)}
+                                                            className="h-8 w-28 text-xs px-2 bg-slate-800 border-none"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
