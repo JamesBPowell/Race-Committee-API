@@ -98,7 +98,10 @@ namespace RaceCommittee.Api.Services
             {
                 foreach (var rfUpdate in dto.RaceFleets)
                 {
-                    var existingRf = race.ParticipatingFleets.FirstOrDefault(rf => rf.Id == rfUpdate.Id && rfUpdate.Id != 0);
+                    // Look up by Id if provided, otherwise fallback to FleetId to prevent duplicates
+                    var existingRf = rfUpdate.Id != 0 
+                        ? race.ParticipatingFleets.FirstOrDefault(rf => rf.Id == rfUpdate.Id)
+                        : race.ParticipatingFleets.FirstOrDefault(rf => rf.FleetId == rfUpdate.FleetId);
                     if (existingRf != null)
                     {
                         if (rfUpdate.RaceNumber.HasValue) existingRf.RaceNumber = rfUpdate.RaceNumber;

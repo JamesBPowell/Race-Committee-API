@@ -40,6 +40,39 @@ namespace RaceCommittee.Api.Services
 
             _context.Fleets.Add(fleet);
             await _context.SaveChangesAsync();
+
+            // Automatically enroll the new fleet in all existing races for the regatta
+            var existingRaces = await _context.Races
+                .Where(r => r.RegattaId == regattaId)
+                .ToListAsync();
+
+            if (existingRaces.Any())
+            {
+                foreach (var race in existingRaces)
+                {
+                    // Attempt to extract a race number from the race name if possible
+                    int? extractedNumber = null;
+                    if (!string.IsNullOrEmpty(race.Name))
+                    {
+                        var match = System.Text.RegularExpressions.Regex.Match(race.Name, @"\d+");
+                        if (match.Success && int.TryParse(match.Value, out int num))
+                        {
+                            extractedNumber = num;
+                        }
+                    }
+
+                    var raceFleet = new RaceFleet
+                    {
+                        RaceId = race.Id,
+                        FleetId = fleet.Id,
+                        RaceNumber = extractedNumber ?? 1,
+                        IncludeInOverall = true
+                    };
+                    _context.RaceFleets.Add(raceFleet);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return fleet;
         }
 

@@ -59,6 +59,25 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                         courseDistance: rf.courseDistance ?? null,
                         includeInOverall: rf.includeInOverall ?? true
                     };
+                } else {
+                    // Class is not enrolled in this race yet, create a default override object
+                    let extractedNum = 1;
+                    if (race.name) {
+                        const match = race.name.match(/\d+/);
+                        if (match) extractedNum = parseInt(match[0]);
+                    }
+
+                    initialOverrides[race.id] = {
+                        id: 0, // 0 indicates a new enrollment Record
+                        fleetId: fleet.id,
+                        raceNumber: extractedNum,
+                        startTimeOffset: '',
+                        courseType: null,
+                        windSpeed: null,
+                        windDirection: null,
+                        courseDistance: null,
+                        includeInOverall: true
+                    };
                 }
             });
             setOverrides(initialOverrides);
