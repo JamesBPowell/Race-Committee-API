@@ -33,12 +33,61 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         return initialMap;
     }, [race, regatta.entries]);
 
+    const formatTimeToClock = (date: Date) => {
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+    };
+
     // State for recording finishes
     const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
     const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
     const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
     const [actualStartTime, setActualStartTime] = useState<string>('');
     const [results, setResults] = useState<FinishResultDto[]>([]);
+
+    // Race Clock & Timer Tools
+    const [now, setNow] = useState(new Date());
+    const [capturedTimes, setCapturedTimes] = useState<string[]>([]);
+    const [prevRaceId, setPrevRaceId] = useState<number | null>(null);
+
+    // Reset state when the race changes during render (React recommended pattern for state reset)
+    if (race && race.id !== prevRaceId) {
+        setPrevRaceId(race.id);
+        setFinishesMap(initialFinishesMap);
+        setWindSpeed(race.windSpeed || 0);
+        setWindDirection(race.windDirection || 0);
+        if (race.actualStartTime) {
+            const d = new Date(race.actualStartTime);
+            setActualStartTime(formatTimeToClock(d));
+        } else {
+            setActualStartTime('');
+        }
+    }
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleMarkFinish = useCallback(() => {
+        const timestamp = formatTimeToClock(now);
+        setCapturedTimes(prev => [timestamp, ...prev].slice(0, 10)); // Keep last 10
+    }, [now]);
+
+    const handleRecordFinish = (entryId: number, time?: string) => {
+        const timestamp = time || formatTimeToClock(now);
+        setFinishesMap(prev => ({
+            ...prev,
+            [entryId]: {
+                ...prev[entryId],
+                finishTime: timestamp,
+                code: '' // Clear any DNF/DNS if they actually finished
+            }
+        }));
+    };
+
+    const handleSetActualStart = () => {
+        setActualStartTime(formatTimeToClock(now));
+    };
 
     const handleScoreRace = useCallback(async () => {
         if (!race) return;
@@ -50,21 +99,9 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         }
     }, [race, scoreRace]);
 
-    // Reset state when the race changes
+    // Fetch fresh results when race changes
     useEffect(() => {
-        if (race) {
-            setFinishesMap(initialFinishesMap);
-            setWindSpeed(race.windSpeed || 0);
-            setWindDirection(race.windDirection || 0);
-
-            if (race.actualStartTime) {
-                const d = new Date(race.actualStartTime);
-                setActualStartTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`);
-            } else {
-                setActualStartTime('');
-            }
-
-            // Fetch fresh results
+        if (race && isOpen) {
             const fetchResults = async () => {
                 try {
                     const data = await getRaceResults(race.id);
@@ -76,7 +113,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                 let localTimeStr = '';
                                 if (result.finishTime) {
                                     const d = new Date(result.finishTime);
-                                    localTimeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+                                    localTimeStr = formatTimeToClock(d);
                                 }
                                 newMap[result.entryId] = {
                                     entryId: result.entryId,
@@ -96,7 +133,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             };
             fetchResults();
         }
-    }, [race?.id, initialFinishesMap, getRaceResults]);
+    }, [race, isOpen, getRaceResults]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
@@ -225,6 +262,48 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
                     {activeTab === 'record' && (
                         <div className="space-y-8">
+                            {/* Race Line Tools */}
+                            <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+                                <div className="flex-1 p-5 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-between shadow-lg shadow-indigo-500/5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-14 w-14 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                                            <Clock className="h-7 w-7 text-indigo-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">RACE CLOCK (TOD)</div>
+                                            <div className="text-3xl font-mono font-bold text-white tabular-nums tracking-tighter">
+                                                {formatTimeToClock(now)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={handleMarkFinish}
+                                        className="h-16 px-8 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-xl shadow-indigo-500/30 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                    >
+                                        <span className="group-hover:scale-110 transition-transform">Mark Finish</span>
+                                        <span className="text-[10px] opacity-70 font-mono">{formatTimeToClock(now)}</span>
+                                    </button>
+                                </div>
+
+                                {capturedTimes.length > 0 && (
+                                    <div className="w-full lg:w-48 p-4 bg-slate-800/60 rounded-2xl border border-white/10">
+                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                            <span>Recent Marks</span>
+                                            <button onClick={() => setCapturedTimes([])} className="hover:text-rose-400 text-[8px]">Clear</button>
+                                        </div>
+                                        <div className="flex lg:flex-col gap-1.5 overflow-x-auto pb-1">
+                                            {capturedTimes.map((t, idx) => (
+                                                <div key={idx} className="bg-slate-900 border border-white/5 py-1.5 px-3 rounded-lg text-xs font-mono text-white flex justify-between items-center whitespace-nowrap">
+                                                    {t}
+                                                    <span className="text-[8px] text-slate-600 ml-2">#{capturedTimes.length - idx}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="p-4 bg-slate-800/60 rounded-xl border border-white/10 flex flex-wrap items-center gap-6">
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-2">
@@ -261,14 +340,23 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         <Clock className="h-4 w-4 text-emerald-400" />
                                         <label className="text-sm font-bold text-slate-300">Actual Start:</label>
                                     </div>
-                                    <input
-                                        type="text"
-                                        placeholder="HH:MM:SS"
-                                        title="Actual Start Time"
-                                        className="w-24 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
-                                        value={actualStartTime}
-                                        onChange={e => setActualStartTime(e.target.value)}
-                                    />
+                                    <div className="flex items-center gap-1.5">
+                                        <input
+                                            type="text"
+                                            placeholder="HH:MM:SS"
+                                            title="Actual Start Time"
+                                            className="w-24 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                                            value={actualStartTime}
+                                            onChange={e => setActualStartTime(e.target.value)}
+                                        />
+                                        <button
+                                            onClick={handleSetActualStart}
+                                            title="Set to Current Time"
+                                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg transition-colors"
+                                        >
+                                            <Clock className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="ml-auto text-[10px] text-slate-500 font-mono italic">CAPTURE CONDITIONS AT TIME OF RACE</div>
                             </div>
@@ -304,16 +392,36 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                 <td className="px-5 py-3 font-bold text-slate-300">{entry.sailNumber}</td>
                                                                 <td className="px-5 py-3 text-slate-400">{entry.boatName}</td>
                                                                 <td className="px-5 py-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="HH:MM:SS"
-                                                                        title="Finish Time"
-                                                                        aria-labelledby="time-header"
-                                                                        className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
-                                                                        value={fState.finishTime || ''}
-                                                                        onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, finishTime: e.target.value } })}
-                                                                        disabled={!!fState.code && fState.code !== 'OCS' && fState.code !== 'SCP'}
-                                                                    />
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="HH:MM:SS"
+                                                                            title="Finish Time"
+                                                                            aria-labelledby="time-header"
+                                                                            className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+                                                                            value={fState.finishTime || ''}
+                                                                            onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, finishTime: e.target.value } })}
+                                                                            disabled={!!fState.code && fState.code !== 'OCS' && fState.code !== 'SCP'}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleRecordFinish(entry.id)}
+                                                                            disabled={!!fState.code && fState.code !== 'OCS' && fState.code !== 'SCP'}
+                                                                            title="Record Now"
+                                                                            className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 rounded-lg transition-colors group disabled:opacity-30"
+                                                                        >
+                                                                            <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                                        </button>
+                                                                        {capturedTimes.length > 0 && (
+                                                                            <button
+                                                                                onClick={() => handleRecordFinish(entry.id, capturedTimes[0])}
+                                                                                disabled={!!fState.code && fState.code !== 'OCS' && fState.code !== 'SCP'}
+                                                                                title={`Assign Latest Mark (${capturedTimes[0]})`}
+                                                                                className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg transition-colors group disabled:opacity-30"
+                                                                            >
+                                                                                <RefreshCw className="w-4 h-4 group-active:rotate-180 transition-transform duration-500" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </td>
                                                                 <td className="px-5 py-2">
                                                                     <select
