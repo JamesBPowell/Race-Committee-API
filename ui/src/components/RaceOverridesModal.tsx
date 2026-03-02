@@ -165,8 +165,8 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                         <div className="space-y-1">
                                                             <Label className="text-[10px] m-0 leading-none">Start Offset</Label>
                                                             <Input
-                                                                type="time"
-                                                                step="1"
+                                                                type="text"
+                                                                placeholder="HH:MM:SS"
                                                                 value={override.startTimeOffset || ''}
                                                                 onChange={(e) => handleFieldChange(race.id, 'startTimeOffset', e.target.value)}
                                                                 className="h-8 w-28 text-xs px-2 bg-slate-800 border-none"
