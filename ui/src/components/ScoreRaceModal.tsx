@@ -19,10 +19,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     const initialFinishesMap = useMemo(() => {
         if (!race || !regatta.entries) return {};
         const initialMap: Record<number, RecordFinishDto> = {};
-        const participatingFleetIds = race.raceFleets?.map(rf => rf.fleetId) || [];
-        const relevantEntries = regatta.entries.filter(e =>
-            e.fleetId && (participatingFleetIds.length === 0 || participatingFleetIds.includes(e.fleetId))
-        );
+        const relevantEntries = regatta.entries || [];
         relevantEntries.forEach(entry => {
             initialMap[entry.id] = {
                 entryId: entry.id,
@@ -36,17 +33,11 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         return initialMap;
     }, [race, regatta.entries]);
 
-    // State for recording finishes - initialized from memo to avoid useEffect cascade
+    // State for recording finishes
     const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
-
-    // State for race results and conditions - initialized from props
     const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
     const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
-    const [actualStartTime, setActualStartTime] = useState<string>(() => {
-        if (!race?.actualStartTime) return '';
-        const d = new Date(race.actualStartTime);
-        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-    });
+    const [actualStartTime, setActualStartTime] = useState<string>('');
     const [results, setResults] = useState<FinishResultDto[]>([]);
 
     const handleScoreRace = useCallback(async () => {
@@ -59,65 +50,63 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         }
     }, [race, scoreRace]);
 
-    // Initialize results when opened
+    // Reset state when the race changes
     useEffect(() => {
-        let isMounted = true;
-        if (isOpen && race) {
-            // Fetch results
+        if (race) {
+            setFinishesMap(initialFinishesMap);
+            setWindSpeed(race.windSpeed || 0);
+            setWindDirection(race.windDirection || 0);
+
+            if (race.actualStartTime) {
+                const d = new Date(race.actualStartTime);
+                setActualStartTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`);
+            } else {
+                setActualStartTime('');
+            }
+
+            // Fetch fresh results
             const fetchResults = async () => {
                 try {
                     const data = await getRaceResults(race.id);
-                    if (isMounted) {
-                        setResults(data);
-                        // If we have results, populate the finishesMap so editing is easy
-                        if (data.length > 0) {
-                            setFinishesMap((prev: Record<number, RecordFinishDto>) => {
-                                const newMap = { ...prev };
-                                data.forEach((result: FinishResultDto) => {
-                                    let localTimeStr = '';
-                                    if (result.finishTime) {
-                                        const d = new Date(result.finishTime);
-                                        const hours = String(d.getHours()).padStart(2, '0');
-                                        const minutes = String(d.getMinutes()).padStart(2, '0');
-                                        const seconds = String(d.getSeconds()).padStart(2, '0');
-                                        localTimeStr = `${hours}:${minutes}:${seconds}`;
-                                    }
-                                    newMap[result.entryId] = {
-                                        entryId: result.entryId,
-                                        finishTime: localTimeStr,
-                                        code: result.code || '',
-                                        timePenalty: result.timePenalty || '',
-                                        pointPenalty: 0,
-                                        notes: result.notes || ''
-                                    };
-                                });
-                                return newMap;
+                    setResults(data);
+                    if (data.length > 0) {
+                        setFinishesMap(prev => {
+                            const newMap = { ...prev };
+                            data.forEach(result => {
+                                let localTimeStr = '';
+                                if (result.finishTime) {
+                                    const d = new Date(result.finishTime);
+                                    localTimeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+                                }
+                                newMap[result.entryId] = {
+                                    entryId: result.entryId,
+                                    finishTime: localTimeStr,
+                                    code: result.code || '',
+                                    timePenalty: result.timePenalty || '',
+                                    pointPenalty: 0,
+                                    notes: result.notes || ''
+                                };
                             });
-                        }
+                            return newMap;
+                        });
                     }
                 } catch (err) {
-                    console.error(err);
+                    console.error("Failed to fetch race results:", err);
                 }
             };
             fetchResults();
         }
-        return () => { isMounted = false; };
-    }, [isOpen, race, getRaceResults]);
+    }, [race?.id, initialFinishesMap, getRaceResults]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
 
-        // Convert map to array and format finish time correctly
-        let year = new Date().getFullYear();
-        let month = String(new Date().getMonth() + 1).padStart(2, '0');
-        let day = String(new Date().getDate()).padStart(2, '0');
-
-        if (race.actualStartTime) {
-            const d = new Date(race.actualStartTime);
-            year = d.getFullYear();
-            month = String(d.getMonth() + 1).padStart(2, '0');
-            day = String(d.getDate()).padStart(2, '0');
-        }
+        // Determine the base date for finishes (use regatta start date if race start is not set)
+        const baseDateSource = race.actualStartTime || race.scheduledStartTime || regatta.startDate || new Date().toISOString();
+        const d = new Date(baseDateSource);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
         const localDateString = `${year}-${month}-${day}`;
 
         const finishesArr = Object.values(finishesMap).map(f => {
@@ -134,7 +123,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                 } else {
                     // Try to parse HH:MM:SS
                     try {
-                        const localDateTimeStr = `${localDateString}T${rawTime}`;
+                        const localDateTimeStr = `${localDateString}T${rawTime.length === 5 ? rawTime + ':00' : rawTime}`;
                         const localDateTime = new Date(localDateTimeStr);
                         if (!isNaN(localDateTime.getTime())) {
                             dto.finishTime = localDateTime.toISOString();
@@ -161,7 +150,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                 startTimeISO = actualStartTime;
             } else {
                 try {
-                    const localDateTimeStr = `${localDateString}T${actualStartTime.trim()}`;
+                    const localDateTimeStr = `${localDateString}T${actualStartTime.trim().length === 5 ? actualStartTime.trim() + ':00' : actualStartTime.trim()}`;
                     const localDateTime = new Date(localDateTimeStr);
                     if (!isNaN(localDateTime.getTime())) {
                         startTimeISO = localDateTime.toISOString();
@@ -185,8 +174,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
     if (!isOpen || !race) return null;
 
-    const participatingFleetIds = race.raceFleets?.map(rf => rf.fleetId) || [];
-    const relevantFleets = (regatta.fleets || []).filter(f => participatingFleetIds.length === 0 || participatingFleetIds.includes(f.id));
+    const relevantFleets = regatta.fleets || [];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">

@@ -156,46 +156,56 @@ namespace RaceCommittee.Api.Services
 
         public async Task<bool> SaveFinishesAsync(int raceId, RecordRaceFinishesDto data, string userId)
         {
-            var race = await _context.Races
-                .Include(r => r.Regatta)
-                .ThenInclude(reg => reg.CommitteeMembers)
-                .Include(r => r.Finishes)
-                .FirstOrDefaultAsync(r => r.Id == raceId);
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try {
+                var race = await _context.Races
+                    .Include(r => r.Regatta)
+                    .ThenInclude(reg => reg.CommitteeMembers)
+                    .Include(r => r.Finishes)
+                    .FirstOrDefaultAsync(r => r.Id == raceId);
 
-            if (race == null) return false;
+                if (race == null) return false;
 
-            // Verify the user is a committee member for the regatta
-            if (!race.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
-            {
-                throw new UnauthorizedAccessException("You don't have permission to manage this race");
-            }
- 
-            // Update race-level conditions
-            if (data.WindSpeed.HasValue) race.WindSpeed = data.WindSpeed;
-            if (data.WindDirection.HasValue) race.WindDirection = data.WindDirection;
-            if (data.ActualStartTime.HasValue) race.ActualStartTime = data.ActualStartTime;
-
-            // Remove existing finishes
-            _context.Finishes.RemoveRange(race.Finishes);
-
-            // Add new finishes
-            foreach (var finishDto in data.Finishes)
-            {
-                _context.Finishes.Add(new Finish
+                // Verify the user is a committee member for the regatta
+                if (!race.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 {
-                    RaceId = raceId,
-                    EntryId = finishDto.EntryId,
-                    FinishTime = finishDto.FinishTime,
-                    TimePenalty = finishDto.TimePenalty,
-                    PointPenalty = finishDto.PointPenalty,
-                    Code = finishDto.Code ?? string.Empty,
-                    Notes = finishDto.Notes ?? string.Empty
-                });
-            }
+                    throw new UnauthorizedAccessException("You don't have permission to manage this race");
+                }
+    
+                // Update race-level conditions
+                if (data.WindSpeed.HasValue) race.WindSpeed = data.WindSpeed;
+                if (data.WindDirection.HasValue) race.WindDirection = data.WindDirection;
+                if (data.ActualStartTime.HasValue) race.ActualStartTime = data.ActualStartTime;
 
-            race.Status = "Completed";
-            await _context.SaveChangesAsync();
-            return true;
+                // Remove existing finishes
+                _context.Finishes.RemoveRange(race.Finishes);
+                race.Finishes.Clear(); // Explicitly clear navigation property
+
+                // Add new finishes
+                foreach (var finishDto in data.Finishes)
+                {
+                    var finish = new Finish
+                    {
+                        RaceId = raceId,
+                        EntryId = finishDto.EntryId,
+                        FinishTime = finishDto.FinishTime,
+                        TimePenalty = finishDto.TimePenalty,
+                        PointPenalty = finishDto.PointPenalty,
+                        Code = finishDto.Code ?? string.Empty,
+                        Notes = finishDto.Notes ?? string.Empty
+                    };
+                    _context.Finishes.Add(finish);
+                    race.Finishes.Add(finish);
+                }
+
+                race.Status = "Completed";
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            } catch {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }
