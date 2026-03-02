@@ -37,7 +37,7 @@ namespace RaceCommittee.Api.Services
             var race = new Race
             {
                 RegattaId = regattaId,
-                Name = dto.Name,
+                Name = dto.Name ?? string.Empty,
                 ScheduledStartTime = dto.ScheduledStartTime,
                 Status = dto.Status ?? "Scheduled",
                 StartType = dto.StartType,

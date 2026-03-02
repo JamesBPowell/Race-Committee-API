@@ -9,11 +9,11 @@ namespace RaceCommittee.Api.Models
 
         public int RaceId { get; set; }
         [JsonIgnore]
-        public Race Race { get; set; }
+        public Race Race { get; set; } = default!;
 
         public int EntryId { get; set; }
         [JsonIgnore]
-        public Entry Entry { get; set; }
+        public Entry Entry { get; set; } = default!;
 
         public DateTime? FinishTime { get; set; }
         public TimeSpan? ElapsedDuration { get; set; }
@@ -27,8 +27,8 @@ namespace RaceCommittee.Api.Models
         public int? OverallRank { get; set; }
         public float? OverallPoints { get; set; }
         
-        public string Code { get; set; } // DNF, DNS, DNC, DSQ, RET, OCS, UFD, BFD, SCP, RDG
+        public string? Code { get; set; } // DNF, DNS, DNC, DSQ, RET, OCS, UFD, BFD, SCP, RDG
         
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
     }
 }

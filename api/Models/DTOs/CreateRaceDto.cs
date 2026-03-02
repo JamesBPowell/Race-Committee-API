@@ -6,11 +6,11 @@ namespace RaceCommittee.Api.Models.DTOs
     public class CreateRaceDto
     {
         [Required]
-        public string Name { get; set; }
+        public string? Name { get; set; }
         
         public DateTime? ScheduledStartTime { get; set; }
         
-        public string Status { get; set; } = "Scheduled";
+        public string? Status { get; set; } = "Scheduled";
 
         public StartType StartType { get; set; }
         public CourseType CourseType { get; set; }

@@ -53,9 +53,9 @@ namespace RaceCommittee.Api.Services
             var boat = new Boat
             {
                 OwnerId = userId,
-                BoatName = createBoatDto.BoatName,
-                SailNumber = createBoatDto.SailNumber,
-                MakeModel = createBoatDto.MakeModel,
+                BoatName = createBoatDto.BoatName ?? string.Empty,
+                SailNumber = createBoatDto.SailNumber ?? string.Empty,
+                MakeModel = createBoatDto.MakeModel ?? string.Empty,
                 DefaultRating = createBoatDto.DefaultRating
             };
 
@@ -81,9 +81,9 @@ namespace RaceCommittee.Api.Services
                 return false;
             }
 
-            boat.BoatName = updateBoatDto.BoatName;
-            boat.SailNumber = updateBoatDto.SailNumber;
-            boat.MakeModel = updateBoatDto.MakeModel;
+            boat.BoatName = updateBoatDto.BoatName ?? string.Empty;
+            boat.SailNumber = updateBoatDto.SailNumber ?? string.Empty;
+            boat.MakeModel = updateBoatDto.MakeModel ?? string.Empty;
             boat.DefaultRating = updateBoatDto.DefaultRating;
 
             try

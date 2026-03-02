@@ -7,10 +7,10 @@ namespace RaceCommittee.Api.Models
         public int Id { get; set; }
 
         public int RegattaId { get; set; }
-        public Regatta Regatta { get; set; }
+        public Regatta Regatta { get; set; } = default!;
 
         public int? FleetId { get; set; }
-        public Fleet Fleet { get; set; }
+        public Fleet? Fleet { get; set; }
 
         public StartType StartType { get; set; }
         public CourseType CourseType { get; set; }
@@ -18,15 +18,15 @@ namespace RaceCommittee.Api.Models
         public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
 
-        public string Name { get; set; } // e.g. "Saturday Race 1", "Pursuit"
+        public string Name { get; set; } = string.Empty; // e.g. "Saturday Race 1", "Pursuit"
         
         public DateTime? ScheduledStartTime { get; set; }
         public DateTime? ActualStartTime { get; set; }
 
-        public string Status { get; set; } // Scheduled, InSequence, Racing, Completed, Postponed, Abandoned
-        public string ScoringParameters { get; set; } // JSON for race-specific scoring data (e.g. course mix for ORR-EZ)
+        public string Status { get; set; } = "Scheduled"; // Scheduled, InSequence, Racing, Completed, Postponed, Abandoned
+        public string ScoringParameters { get; set; } = "{}"; // JSON for race-specific scoring data (e.g. course mix for ORR-EZ)
 
-        public ICollection<RaceFleet> ParticipatingFleets { get; set; }
-        public ICollection<Finish> Finishes { get; set; }
+        public ICollection<RaceFleet> ParticipatingFleets { get; set; } = new List<RaceFleet>();
+        public ICollection<Finish> Finishes { get; set; } = new List<Finish>();
     }
 }

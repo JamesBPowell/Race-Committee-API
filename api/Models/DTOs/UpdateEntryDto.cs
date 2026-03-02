@@ -4,6 +4,6 @@ namespace RaceCommittee.Api.Models.DTOs
     {
         public int? FleetId { get; set; }
         public float? Rating { get; set; }
-        public string RegistrationStatus { get; set; }
+        public string? RegistrationStatus { get; set; }
     }
 }

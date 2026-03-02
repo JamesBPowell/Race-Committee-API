@@ -22,13 +22,13 @@ namespace RaceCommittee.Api.Services
         {
             var regatta = new Regatta
             {
-                Name = dto.Name,
-                Organization = dto.Organization,
+                Name = dto.Name ?? string.Empty,
+                Organization = dto.Organization ?? string.Empty,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                Location = dto.Location,
+                Location = dto.Location ?? string.Empty,
                 Status = "Upcoming",
-                Slug = GenerateSlug(dto.Name),
+                Slug = GenerateSlug(dto.Name ?? string.Empty),
                 CommitteeMembers = new List<RegattaCommittee>
                 {
                     new RegattaCommittee
@@ -211,12 +211,12 @@ namespace RaceCommittee.Api.Services
             if (!regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 throw new UnauthorizedAccessException("Not authorized to update this regatta");
 
-            regatta.Name = dto.Name;
-            regatta.Organization = dto.Organization;
+            regatta.Name = dto.Name ?? string.Empty;
+            regatta.Organization = dto.Organization ?? string.Empty;
             regatta.StartDate = dto.StartDate;
             regatta.EndDate = dto.EndDate;
-            regatta.Location = dto.Location;
-            regatta.Status = dto.Status;
+            regatta.Location = dto.Location ?? string.Empty;
+            regatta.Status = dto.Status ?? string.Empty;
 
             await _context.SaveChangesAsync();
             return regatta;

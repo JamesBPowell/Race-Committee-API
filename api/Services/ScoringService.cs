@@ -40,7 +40,7 @@ namespace RaceCommittee.Api.Services
             // Group finishes by Fleet
             var fleetFinishes = race.Finishes
                 .Where(f => f.Entry != null && f.Entry.FleetId.HasValue)
-                .GroupBy(f => f.Entry.FleetId.Value)
+                .GroupBy(f => f.Entry.FleetId!.Value)
                 .ToList();
 
             foreach (var group in fleetFinishes)

@@ -26,7 +26,7 @@ namespace api.Controllers
             _userManager = userManager;
         }
 
-        private string GetCurrentUserId()
+        private string? GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier);
         }

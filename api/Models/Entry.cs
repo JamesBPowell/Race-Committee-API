@@ -9,26 +9,26 @@ namespace RaceCommittee.Api.Models
 
         public int RegattaId { get; set; }
         [JsonIgnore]
-        public Regatta Regatta { get; set; }
+        public Regatta Regatta { get; set; } = default!;
 
         public int BoatId { get; set; }
         [JsonIgnore]
-        public Boat Boat { get; set; }
+        public Boat Boat { get; set; } = default!;
 
         public int? FleetId { get; set; }
         [JsonIgnore]
-        public Fleet Fleet { get; set; }
+        public Fleet? Fleet { get; set; }
 
         public int? ActiveCertificateId { get; set; }
         [JsonIgnore]
-        public Certificate ActiveCertificate { get; set; }
+        public Certificate? ActiveCertificate { get; set; }
 
-        public string Configuration { get; set; } // "Spinnaker", "Non-Spinnaker"
+        public string Configuration { get; set; } = string.Empty; // "Spinnaker", "Non-Spinnaker"
         public float? Rating { get; set; } // Current fixed rating (snapshot)
-        public string RatingSnapshot { get; set; } // JSON of full polar data for ORR (snapshot at regatta start)
+        public string RatingSnapshot { get; set; } = "{}"; // JSON of full polar data for ORR (snapshot at regatta start)
 
-        public string RegistrationStatus { get; set; } // Pending, Paid, CheckedIn
+        public string RegistrationStatus { get; set; } = "Pending"; // Pending, Paid, CheckedIn
 
-        public ICollection<Finish> Finishes { get; set; }
+        public ICollection<Finish> Finishes { get; set; } = new List<Finish>();
     }
 }

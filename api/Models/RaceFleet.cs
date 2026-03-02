@@ -7,10 +7,10 @@ namespace RaceCommittee.Api.Models
         public int Id { get; set; }
 
         public int RaceId { get; set; }
-        public Race Race { get; set; }
+        public Race Race { get; set; } = default!;
 
         public int FleetId { get; set; }
-        public Fleet Fleet { get; set; }
+        public Fleet Fleet { get; set; } = default!;
 
         public TimeSpan? StartTimeOffset { get; set; } // Used for staggered starts
         public int? RaceNumber { get; set; } // Series race number for this fleet in this event
@@ -19,6 +19,6 @@ namespace RaceCommittee.Api.Models
         public float? WindDirection { get; set; }
         public float? CourseDistance { get; set; }
         public bool IncludeInOverall { get; set; } = true;
-        public string ScoringParameters { get; set; }
+        public string ScoringParameters { get; set; } = "{}";
     }
 }

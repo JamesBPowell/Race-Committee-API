@@ -32,7 +32,7 @@ namespace RaceCommittee.Api.Services
             var fleet = new Fleet
             {
                 RegattaId = regattaId,
-                Name = dto.Name,
+                Name = dto.Name ?? string.Empty,
                 SequenceOrder = dto.SequenceOrder,
                 ScoringMethod = dto.ScoringMethod,
                 ScoringConfiguration = "{}" // Default empty config
@@ -54,7 +54,7 @@ namespace RaceCommittee.Api.Services
             if (!fleet.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 throw new UnauthorizedAccessException("Not a committee member");
 
-            fleet.Name = dto.Name;
+            fleet.Name = dto.Name ?? string.Empty;
             fleet.SequenceOrder = dto.SequenceOrder;
             fleet.ScoringMethod = dto.ScoringMethod;
 

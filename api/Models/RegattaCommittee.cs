@@ -10,11 +10,11 @@ namespace RaceCommittee.Api.Models
         public int RegattaId { get; set; }
 
         [JsonIgnore]
-        public Regatta Regatta { get; set; }
+        public Regatta Regatta { get; set; } = default!;
 
-        public string UserId { get; set; }
-        public ApplicationUser User { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public ApplicationUser User { get; set; } = default!;
 
-        public string Role { get; set; } // e.g. PrincipalRaceOfficer, Scorer, MarkSet, General
+        public string Role { get; set; } = "General"; // e.g. PrincipalRaceOfficer, Scorer, MarkSet, General
     }
 }
