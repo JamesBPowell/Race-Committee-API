@@ -45,12 +45,27 @@ namespace RaceCommittee.Api.Services
             return regatta;
         }
 
-        public async Task<IEnumerable<Regatta>> GetRegattasAsync()
+        public async Task<IEnumerable<RegattaSummaryDto>> GetRegattasAsync()
         {
-            return await _context.Regattas.ToListAsync();
+            return await _context.Regattas
+                .Select(r => new RegattaSummaryDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Organization = r.Organization,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    Location = r.Location,
+                    Status = r.Status,
+                    BoatsEnteredCount = r.Entries.Count(),
+                    ClassesCount = r.Fleets.Count(),
+                    ScheduledRacesCount = r.Races.Count(),
+                    IsCommitteeMember = false
+                })
+                .ToListAsync();
         }
 
-        public async Task<IEnumerable<Regatta>> GetJoinedRegattasAsync(string userId)
+        public async Task<IEnumerable<RegattaSummaryDto>> GetJoinedRegattasAsync(string userId)
         {
             return await _context.Entries
                 .Include(e => e.Boat)
@@ -58,14 +73,42 @@ namespace RaceCommittee.Api.Services
                 .Where(e => e.Boat.OwnerId == userId)
                 .Select(e => e.Regatta)
                 .Distinct()
+                .Select(r => new RegattaSummaryDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Organization = r.Organization,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    Location = r.Location,
+                    Status = r.Status,
+                    BoatsEnteredCount = r.Entries.Count(),
+                    ClassesCount = r.Fleets.Count(),
+                    ScheduledRacesCount = r.Races.Count(),
+                    IsCommitteeMember = false
+                })
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Regatta>> GetManagingRegattasAsync(string userId)
+        public async Task<IEnumerable<RegattaSummaryDto>> GetManagingRegattasAsync(string userId)
         {
             return await _context.Regattas
                 .Include(r => r.CommitteeMembers)
                 .Where(r => r.CommitteeMembers.Any(cm => cm.UserId == userId))
+                .Select(r => new RegattaSummaryDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Organization = r.Organization,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    Location = r.Location,
+                    Status = r.Status,
+                    BoatsEnteredCount = r.Entries.Count(),
+                    ClassesCount = r.Fleets.Count(),
+                    ScheduledRacesCount = r.Races.Count(),
+                    IsCommitteeMember = true
+                })
                 .ToListAsync();
         }
 

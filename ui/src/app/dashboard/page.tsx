@@ -32,7 +32,7 @@ export default function DashboardPage() {
         location: r.location,
         status: r.status as RegattaCardProps['status'],
         role: 'RC' as RegattaCardProps['role'],
-        boatsEntered: 0
+        boatsEntered: r.boatsEnteredCount || 0
     })).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
     const realRacerRegattas: RegattaCardProps[] = joinedRegattas.map(r => ({
@@ -44,7 +44,7 @@ export default function DashboardPage() {
         location: r.location,
         status: r.status as RegattaCardProps['status'], // Use the actual server status, not hardcoded 'Entered'
         role: 'Competitor' as RegattaCardProps['role'],
-        boatsEntered: 0
+        boatsEntered: r.boatsEnteredCount || 0
     })).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
     return (
