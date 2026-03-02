@@ -91,13 +91,16 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scoredRaces.length]);
 
-    const computeSeriesStandings = (fleetId: number) => {
+    const computeSeriesStandings = (fleetId?: number) => {
         const boatMap: Record<number, { entryId: number; boatName: string; sailNumber: string; boatMakeModel: string; rating: number | null; racePoints: Record<number, number>; total: number }> = {};
         for (const race of scoredRaces) {
             const results = allRaceResults[race.id];
             if (!results) continue;
             for (const r of results) {
-                if (r.fleetId !== fleetId) continue;
+                if (fleetId && r.fleetId !== fleetId) continue;
+                // If calculating overall, only include boats with an overall rank in this race
+                if (!fleetId && r.overallRank === null) continue;
+
                 if (!boatMap[r.entryId]) {
                     boatMap[r.entryId] = {
                         entryId: r.entryId,
@@ -109,8 +112,9 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
                         total: 0
                     };
                 }
-                boatMap[r.entryId].racePoints[race.id] = r.points ?? 0;
-                boatMap[r.entryId].total += r.points ?? 0;
+                const pts = fleetId ? (r.points ?? 0) : (r.overallRank ?? 0);
+                boatMap[r.entryId].racePoints[race.id] = pts;
+                boatMap[r.entryId].total += pts;
             }
         }
         return Object.values(boatMap).sort((a, b) => a.total - b.total);
@@ -199,6 +203,7 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <Trophy className="w-5 h-5 text-amber-400" /> Series Standings
                     </h3>
+
                     {(regatta.fleets || []).map(fleet => {
                         const standings = computeSeriesStandings(fleet.id);
                         if (standings.length === 0) return null;
@@ -210,51 +215,30 @@ export default function RegattaResultsView({ regatta, myEntryId }: RegattaResult
                                         {ScoringMethod[fleet.scoringMethod]?.replace(/_/g, ' ')}
                                     </span>
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
-                                            <tr>
-                                                <th className="px-4 py-3 font-medium w-12">Pos</th>
-                                                <th className="px-4 py-3 font-medium">Boat</th>
-                                                <th className="px-4 py-3 font-medium">Make/Model</th>
-                                                <th className="px-4 py-3 font-medium">Rating</th>
-                                                {scoredRaces.map(r => (
-                                                    <th key={r.id} className="px-3 py-3 font-medium text-center whitespace-nowrap">
-                                                        {r.name.replace('Race ', 'R')}
-                                                    </th>
-                                                ))}
-                                                <th className="px-4 py-3 font-medium text-right">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {standings.map((s, idx) => {
-                                                const isMe = s.entryId === myEntryId;
-                                                return (
-                                                    <tr key={s.entryId} className={`transition-colors ${isMe ? 'bg-indigo-500/15 hover:bg-indigo-500/20' : 'hover:bg-slate-800/30'}`}>
-                                                        <td className="px-4 py-3 font-bold text-slate-300">{idx + 1}</td>
-                                                        <td className="px-4 py-3">
-                                                            <div className={`font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>{s.boatName}</div>
-                                                            <div className="text-xs text-slate-500">{s.sailNumber}</div>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-slate-400 text-xs">{s.boatMakeModel || '—'}</td>
-                                                        <td className="px-4 py-3 text-slate-400 text-xs">{s.rating ?? '—'}</td>
-                                                        {scoredRaces.map(r => (
-                                                            <td key={r.id} className="px-3 py-3 text-center text-slate-300 text-xs font-mono">
-                                                                {s.racePoints[r.id] ?? '—'}
-                                                            </td>
-                                                        ))}
-                                                        <td className={`px-4 py-3 text-right font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>
-                                                            {s.total}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <SeriesStandingsTable standings={standings} scoredRaces={scoredRaces} myEntryId={myEntryId} />
                             </div>
                         );
                     })}
+
+                    {/* Overall Series Standings */}
+                    {(() => {
+                        const overallStandings = computeSeriesStandings();
+                        if (overallStandings.length === 0) return null;
+                        return (
+                            <div className="bg-indigo-900/10 rounded-xl border border-indigo-500/20 overflow-hidden">
+                                <div className="px-5 py-4 bg-indigo-500/10 border-b border-indigo-500/20 font-bold flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <Trophy className="w-4 h-4 text-amber-400" />
+                                        <span className="text-indigo-200">Regatta Overall Standings</span>
+                                    </div>
+                                    <span className="text-[10px] py-0.5 px-2 bg-indigo-500/20 rounded-full text-indigo-300 uppercase tracking-widest leading-none border border-indigo-500/30 font-black">
+                                        Combined Fleets
+                                    </span>
+                                </div>
+                                <SeriesStandingsTable standings={overallStandings} scoredRaces={scoredRaces} myEntryId={myEntryId} />
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
         </div>
@@ -343,11 +327,8 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
                                         <th className="px-4 py-3 font-medium">Sail</th>
                                         <th className="px-4 py-3 font-medium">Boat</th>
                                         <th className="px-4 py-3 font-medium">Make/Model</th>
-                                        <th className="px-4 py-3 font-medium">Rating</th>
-                                        <th className="px-4 py-3 font-medium">Elapsed</th>
-                                        <th className="px-4 py-3 font-medium">Corrected</th>
-                                        <th className="px-4 py-3 font-medium">Delta</th>
-                                        <th className="px-4 py-3 font-medium text-right">Pts</th>
+                                        <th className="px-4 py-3 font-medium text-center">Pts</th>
+                                        <th className="px-4 py-3 font-medium text-right w-20">Overall</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -362,18 +343,11 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
                                                     {isMe && <span className="ml-2 text-[10px] text-indigo-400 font-bold uppercase">(You)</span>}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-400 text-xs">{r.boatMakeModel || '—'}</td>
-                                                <td className="px-4 py-3 text-slate-400 text-xs">{r.rating ?? '—'}</td>
-                                                <td className="px-4 py-3 text-slate-300 font-mono text-xs">
-                                                    {r.code && r.code !== 'SCP' ? <span className="text-rose-400 font-bold">{r.code}</span> : formatDuration(r.elapsedDuration)}
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-300 font-mono text-xs">
-                                                    {r.code && r.code !== 'SCP' ? '—' : formatDuration(r.correctedDuration)}
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-400 font-mono text-xs">
-                                                    {r.code && r.code !== 'SCP' ? '—' : formatDelta(r.timeDelta)}
-                                                </td>
-                                                <td className={`px-4 py-3 text-right font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>
+                                                <td className={`px-4 py-3 text-center font-bold ${isMe ? 'text-indigo-300' : 'text-emerald-400'}`}>
                                                     {r.points ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-500 text-xs font-medium">
+                                                    {r.overallRank ?? '—'}
                                                 </td>
                                             </tr>
                                         );
@@ -384,6 +358,55 @@ function RaceResultTables({ results, fleets, myEntryId, race }: {
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+function SeriesStandingsTable({ standings, scoredRaces, myEntryId }: {
+    standings: any[];
+    scoredRaces: any[];
+    myEntryId?: number | null
+}) {
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
+                    <tr>
+                        <th className="px-4 py-3 font-medium w-12">Pos</th>
+                        <th className="px-4 py-3 font-medium">Boat</th>
+                        <th className="px-4 py-3 font-medium">Make/Model</th>
+                        {scoredRaces.map(r => (
+                            <th key={r.id} className="px-3 py-3 font-medium text-center whitespace-nowrap">
+                                {r.name.replace('Race ', 'R')}
+                            </th>
+                        ))}
+                        <th className="px-4 py-3 font-medium text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {standings.map((s, idx) => {
+                        const isMe = s.entryId === myEntryId;
+                        return (
+                            <tr key={s.entryId} className={`transition-colors ${isMe ? 'bg-indigo-500/15 hover:bg-indigo-500/20' : 'hover:bg-slate-800/30'}`}>
+                                <td className="px-4 py-3 font-bold text-slate-300">{idx + 1}</td>
+                                <td className="px-4 py-3">
+                                    <div className={`font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>{s.boatName}</div>
+                                    <div className="text-xs text-slate-500">{s.sailNumber}</div>
+                                </td>
+                                <td className="px-4 py-3 text-slate-400 text-xs">{s.boatMakeModel || '—'}</td>
+                                {scoredRaces.map(r => (
+                                    <td key={r.id} className="px-3 py-3 text-center text-slate-300 text-xs font-mono">
+                                        {s.racePoints[r.id] ?? '—'}
+                                    </td>
+                                ))}
+                                <td className={`px-4 py-3 text-right font-bold ${isMe ? 'text-indigo-300' : 'text-white'}`}>
+                                    {s.total}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
         </div>
     );
 }
