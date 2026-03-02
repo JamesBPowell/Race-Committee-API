@@ -16,14 +16,15 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     const [activeTab, setActiveTab] = useState<'record' | 'results'>(defaultTab);
 
     // Initial map setup moved to useMemo to allow useState initialization
-    const initialFinishesMap = useMemo(() => {
+    const initialFinishesMap = useMemo<Record<number, RecordFinishDto & { dayOffset: number }>>(() => {
         if (!race || !regatta.entries) return {};
-        const initialMap: Record<number, RecordFinishDto> = {};
+        const initialMap: Record<number, RecordFinishDto & { dayOffset: number }> = {};
         const relevantEntries = regatta.entries || [];
         relevantEntries.forEach(entry => {
             initialMap[entry.id] = {
                 entryId: entry.id,
                 finishTime: '',
+                dayOffset: 0,
                 timePenalty: '',
                 pointPenalty: 0,
                 code: '',
@@ -33,15 +34,31 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         return initialMap;
     }, [race, regatta.entries]);
 
+    const getBaseDate = useCallback(() => {
+        const source = (race?.scheduledStartTime || regatta.startDate || new Date().toISOString());
+        const d = new Date(source);
+        d.setHours(0, 0, 0, 0); // Start of the base day
+        return d;
+    }, [race, regatta]);
+
+    const calculateDayOffset = useCallback((date: Date) => {
+        const base = getBaseDate();
+        const target = new Date(date);
+        target.setHours(0, 0, 0, 0);
+        const diffTime = target.getTime() - base.getTime();
+        return Math.round(diffTime / (1000 * 60 * 60 * 24));
+    }, [getBaseDate]);
+
     const formatTimeToClock = (date: Date) => {
         return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
     };
 
     // State for recording finishes
-    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
+    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto & { dayOffset: number }>>(initialFinishesMap);
     const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
     const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
     const [actualStartTime, setActualStartTime] = useState<string>('');
+    const [startDayOffset, setStartDayOffset] = useState<number>(0);
     const [results, setResults] = useState<FinishResultDto[]>([]);
 
     // Race Clock & Timer Tools
@@ -57,8 +74,10 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         if (race.actualStartTime) {
             const d = new Date(race.actualStartTime);
             setActualStartTime(formatTimeToClock(d));
+            setStartDayOffset(calculateDayOffset(d));
         } else {
             setActualStartTime('');
+            setStartDayOffset(0);
         }
     }
 
@@ -68,19 +87,25 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     }, []);
 
     const handleRecordFinish = (entryId: number, time?: string) => {
-        const timestamp = time || formatTimeToClock(now);
+        const nowTime = new Date();
+        const timestamp = time || formatTimeToClock(nowTime);
+        const offset = time ? (finishesMap[entryId]?.dayOffset || 0) : calculateDayOffset(nowTime);
+
         setFinishesMap(prev => ({
             ...prev,
             [entryId]: {
                 ...prev[entryId],
                 finishTime: timestamp,
+                dayOffset: offset,
                 code: '' // Clear any DNF/DNS if they actually finished
             }
         }));
     };
 
     const handleSetActualStart = () => {
-        setActualStartTime(formatTimeToClock(now));
+        const nowTime = new Date();
+        setActualStartTime(formatTimeToClock(nowTime));
+        setStartDayOffset(calculateDayOffset(nowTime));
     };
 
     const handleScoreRace = useCallback(async () => {
@@ -105,13 +130,16 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                             const newMap = { ...prev };
                             data.forEach(result => {
                                 let localTimeStr = '';
+                                let offset = 0;
                                 if (result.finishTime) {
                                     const d = new Date(result.finishTime);
                                     localTimeStr = formatTimeToClock(d);
+                                    offset = calculateDayOffset(d);
                                 }
                                 newMap[result.entryId] = {
                                     entryId: result.entryId,
                                     finishTime: localTimeStr,
+                                    dayOffset: offset,
                                     code: result.code || '',
                                     timePenalty: result.timePenalty || '',
                                     pointPenalty: 0,
@@ -127,18 +155,21 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             };
             fetchResults();
         }
-    }, [race, isOpen, getRaceResults]);
+    }, [race, isOpen, getRaceResults, calculateDayOffset]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
 
-        // Determine the base date for finishes (use regatta start date if race start is not set)
-        const baseDateSource = race.actualStartTime || race.scheduledStartTime || regatta.startDate || new Date().toISOString();
-        const d = new Date(baseDateSource);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const localDateString = `${year}-${month}-${day}`;
+        // Determine the base date for construction (Day 1)
+        const baseDate = getBaseDate();
+        const constructDateStr = (offset: number, timeStr: string) => {
+            const targetDate = new Date(baseDate);
+            targetDate.setDate(targetDate.getDate() + offset);
+            const y = targetDate.getFullYear();
+            const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const d = String(targetDate.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}T${timeStr.length === 5 ? timeStr + ':00' : timeStr}`;
+        };
 
         const finishesArr = Object.values(finishesMap).map(f => {
             const dto: RecordFinishDto = { ...f };
@@ -152,9 +183,9 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                 if (rawTime.includes('T') || rawTime.includes('-')) {
                     dto.finishTime = rawTime;
                 } else {
-                    // Try to parse HH:MM:SS
+                    // Try to parse HH:MM:SS with offset
                     try {
-                        const localDateTimeStr = `${localDateString}T${rawTime.length === 5 ? rawTime + ':00' : rawTime}`;
+                        const localDateTimeStr = constructDateStr(f.dayOffset, rawTime);
                         const localDateTime = new Date(localDateTimeStr);
                         if (!isNaN(localDateTime.getTime())) {
                             dto.finishTime = localDateTime.toISOString();
@@ -181,7 +212,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                 startTimeISO = actualStartTime;
             } else {
                 try {
-                    const localDateTimeStr = `${localDateString}T${actualStartTime.trim().length === 5 ? actualStartTime.trim() + ':00' : actualStartTime.trim()}`;
+                    const localDateTimeStr = constructDateStr(startDayOffset, actualStartTime.trim());
                     const localDateTime = new Date(localDateTimeStr);
                     if (!isNaN(localDateTime.getTime())) {
                         startTimeISO = localDateTime.toISOString();
@@ -271,9 +302,16 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         </div>
                                     </div>
 
-                                    <div className="text-right">
-                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">LOCAL TIME</div>
-                                        <div className="text-sm font-medium text-slate-400">{new Date().toLocaleDateString()}</div>
+                                    <div className="text-right flex items-center gap-4">
+                                        <div>
+                                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">BASE DATE</div>
+                                            <div className="text-sm font-medium text-slate-400">{getBaseDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                        </div>
+                                        <div className="h-8 w-[1px] bg-white/5" />
+                                        <div>
+                                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">LOCAL TIME</div>
+                                            <div className="text-sm font-medium text-slate-400">{new Date().toLocaleTimeString()}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -315,6 +353,18 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                         <label className="text-sm font-bold text-slate-300">Actual Start:</label>
                                     </div>
                                     <div className="flex items-center gap-1.5">
+                                        <select
+                                            className="bg-slate-900 border border-slate-700 text-white text-xs rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 appearance-none cursor-pointer hover:bg-slate-800"
+                                            value={startDayOffset}
+                                            title="Start Day"
+                                            onChange={e => setStartDayOffset(parseInt(e.target.value))}
+                                        >
+                                            <option value={0}>Day 1</option>
+                                            <option value={1}>Day 2</option>
+                                            <option value={2}>Day 3</option>
+                                            <option value={3}>Day 4</option>
+                                            <option value={4}>Day 5</option>
+                                        </select>
                                         <input
                                             type="text"
                                             placeholder="HH:MM:SS"
@@ -367,6 +417,18 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                                                                 <td className="px-5 py-3 text-slate-400">{entry.boatName}</td>
                                                                 <td className="px-5 py-2">
                                                                     <div className="flex items-center gap-1.5">
+                                                                        <select
+                                                                            className="bg-slate-900 border border-slate-700 text-white text-[10px] rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 min-w-[70px] appearance-none cursor-pointer hover:bg-slate-800"
+                                                                            value={fState.dayOffset}
+                                                                            title="Finish Day"
+                                                                            onChange={e => setFinishesMap({ ...finishesMap, [entry.id]: { ...fState, dayOffset: parseInt(e.target.value) } })}
+                                                                        >
+                                                                            <option value={0}>Day 1</option>
+                                                                            <option value={1}>Day 2</option>
+                                                                            <option value={2}>Day 3</option>
+                                                                            <option value={3}>Day 4</option>
+                                                                            <option value={4}>Day 5</option>
+                                                                        </select>
                                                                         <input
                                                                             type="text"
                                                                             placeholder="Clock Time"
