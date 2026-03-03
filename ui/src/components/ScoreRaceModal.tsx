@@ -9,9 +9,10 @@ interface ScoreRaceModalProps {
     race: RaceResponse | null;
     regatta: RegattaResponse;
     defaultTab?: 'record' | 'results';
+    onSuccess?: () => void;
 }
 
-export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'record' }: ScoreRaceModalProps) {
+export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'record', onSuccess }: ScoreRaceModalProps) {
     const { saveFinishes, scoreRace, getRaceResults, isLoading, error } = useRaces();
     const [activeTab, setActiveTab] = useState<'record' | 'results'>(defaultTab);
 
@@ -35,9 +36,16 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
     }, [race, regatta.entries]);
 
     const getBaseDate = useCallback(() => {
-        const source = (race?.scheduledStartTime || regatta.startDate || new Date().toISOString());
+        let source = race?.scheduledStartTime || regatta.startDate || new Date().toISOString();
+
+        // If it's a date-only string (YYYY-MM-DD), force it to be parsed as local midnight
+        // new Date("YYYY-MM-DD") is treated as UTC midnight by many browsers, which causes a shift.
+        if (typeof source === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.trim())) {
+            source = source.trim() + 'T00:00:00';
+        }
+
         const d = new Date(source);
-        d.setHours(0, 0, 0, 0); // Start of the base day
+        d.setHours(0, 0, 0, 0); // Start of the base day (local)
         return d;
     }, [race, regatta]);
 
@@ -63,12 +71,13 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
     // Race Clock & Timer Tools
     const [now, setNow] = useState(new Date());
-    const [prevRaceId, setPrevRaceId] = useState<number | null>(null);
+    const [lastSyncKey, setLastSyncKey] = useState<string>('');
 
-    // Reset state when the race changes during render (React recommended pattern for state reset)
-    if (race && race.id !== prevRaceId) {
-        setPrevRaceId(race.id);
-        setFinishesMap(initialFinishesMap);
+    // Synchronous resets for race-level state when data changes or ID changes
+    const currentSyncKey = race ? `${race.id}-${race.actualStartTime}-${race.windSpeed}-${race.windDirection}` : '';
+
+    if (race && currentSyncKey !== lastSyncKey) {
+        setLastSyncKey(currentSyncKey);
         setWindSpeed(race.windSpeed || 0);
         setWindDirection(race.windDirection || 0);
         if (race.actualStartTime) {
@@ -80,6 +89,46 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             setStartDayOffset(0);
         }
     }
+
+    // Effect to initialize complex result data when race changes or modal opens
+    useEffect(() => {
+        if (race && isOpen) {
+            const fetchResults = async () => {
+                try {
+                    const data = await getRaceResults(race.id);
+                    setResults(data);
+
+                    // Initialize finishesMap with entries, then overlay results
+                    const newMap = { ...initialFinishesMap };
+                    if (data && data.length > 0) {
+                        data.forEach(result => {
+                            let localTimeStr = '';
+                            let offset = 0;
+                            if (result.finishTime) {
+                                const d = new Date(result.finishTime);
+                                localTimeStr = formatTimeToClock(d);
+                                offset = calculateDayOffset(d);
+                            }
+                            newMap[result.entryId] = {
+                                entryId: result.entryId,
+                                finishTime: localTimeStr,
+                                dayOffset: offset,
+                                code: result.code || '',
+                                timePenalty: result.timePenalty || '',
+                                pointPenalty: 0,
+                                notes: result.notes || ''
+                            };
+                        });
+                    }
+                    setFinishesMap(newMap);
+                } catch (err) {
+                    console.error("Failed to fetch race results:", err);
+                    setFinishesMap(initialFinishesMap);
+                }
+            };
+            fetchResults();
+        }
+    }, [race, race?.id, race?.windSpeed, race?.windDirection, race?.actualStartTime, isOpen, initialFinishesMap, getRaceResults, calculateDayOffset]);
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -113,49 +162,12 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         try {
             const computedResults = await scoreRace(race.id);
             setResults(computedResults);
+            onSuccess?.();
         } catch (err) {
             console.error(err);
         }
-    }, [race, scoreRace]);
+    }, [race, scoreRace, setResults, onSuccess]);
 
-    // Fetch fresh results when race changes
-    useEffect(() => {
-        if (race && isOpen) {
-            const fetchResults = async () => {
-                try {
-                    const data = await getRaceResults(race.id);
-                    setResults(data);
-                    if (data.length > 0) {
-                        setFinishesMap(prev => {
-                            const newMap = { ...prev };
-                            data.forEach(result => {
-                                let localTimeStr = '';
-                                let offset = 0;
-                                if (result.finishTime) {
-                                    const d = new Date(result.finishTime);
-                                    localTimeStr = formatTimeToClock(d);
-                                    offset = calculateDayOffset(d);
-                                }
-                                newMap[result.entryId] = {
-                                    entryId: result.entryId,
-                                    finishTime: localTimeStr,
-                                    dayOffset: offset,
-                                    code: result.code || '',
-                                    timePenalty: result.timePenalty || '',
-                                    pointPenalty: 0,
-                                    notes: result.notes || ''
-                                };
-                            });
-                            return newMap;
-                        });
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch race results:", err);
-                }
-            };
-            fetchResults();
-        }
-    }, [race, isOpen, getRaceResults, calculateDayOffset]);
 
     const handleSaveFinishes = async () => {
         if (!race) return;
@@ -179,8 +191,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             dto.finishTime = null;
 
             if (rawTime) {
-                // If it's already an ISO string (starts with YYYY-), keep it
-                if (rawTime.includes('T') || rawTime.includes('-')) {
+                // If it's an ISO string, we keep it as is (if it's from our construction below, it's local)
+                if (rawTime.includes('T') && (rawTime.includes('-') || rawTime.includes(':'))) {
                     dto.finishTime = rawTime;
                 } else {
                     // Try to parse HH:MM:SS with offset
@@ -188,14 +200,15 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                         const localDateTimeStr = constructDateStr(f.dayOffset, rawTime);
                         const localDateTime = new Date(localDateTimeStr);
                         if (!isNaN(localDateTime.getTime())) {
-                            dto.finishTime = localDateTime.toISOString();
+                            // Send local datetime string (without Z) to match the naive DateTime in backend
+                            dto.finishTime = localDateTimeStr;
                         }
                     } catch { }
                 }
             }
 
             if (!dto.code) dto.code = '';
-            // timePenalty must be null or a valid TimeSpan string - empty string breaks ASP.NET deserialization
+            // timePenalty must be null or a valid TimeSpan string
             if (!dto.timePenalty || dto.timePenalty.trim() === '') {
                 delete dto.timePenalty;
             }
@@ -205,17 +218,18 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
             return dto;
         });
 
-        // If ActualStartTime is provided (e.g. HH:mm:ss), parse as local time and convert to ISO string (UTC) for backend
+        // If ActualStartTime is provided (e.g. HH:mm:ss), parse as local time
         let startTimeISO = null;
         if (actualStartTime && actualStartTime.trim()) {
-            if (actualStartTime.includes('T') || actualStartTime.includes('-')) {
-                startTimeISO = actualStartTime;
+            const rawStart = actualStartTime.trim();
+            if (rawStart.includes('T')) {
+                startTimeISO = rawStart;
             } else {
                 try {
-                    const localDateTimeStr = constructDateStr(startDayOffset, actualStartTime.trim());
+                    const localDateTimeStr = constructDateStr(startDayOffset, rawStart);
                     const localDateTime = new Date(localDateTimeStr);
                     if (!isNaN(localDateTime.getTime())) {
-                        startTimeISO = localDateTime.toISOString();
+                        startTimeISO = localDateTimeStr;
                     }
                 } catch { }
             }
@@ -230,6 +244,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         if (success) {
             // Auto-trigger calculation
             await handleScoreRace();
+            onSuccess?.();
             setActiveTab('results');
         }
     };

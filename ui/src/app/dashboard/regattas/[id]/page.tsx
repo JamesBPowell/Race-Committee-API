@@ -6,7 +6,7 @@ import {
     ChevronLeft, Calendar, MapPin, Anchor, Target, TrendingUp, Shield,
     Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon
 } from 'lucide-react';
-import { useRegatta, RaceResponse, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
+import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
@@ -28,8 +28,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; rating: number | null; registrationStatus: string }>({ fleetId: null, rating: null, registrationStatus: 'Pending' });
 
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
-    const [editingRace, setEditingRace] = useState<RaceResponse | null>(null);
-    const [scoringRace, setScoringRace] = useState<RaceResponse | null>(null);
+    const [editingRaceId, setEditingRaceId] = useState<number | null>(null);
+    const [scoringRaceId, setScoringRaceId] = useState<number | null>(null);
     const [isRaceOverridesOpen, setIsRaceOverridesOpen] = useState(false);
     const [selectedFleetForOverrides, setSelectedFleetForOverrides] = useState<FleetResponse | null>(null);
     const [scoringTab, setScoringTab] = useState<'record' | 'results'>('record');
@@ -705,21 +705,21 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                     <td className="py-4 text-right">
                                                         {(race.status === 'Completed' || race.status === 'Racing') && (
                                                             <button
-                                                                onClick={() => { setScoringTab('results'); setScoringRace(race); }}
+                                                                onClick={() => { setScoringTab('results'); setScoringRaceId(race.id); }}
                                                                 className="mr-3 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                             >
                                                                 Results
                                                             </button>
                                                         )}
                                                         <button
-                                                            onClick={() => { setScoringTab('record'); setScoringRace(race); }}
+                                                            onClick={() => { setScoringTab('record'); setScoringRaceId(race.id); }}
                                                             title="Score Race"
                                                             className="mr-3 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
                                                             Score
                                                         </button>
                                                         <button
-                                                            onClick={() => setEditingRace(race)}
+                                                            onClick={() => setEditingRaceId(race.id)}
                                                             title="Race Details"
                                                             className="mr-3 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
                                                         >
@@ -779,20 +779,21 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             />
 
             <EditRaceModal
-                isOpen={!!editingRace}
-                onClose={() => setEditingRace(null)}
-                race={editingRace}
+                isOpen={!!editingRaceId}
+                onClose={() => setEditingRaceId(null)}
+                race={regatta.races?.find(r => r.id === editingRaceId) || null}
                 fleets={regatta.fleets || []}
                 onSuccess={refetch}
             />
 
             <ScoreRaceModal
-                key={scoringRace?.id ?? 'none'}
-                isOpen={!!scoringRace}
-                onClose={() => setScoringRace(null)}
-                race={scoringRace}
+                key={scoringRaceId ?? 'none'}
+                isOpen={!!scoringRaceId}
+                onClose={() => setScoringRaceId(null)}
+                race={regatta.races?.find(r => r.id === scoringRaceId) || null}
                 regatta={regatta}
                 defaultTab={scoringTab}
+                onSuccess={refetch}
             />
 
             <RaceOverridesModal
