@@ -110,10 +110,13 @@ namespace RaceCommittee.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ScoreRaceTest(int id)
         {
-            try {
+            try
+            {
                 var results = await _scoringService.CalculateRaceScoresAsync(id);
                 return Ok(results);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 return StatusCode(500, ex.ToString());
             }
         }

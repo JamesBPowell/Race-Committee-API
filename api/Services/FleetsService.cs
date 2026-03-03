@@ -112,7 +112,7 @@ namespace RaceCommittee.Api.Services
             // Manually clear related data that would otherwise conflict 
             // or where we want to preserve the record but unlink the class
             _context.RaceFleets.RemoveRange(fleet.ParticipatingInRaces);
-            
+
             foreach (var entry in fleet.Entries)
             {
                 entry.FleetId = null;

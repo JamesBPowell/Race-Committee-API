@@ -47,7 +47,7 @@ namespace RaceCommittee.Api.Services
             {
                 var fleetId = group.Key;
                 var raceFleet = race.ParticipatingFleets.FirstOrDefault(rf => rf.FleetId == fleetId);
-                
+
                 // If the fleet was added after the race was created, raceFleet might be null.
                 // We should fetch the fleet directly in this case.
                 var fleet = raceFleet?.Fleet ?? await _context.Fleets.FindAsync(fleetId);
@@ -76,7 +76,7 @@ namespace RaceCommittee.Api.Services
 
                         // Apply scoring algorithm
                         var corrected = CalculateCorrectedTime(fleet.ScoringMethod, fleet.ScoringConfiguration, elapsed, finish.Entry, raceFleet, race);
-                        
+
                         // Add penalties
                         if (finish.TimePenalty.HasValue)
                         {
@@ -111,18 +111,22 @@ namespace RaceCommittee.Api.Services
                 bool isDNFStartedPlusOne = false;
                 if (!string.IsNullOrEmpty(fleet.ScoringConfiguration))
                 {
-                    try {
+                    try
+                    {
                         using var doc = JsonDocument.Parse(fleet.ScoringConfiguration);
-                        if (doc.RootElement.TryGetProperty("DNFScoring", out var dnfEl)) {
+                        if (doc.RootElement.TryGetProperty("DNFScoring", out var dnfEl))
+                        {
                             isDNFStartedPlusOne = dnfEl.GetString() == "StartedPlusOne";
                         }
-                    } catch {}
+                    }
+                    catch { }
                 }
 
-                if (isDNFStartedPlusOne) {
+                if (isDNFStartedPlusOne)
+                {
                     var startedCount = sortedFinishes.Count(f => string.IsNullOrEmpty(f.Code) || f.Code == "DNF" || f.Code == "RET" || f.Code == "OCS" || f.Code == "UFD" || f.Code == "BFD");
-                     // DNS, DNC do not count as started
-                     // This is a basic approximation for DNF penalty
+                    // DNS, DNC do not count as started
+                    // This is a basic approximation for DNF penalty
                 }
 
                 var winnerCorrected = sortedFinishes
@@ -135,13 +139,13 @@ namespace RaceCommittee.Api.Services
                     if (!string.IsNullOrEmpty(finish.Code))
                     {
                         // Some penalty codes
-                        if (finish.Code == "SCP" && finish.CorrectedDuration.HasValue) 
+                        if (finish.Code == "SCP" && finish.CorrectedDuration.HasValue)
                         {
                             // Scoring Penalty - usually a 20% place penalty, but we can rely on PointPenalty
                             finish.Points = rank + (finish.PointPenalty ?? 0);
                             rank++;
                         }
-                        else 
+                        else
                         {
                             // DNF, DNS, DSQ, etc.
                             // If DNF and using StartedPlusOne toggle, we could adjust penaltyPoints here
@@ -154,10 +158,10 @@ namespace RaceCommittee.Api.Services
                         finish.Points = rank;
                         rank++;
                     }
-                    
+
                     if (finish.PointPenalty.HasValue && string.IsNullOrEmpty(finish.Code))
                     {
-                         finish.Points += finish.PointPenalty.Value;
+                        finish.Points += finish.PointPenalty.Value;
                     }
 
                     TimeSpan? timeDelta = null;
@@ -197,10 +201,12 @@ namespace RaceCommittee.Api.Services
 
             var overallGroups = results
                 .Where(r => fleetIdsInOverall.Contains(r.FleetId))
-                .GroupBy(r => {
+                .GroupBy(r =>
+                {
                     var rf = fleetsInOverall.First(f => f.FleetId == r.FleetId);
-                    return new { 
-                        Method = r.ScoringMethodUsed, 
+                    return new
+                    {
+                        Method = r.ScoringMethodUsed,
                         Distance = rf.CourseDistance ?? race.CourseDistance ?? 0,
                         Course = rf.CourseType ?? race.CourseType
                     };
@@ -221,7 +227,7 @@ namespace RaceCommittee.Api.Services
                 foreach (var res in sortedOverall)
                 {
                     res.OverallRank = overallRank;
-                    
+
                     if (!string.IsNullOrEmpty(res.Code))
                     {
                         res.OverallPoints = overallPenaltyPoints;
@@ -261,16 +267,18 @@ namespace RaceCommittee.Api.Services
                 case ScoringMethod.PHRF_TOT:
                     float a = 650;
                     float b = 550;
-                    
+
                     if (!string.IsNullOrEmpty(configJson))
                     {
-                        try {
+                        try
+                        {
                             using var doc = JsonDocument.Parse(configJson);
                             if (doc.RootElement.TryGetProperty("PHRF_TOT_A", out var aProp)) a = aProp.GetSingle();
                             if (doc.RootElement.TryGetProperty("PHRF_TOT_B", out var bProp)) b = bProp.GetSingle();
-                        } catch {}
+                        }
+                        catch { }
                     }
-                    
+
                     double totMultiplier = a / (b + rating);
                     return TimeSpan.FromSeconds(elapsed.TotalSeconds * totMultiplier);
 

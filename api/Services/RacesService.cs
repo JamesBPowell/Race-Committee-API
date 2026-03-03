@@ -47,7 +47,8 @@ namespace RaceCommittee.Api.Services
             };
 
             var fleets = await _context.Fleets.Where(f => f.RegattaId == regattaId).ToListAsync();
-            race.ParticipatingFleets = fleets.Select(f => {
+            race.ParticipatingFleets = fleets.Select(f =>
+            {
                 var rfDto = dto.RaceFleets?.FirstOrDefault(rf => rf.FleetId == f.Id);
                 return new RaceFleet
                 {
@@ -99,7 +100,7 @@ namespace RaceCommittee.Api.Services
                 foreach (var rfUpdate in dto.RaceFleets)
                 {
                     // Look up by Id if provided, otherwise fallback to FleetId to prevent duplicates
-                    var existingRf = rfUpdate.Id != 0 
+                    var existingRf = rfUpdate.Id != 0
                         ? race.ParticipatingFleets.FirstOrDefault(rf => rf.Id == rfUpdate.Id)
                         : race.ParticipatingFleets.FirstOrDefault(rf => rf.FleetId == rfUpdate.FleetId);
                     if (existingRf != null)
@@ -160,7 +161,8 @@ namespace RaceCommittee.Api.Services
         public async Task<bool> SaveFinishesAsync(int raceId, RecordRaceFinishesDto data, string userId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
-            try {
+            try
+            {
                 var race = await _context.Races
                     .Include(r => r.Regatta)
                     .ThenInclude(reg => reg.CommitteeMembers)
@@ -174,7 +176,7 @@ namespace RaceCommittee.Api.Services
                 {
                     throw new UnauthorizedAccessException("You don't have permission to manage this race");
                 }
-    
+
                 // Update race-level conditions
                 if (data.WindSpeed.HasValue) race.WindSpeed = data.WindSpeed;
                 if (data.WindDirection.HasValue) race.WindDirection = data.WindDirection;
@@ -205,7 +207,9 @@ namespace RaceCommittee.Api.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return true;
-            } catch {
+            }
+            catch
+            {
                 await transaction.RollbackAsync();
                 throw;
             }

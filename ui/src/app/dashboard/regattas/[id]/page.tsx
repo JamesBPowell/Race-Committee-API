@@ -10,10 +10,9 @@ import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseT
 import { useRaces } from '@/hooks/useRaces';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
-import { ScoreRaceModal } from '@/components/ScoreRaceModal';
+import { ScoreRaceModal, RegattaResultsView } from '@/features/scoring';
 import RaceOverridesModal from '@/components/RaceOverridesModal';
 import RacerRegattaPage from '@/components/RacerRegattaPage';
-import RegattaResultsView from '@/components/RegattaResultsView';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);

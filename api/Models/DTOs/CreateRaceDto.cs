@@ -7,9 +7,9 @@ namespace RaceCommittee.Api.Models.DTOs
     {
         [Required]
         public string? Name { get; set; }
-        
+
         public DateTime? ScheduledStartTime { get; set; }
-        
+
         public string? Status { get; set; } = "Scheduled";
 
         public StartType StartType { get; set; }
