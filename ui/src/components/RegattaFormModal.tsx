@@ -58,7 +58,7 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
             <div className="modal-container max-w-lg">
                 <div className="modal-header">
                     <h2 className="text-xl font-bold text-white">Create New Regatta</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+                    <button onClick={onClose} title="Close Modal" className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -98,7 +98,7 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
                                 required
                                 value={formData.startDate}
                                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                className="[color-scheme:dark]"
+                                className="scheme-dark"
                             />
                         </div>
                         <div>
@@ -107,7 +107,7 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
                                 type="date"
                                 value={formData.endDate}
                                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                className="[color-scheme:dark]"
+                                className="scheme-dark"
                             />
                         </div>
                     </div>
@@ -133,6 +133,7 @@ export default function RegattaFormModal({ isOpen, onClose }: RegattaFormModalPr
                         <Button
                             type="submit"
                             isLoading={isLoading}
+                            variant="gradient"
                         >
                             Create Regatta
                         </Button>

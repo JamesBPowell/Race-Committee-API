@@ -31,15 +31,15 @@ export default function RegattaCard({
 
     // Status Badge Styling
     const statusColors = {
-        'Upcoming': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        'Live': 'bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse',
-        'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+        'Upcoming': 'badge-upcoming',
+        'Live': 'badge-live',
+        'Completed': 'badge-completed'
     };
 
     const cardContent = (
         <div className="group relative glass-container hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg hover:shadow-cyan-500/10 h-full">
             {/* Subtle Gradient Hover Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:to-cyan-500/10 transition-all duration-500 opacity-0 group-hover:opacity-100" />
+            <div className="absolute inset-0 bg-linear-to-br from-cyan-500/0 via-transparent to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:to-cyan-500/10 transition-all duration-500 opacity-0 group-hover:opacity-100" />
 
             <div className="relative z-10 flex flex-col h-full">
 

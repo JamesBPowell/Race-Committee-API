@@ -98,10 +98,10 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const organization = regatta.organization || 'Race Committee';
 
     const statusColors: Record<string, string> = {
-        'Upcoming': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        'Live': 'bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse',
-        'Completed': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-        'Draft': 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+        'Upcoming': 'badge-upcoming',
+        'Live': 'badge-live',
+        'Completed': 'badge-completed',
+        'Draft': 'badge-completed'
     };
 
     const handleAddFleet = async () => {
@@ -263,7 +263,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
                     {/* Right Column - Actions & Info */}
                     <div className="space-y-6">
-                        <div className="backdrop-blur-md bg-gradient-to-br from-indigo-500/10 to-cyan-500/5 border border-white/10 rounded-2xl p-6">
+                        <div className="backdrop-blur-md bg-linear-to-br from-indigo-500/10 to-cyan-500/5 border border-white/10 rounded-2xl p-6">
                             <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
                             <div className="space-y-3">
                                 <ActionBtn icon={<Users className="w-4 h-4" />} label="Manage Entries" onClick={() => setActiveTab('Entries')} />
@@ -404,16 +404,17 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                     <div className="glass-container">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white uppercase tracking-tight">Racing Classes</h2>
-                            <button
+                            <Button
                                 onClick={() => {
                                     setFleetName('');
                                     setScoringMethod(ScoringMethod.PHRF_TOT);
                                     setIsAddFleetOpen(true);
                                 }}
-                                className="action-button-sm py-2.5 px-6 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 shadow-lg shadow-cyan-900/20 border-none inline-flex items-center"
+                                variant="gradient"
+                                className="shadow-lg shadow-cyan-900/20"
                             >
                                 <Plus className="w-4 h-4 mr-2" /> Add Class
-                            </button>
+                            </Button>
                         </div>
 
                         {/* Inline Add/Edit Class Form */}
@@ -448,14 +449,17 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                     </select>
                                 </div>
                                 <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-                                    <button
+                                    <Button
                                         onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
                                         disabled={isManagingFleets}
-                                        className="flex-1 md:flex-none bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold py-2.5 px-8 rounded-xl transition-all flex items-center justify-center shadow-lg shadow-emerald-900/20"
+                                        variant="gradient"
+                                        colorTheme="emerald"
+                                        className="shadow-lg shadow-emerald-900/20 flex-1 md:flex-none"
+                                        isLoading={isManagingFleets}
                                     >
-                                        {isManagingFleets ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                        {!isManagingFleets && <Save className="w-4 h-4 mr-2" />}
                                         {editingFleet ? 'Update Class' : 'Create Class'}
-                                    </button>
+                                    </Button>
                                     <button
                                         onClick={() => { setIsAddFleetOpen(false); setEditingFleet(null); setFleetName(''); }}
                                         className="text-slate-400 hover:text-white px-4 py-2.5 font-medium transition-colors"
@@ -628,12 +632,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                         </div>
 
                         <div className="flex justify-end pt-4 border-t border-white/5">
-                            <button
+                            <Button
                                 onClick={handleUpdateSettings}
-                                className="bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold py-3 px-10 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center"
+                                variant="gradient"
+                                size="lg"
+                                className="px-10 shadow-lg shadow-cyan-500/20"
                             >
                                 <Save className="w-5 h-5 mr-3" /> Save Changes
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
@@ -845,7 +851,7 @@ function Tab({ label, active = false, onClick }: { label: string, active?: boole
 function ActivityItem({ time, action, target }: { time: string, action: string, target: string }) {
     return (
         <div className="flex items-start gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors">
-            <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2 flex-shrink-0"></div>
+            <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2 shrink-0"></div>
             <div>
                 <p className="text-sm font-medium text-white">
                     <span className="text-slate-300 mr-1">{action}</span>

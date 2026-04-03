@@ -85,7 +85,7 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
 
             {/* Hero Banner */}
             <div className="glass-container relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-cyan-500/5" />
+                <div className="absolute inset-0 bg-linear-to-br from-indigo-500/10 via-transparent to-cyan-500/5" />
                 <div className="relative z-10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
@@ -93,9 +93,9 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
                             <p className="text-slate-400 mt-1">{regatta.organization} · {regatta.location}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${regatta.status === 'Live' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                                regatta.status === 'Completed' ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' :
-                                    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            <span className={`badge-base ${regatta.status === 'Live' ? 'badge-live' :
+                                regatta.status === 'Completed' ? 'badge-completed' :
+                                    'badge-upcoming'
                                 }`}>
                                 {regatta.status}
                             </span>
@@ -186,9 +186,9 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
                                 <div className="flex items-center gap-3 text-xs text-slate-400">
                                     {race.courseType != null && <span className="px-2 py-1 bg-slate-800/60 rounded border border-white/5">{courseLabel(race.courseType)}</span>}
                                     {race.courseDistance && <span className="px-2 py-1 bg-slate-800/60 rounded border border-white/5">{race.courseDistance} nm</span>}
-                                    <span className={`px-2.5 py-1 rounded-full font-bold uppercase ${race.status === 'Completed' || race.status === 'Scored' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        race.status === 'Racing' ? 'bg-rose-500/20 text-rose-400' :
-                                            'bg-slate-500/20 text-slate-300'
+                                    <span className={`badge-base border-none ${race.status === 'Completed' || race.status === 'Scored' ? 'bg-emerald-500/20 text-emerald-400 font-bold uppercase' :
+                                        race.status === 'Racing' ? 'badge-live font-bold uppercase' :
+                                            'bg-slate-500/20 text-slate-300 font-bold uppercase'
                                         }`}>
                                         {race.status}
                                     </span>

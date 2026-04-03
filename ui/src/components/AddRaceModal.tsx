@@ -157,7 +157,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                                 type="datetime-local"
                                 value={formData.scheduledStartTime}
                                 onChange={(e) => setFormData({ ...formData, scheduledStartTime: e.target.value })}
-                                className="[color-scheme:dark]"
+                                className="scheme-dark"
                             />
                         </div>
                     </div>
@@ -183,7 +183,7 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                         <Button type="button" variant="ghost" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading} className="bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 shadow-lg shadow-sky-900/20">
+                        <Button type="submit" disabled={isLoading} variant="gradient">
                             {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                             Create Race
                         </Button>

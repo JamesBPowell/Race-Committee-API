@@ -90,9 +90,9 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-400"></div>
+        <div className="modal-overlay">
+            <div className="modal-container max-w-md relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-indigo-500 to-indigo-400"></div>
 
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
@@ -100,7 +100,7 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
                             <Search className="w-6 h-6 text-indigo-400" />
                             Find Race
                         </h2>
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full transition-colors">
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full transition-colors" title="Close modal">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -125,6 +125,7 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
                                     required
                                     value={selectedRegattaId}
                                     onChange={e => setSelectedRegattaId(e.target.value)}
+                                    title="Select a regatta to join"
                                     className="w-full px-4 py-3 bg-slate-950/50 border border-slate-700/50 rounded-xl text-slate-200 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none"
                                 >
                                     <option value="" disabled>Choose an event to join...</option>
@@ -147,6 +148,7 @@ export default function FindRegattaModal({ isOpen, onClose, onSuccess }: FindReg
                                         required
                                         value={selectedBoatId}
                                         onChange={e => setSelectedBoatId(e.target.value)}
+                                        title="Select your boat for the entry"
                                         className="w-full px-4 py-3 bg-slate-950/50 border border-slate-700/50 rounded-xl text-slate-200 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none"
                                     >
                                         <option value="" disabled>Choose your vessel...</option>

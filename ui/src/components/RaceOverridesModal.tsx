@@ -266,7 +266,8 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                             type="button"
                             disabled={pendingChanges.size === 0 || isSaving}
                             onClick={handleSaveAll}
-                            className="bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 shadow-lg shadow-cyan-900/20"
+                            variant="gradient"
+                            className="shadow-lg shadow-cyan-900/20"
                         >
                             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                             Save All Overrides

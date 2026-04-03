@@ -10,7 +10,7 @@ export default function Home() {
       <nav className="absolute top-0 w-full z-50 px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {/* Mock Logo */}
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-white shadow-lg">
+          <div className="w-8 h-8 rounded bg-linear-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-white shadow-lg">
             RK
           </div>
           <span className="text-white font-extrabold text-xl tracking-tight drop-shadow-md">
