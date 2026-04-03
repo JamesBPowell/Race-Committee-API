@@ -95,11 +95,11 @@ body {
   }
 
   .btn-primary-cyan {
-    @apply bg-brand-cyan hover:bg-brand-cyan-hover text-slate-950 shadow-[0_0_15px_rgba(6, 182, 212, 0.3)] hover:shadow-[0_0_25px_rgba(6, 182, 212, 0.5)] active:bg-cyan-600 focus:ring-brand-cyan hover:scale-105;
+    @apply bg-brand-cyan hover:bg-brand-cyan-hover text-slate-950 shadow-[0_0_15px_rgba(6_182_212_/_0.3)] hover:shadow-[0_0_25px_rgba(6_182_212_/_0.5)] active:bg-cyan-600 focus:ring-brand-cyan hover:scale-105;
   }
 
   .btn-primary-indigo {
-    @apply bg-brand-indigo hover:bg-brand-indigo-hover text-white shadow-[0_0_15px_rgba(99, 102, 241, 0.3)] hover:shadow-[0_0_25px_rgba(99, 102, 241, 0.5)] active:bg-indigo-600 focus:ring-brand-indigo hover:scale-105;
+    @apply bg-brand-indigo hover:bg-brand-indigo-hover text-white shadow-[0_0_15px_rgba(99_102_241_/_0.3)] hover:shadow-[0_0_25px_rgba(99_102_241_/_0.5)] active:bg-indigo-600 focus:ring-brand-indigo hover:scale-105;
   }
 
   .btn-secondary {
