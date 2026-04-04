@@ -13,6 +13,7 @@ import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal, RegattaResultsView } from '@/features/scoring';
 import RaceOverridesModal from '@/components/RaceOverridesModal';
 import RacerRegattaPage from '@/components/RacerRegattaPage';
+import Button from '@/components/ui/Button';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
