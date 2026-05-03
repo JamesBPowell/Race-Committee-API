@@ -31,7 +31,8 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
         boatName: '',
         sailNumber: '',
         makeModel: '',
-        defaultRating: ''
+        defaultRating: '',
+        defaultRatingType: 'PHRF'
     });
 
     useEffect(() => {
@@ -40,10 +41,11 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
                 boatName: editingBoat.boatName || '',
                 sailNumber: editingBoat.sailNumber || '',
                 makeModel: editingBoat.makeModel || '',
-                defaultRating: editingBoat.defaultRating ? editingBoat.defaultRating.toString() : ''
+                defaultRating: editingBoat.defaultRating ? editingBoat.defaultRating.toString() : '',
+                defaultRatingType: (editingBoat as any).defaultRatingType || 'PHRF'
             });
         } else {
-            setFormData({ boatName: '', sailNumber: '', makeModel: '', defaultRating: '' });
+            setFormData({ boatName: '', sailNumber: '', makeModel: '', defaultRating: '', defaultRatingType: 'PHRF' });
         }
         setError('');
     }, [editingBoat, isOpen]);
@@ -125,17 +127,30 @@ export default function BoatFormModal({ isOpen, onClose, editingBoat }: BoatForm
                         </div>
                     </div>
 
-                    <div>
-                        <Label>Default Rating</Label>
-                        <Input
-                            type="number"
-                            step="0.1"
-                            value={formData.defaultRating}
-                            onChange={(e) => setFormData({ ...formData, defaultRating: e.target.value })}
-                            placeholder="e.g. 75"
-                        />
-                        <p className="mt-1 text-xs text-slate-500">Optional. Can be used as a fallback if no certificate is provided.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Baseline Rating</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={formData.defaultRating}
+                                onChange={(e) => setFormData({ ...formData, defaultRating: e.target.value })}
+                                placeholder="e.g. 108 or 574.4"
+                            />
+                        </div>
+                        <div>
+                            <Label>Rating Type</Label>
+                            <select
+                                value={formData.defaultRatingType}
+                                onChange={(e) => setFormData({ ...formData, defaultRatingType: e.target.value })}
+                                className="flex h-10 w-full rounded-md border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                            >
+                                <option value="PHRF">PHRF (Standard)</option>
+                                <option value="SecondsPerMile">GPH (Seconds/Mile)</option>
+                            </select>
+                        </div>
                     </div>
+                    <p className="mt-1 text-xs text-slate-500">Optional fallback. GPH is total seconds per mile; PHRF is offset from scratch.</p>
 
                     <div className="pt-4 flex justify-end gap-3">
                         <Button

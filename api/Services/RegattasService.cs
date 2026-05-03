@@ -121,6 +121,8 @@ namespace RaceCommittee.Api.Services
                 .Include(r => r.Entries)
                     .ThenInclude(e => e.Boat)
                         .ThenInclude(b => b.Owner)
+                .Include(r => r.Entries)
+                    .ThenInclude(e => e.ActiveCertificate)
                 .Include(r => r.Fleets)
                 .Include(r => r.CommitteeMembers)
                 .FirstOrDefaultAsync(r => r.Id == id);
@@ -186,7 +188,10 @@ namespace RaceCommittee.Api.Services
                         SailNumber = e.Boat?.SailNumber ?? "None",
                         OwnerName = e.Boat?.Owner?.FirstName != null ? $"{e.Boat.Owner.FirstName} {e.Boat.Owner.LastName}" : "Unknown Owner",
                         Rating = e.Rating,
-                        RegistrationStatus = e.RegistrationStatus
+                        RegistrationStatus = e.RegistrationStatus,
+                        ActiveCertificateId = e.ActiveCertificateId,
+                        ActiveCertificateType = e.ActiveCertificate?.CertificateType,
+                        ActiveCertificateNumber = e.ActiveCertificate?.CertificateNumber
                     })
                     .ToList(), // Materialize to list
                 Fleets = regatta.Fleets?
@@ -287,6 +292,45 @@ namespace RaceCommittee.Api.Services
             if (!string.IsNullOrEmpty(dto.RegistrationStatus))
             {
                 entry.RegistrationStatus = dto.RegistrationStatus;
+            }
+            if (!string.IsNullOrEmpty(dto.Configuration))
+            {
+                entry.Configuration = dto.Configuration;
+            }
+
+            // Handle certificate assignment with rating auto-population
+            if (dto.ActiveCertificateId.HasValue)
+            {
+                var cert = await _context.Certificates
+                    .FirstOrDefaultAsync(c => c.Id == dto.ActiveCertificateId.Value);
+
+                if (cert != null)
+                {
+                    // Validate cert belongs to the entry's boat
+                    if (cert.BoatId != entry.BoatId)
+                        throw new InvalidOperationException("Certificate does not belong to this boat.");
+
+                    entry.ActiveCertificateId = cert.Id;
+
+                    // Auto-populate rating based on configuration
+                    var isSpinnaker = entry.Configuration != "Non-Spinnaker";
+                    entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
+
+                    // Snapshot the certificate data for audit trail
+                    entry.RatingSnapshot = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        schemaVersion = cert.SchemaVersion,
+                        capturedAt = DateTime.UtcNow,
+                        certificateId = cert.Id,
+                        certificateNumber = cert.CertificateNumber,
+                        certificateType = cert.CertificateType,
+                        sourceUrl = cert.SourceUrl,
+                        ratingSpinnaker = cert.RatingSpinnaker,
+                        ratingNonSpinnaker = cert.RatingNonSpinnaker,
+                        configuration = cert.Configuration,
+                        rawData = cert.RawData != "{}" ? System.Text.Json.JsonDocument.Parse(cert.RawData).RootElement : default
+                    });
+                }
             }
 
             await _context.SaveChangesAsync();

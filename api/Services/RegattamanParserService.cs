@@ -1,0 +1,467 @@
+using System.Text.Json;
+using System.Globalization;
+using AngleSharp;
+using AngleSharp.Dom;
+using RaceCommittee.Api.Models;
+
+namespace RaceCommittee.Api.Services
+{
+    /// <summary>
+    /// Parses ORR and ORR-EZ certificate data from regattaman.com HTML pages using AngleSharp.
+    /// </summary>
+    public class RegattamanParserService : ICertificateParserService
+    {
+        private readonly HttpClient _httpClient;
+
+        public RegattamanParserService(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+            // Add User-Agent to avoid blocks/redirects from regattaman.com
+            if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            }
+        }
+
+        public async Task<ParsedCertificateData> ParseFromUrlAsync(string url, string certType)
+        {
+            var html = await _httpClient.GetStringAsync(url);
+            return await ParseFromHtmlAsync(html, certType);
+        }
+
+        public async Task<ParsedCertificateData> ParseFromHtmlAsync(string html, string certType)
+        {
+            var config = Configuration.Default;
+            var context = BrowsingContext.New(config);
+            var document = await context.OpenAsync(req => req.Content(html));
+
+            var isOrrEz = certType.Equals("ORREZ", StringComparison.OrdinalIgnoreCase);
+            var schemaVersion = isOrrEz ? CertificateSchemas.CurrentOrrEz : CertificateSchemas.CurrentOrr;
+
+            var result = new ParsedCertificateData
+            {
+                SchemaVersion = schemaVersion,
+                RawHtml = html
+            };
+
+            // Parse certificate number from page title or header
+            result.CertificateNumber = ExtractCertificateNumber(document, isOrrEz);
+
+            // Parse administrative data from input fields
+            ExtractAdministrativeData(document, result);
+
+            // Parse ratings (GPH spin/non-spin)
+            ExtractRatings(document, result, isOrrEz);
+
+            // Build the full JSON data payload
+            var rawData = new Dictionary<string, object?>
+            {
+                ["certificateNumber"] = result.CertificateNumber,
+                ["boatName"] = result.BoatName,
+                ["sailNumber"] = result.SailNumber,
+                ["boatClass"] = result.BoatClass,
+                ["configuration"] = result.Configuration,
+                ["issueDate"] = result.IssueDate?.ToString("yyyy-MM-dd"),
+                ["expirationDate"] = result.ExpirationDate?.ToString("yyyy-MM-dd"),
+                ["ratingSpinnaker"] = result.RatingSpinnaker,
+                ["ratingNonSpinnaker"] = result.RatingNonSpinnaker,
+                ["schemaVersion"] = schemaVersion
+            };
+
+            // Try to extract polar table data
+            var polarData = ExtractPolarTable(document, isOrrEz);
+            if (polarData.Count > 0)
+                rawData["polarTable"] = polarData;
+
+            // Try to extract benchmark ratings
+            var benchmarks = ExtractBenchmarkRatings(document, isOrrEz);
+            if (benchmarks.Count > 0)
+                rawData["benchmarkRatings"] = benchmarks;
+
+            result.RawDataJson = JsonSerializer.Serialize(rawData, new JsonSerializerOptions
+            {
+                WriteIndented = false,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            return result;
+        }
+
+        private static string ExtractCertificateNumber(IDocument document, bool isOrrEz)
+        {
+            // Look for cert number in title or header text
+            // ORR: "2026 Offshore Racing Rule Certificate Data" with cert # in a field
+            // ORREZ: "2026 EZ Certificate - EZ10025"
+            var headerText = document.QuerySelector("h2, h3, .cert-header, td[class*='cert']")?.TextContent ?? "";
+
+            if (isOrrEz && headerText.Contains("EZ Certificate"))
+            {
+                var dashIndex = headerText.LastIndexOf('-');
+                if (dashIndex >= 0)
+                    return headerText[(dashIndex + 1)..].Trim();
+            }
+
+            // Try input fields with title/name containing "cert"
+            var certInput = document.QuerySelectorAll("input")
+                .FirstOrDefault(e =>
+                    (e.GetAttribute("title")?.Contains("Cert", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (e.GetAttribute("name")?.Contains("cert_id", StringComparison.OrdinalIgnoreCase) ?? false));
+
+            return certInput?.GetAttribute("value")?.Trim() ?? string.Empty;
+        }
+
+        private static void ExtractAdministrativeData(IDocument document, ParsedCertificateData result)
+        {
+            // Extract labeled values from input elements or text cells
+            var inputs = document.QuerySelectorAll("input[title], input[name]");
+
+            foreach (var input in inputs)
+            {
+                var title = (input.GetAttribute("title") ?? input.GetAttribute("name") ?? "").ToLowerInvariant();
+                var value = input.GetAttribute("value")?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(value)) continue;
+
+                if (title.Contains("boat name") || title.Contains("yacht"))
+                    result.BoatName = value;
+                else if (title.Contains("sail") && title.Contains("num"))
+                    result.SailNumber = value;
+                else if (title.Contains("class") || title.Contains("boat type"))
+                    result.BoatClass = value;
+                else if (title.Contains("issue") && title.Contains("date"))
+                    result.IssueDate = TryParseDate(value);
+                else if (title.Contains("expir") || (title.Contains("valid") && title.Contains("until")))
+                    result.ExpirationDate = TryParseDate(value);
+                else if (title.Contains("config") || title.Contains("rig type"))
+                    result.Configuration = value;
+            }
+
+            // Also try to extract from table cells with text labels
+            var cells = document.QuerySelectorAll("td");
+            for (int i = 0; i < cells.Length - 1; i++)
+            {
+                var label = cells[i].TextContent.Trim().ToLowerInvariant();
+                var value = cells[i + 1].TextContent.Trim();
+
+                if (string.IsNullOrEmpty(value) || value.Length > 200) continue;
+
+                if (string.IsNullOrEmpty(result.BoatName) && (label.Contains("yacht") || label == "boat name:"))
+                    result.BoatName = value;
+                else if (string.IsNullOrEmpty(result.SailNumber) && label.Contains("sail") && label.Contains("num"))
+                    result.SailNumber = value;
+                else if (string.IsNullOrEmpty(result.BoatClass) && label == "class:")
+                    result.BoatClass = value;
+                else if (result.IssueDate == null && label.Contains("issue date"))
+                    result.IssueDate = TryParseDate(value);
+            }
+        }
+
+        private static void ExtractRatings(IDocument document, ParsedCertificateData result, bool isOrrEz)
+        {
+            // First try the modern ratings summary section (most reliable for GPH)
+            ExtractRatingsSummary(document, result, isOrrEz);
+
+            // For ORR, finding Spinnaker (GPH) is enough to stop
+            if (result.RatingSpinnaker != null && (!isOrrEz || result.RatingNonSpinnaker != null))
+                return;
+
+            // For ORR-EZ, also check specifically labeled spin/non-spin sections
+            if (isOrrEz)
+            {
+                ExtractOrrEzSectionRatings(document, result);
+            }
+        }
+
+        private static void ExtractRatingsSummary(IDocument document, ParsedCertificateData result, bool isOrrEz)
+        {
+            // For ORR certificates, the GPH is often in a specific element with id="gph"
+            // Note: There might be multiple elements with id="gph" (e.g. a div and a span)
+            var gphElements = document.QuerySelectorAll("#gph, .gph-data .input, .gph-value");
+            foreach (var el in gphElements)
+            {
+                var val = ExtractNumericRating(el.TextContent);
+                if (val > 300)
+                {
+                    result.RatingSpinnaker = val;
+                    result.RatingType = "SecondsPerMile";
+                    result.NormalizedToD = val;
+                    return;
+                }
+            }
+
+            // Fallback: If still not found, try a regex on the entire raw HTML for the specific span#gph pattern
+            // This bypasses any DOM parsing issues for huge files with duplicate IDs.
+            var rawHtml = document.Source.Text;
+            var gphMatch = System.Text.RegularExpressions.Regex.Match(rawHtml, @"id=""gph""[^>]*>(\d+(\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (gphMatch.Success && float.TryParse(gphMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var gphVal))
+            {
+                result.RatingSpinnaker = gphVal;
+                result.RatingType = "SecondsPerMile";
+                result.NormalizedToD = gphVal;
+                return;
+            }
+
+            // Regattaman modern certificates also store rating data in data-ratingjson attributes
+            var blocks = document.QuerySelectorAll(".ratBlock");
+            foreach (var block in blocks)
+            {
+                var field = block.GetAttribute("data-field");
+                var json = block.GetAttribute("data-ratingjson");
+                if (string.IsNullOrEmpty(json)) continue;
+
+                try
+                {
+                    using var jdoc = JsonDocument.Parse(json);
+                    var elements = jdoc.RootElement.ValueKind == JsonValueKind.Array 
+                        ? (System.Collections.Generic.IEnumerable<System.Text.Json.JsonElement>)jdoc.RootElement.EnumerateArray() 
+                        : new[] { jdoc.RootElement };
+
+                    foreach (var element in elements)
+                    {
+                        var course = element.TryGetProperty("course", out var cProp) ? cProp.GetString() : null;
+                        var rtype = element.TryGetProperty("rtype", out var rProp) ? rProp.GetString() : null;
+
+                        bool matches = field == "PHRF_bm" || 
+                                     string.Equals(course, "GPH", StringComparison.OrdinalIgnoreCase) ||
+                                     string.Equals(rtype, "TOD", StringComparison.OrdinalIgnoreCase);
+
+                        if (matches && TryParseRatingElement(element, out var spin, out var nonspin))
+                        {
+                            result.RatingSpinnaker = spin;
+                            result.RatingNonSpinnaker = nonspin;
+                            result.RatingType = field == "PHRF_bm" ? "PHRF" : "SecondsPerMile";
+                            
+                            if (result.RatingType == "PHRF" && spin.HasValue)
+                                result.NormalizedToD = spin.Value + 550;
+                            else
+                                result.NormalizedToD = spin;
+                                
+                            return;
+                        }
+                    }
+                }
+                catch { /* skip invalid JSON */ }
+            }
+        }
+
+        private static float? ExtractNumericRating(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            
+            // Match any decimal number (e.g. 567.7, 604.0)
+            var match = System.Text.RegularExpressions.Regex.Match(text, @"(\d+(\.\d+)?)");
+            if (match.Success && float.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+            {
+                return val;
+            }
+            return null;
+        }
+
+        private static bool TryParseRatingElement(JsonElement element, out float? spin, out float? nonspin)
+        {
+            spin = null;
+            nonspin = null;
+
+            if (element.ValueKind != JsonValueKind.Object) return false;
+
+            if (element.TryGetProperty("spin", out var sProp))
+            {
+                var sVal = sProp.ValueKind == JsonValueKind.String ? sProp.GetString() : sProp.GetRawText();
+                if (float.TryParse(sVal, NumberStyles.Float, CultureInfo.InvariantCulture, out var s)) spin = s;
+            }
+
+            if (element.TryGetProperty("nonspin", out var nsProp))
+            {
+                var nsVal = nsProp.ValueKind == JsonValueKind.String ? nsProp.GetString() : nsProp.GetRawText();
+                if (float.TryParse(nsVal, NumberStyles.Float, CultureInfo.InvariantCulture, out var ns)) nonspin = ns;
+            }
+
+            return spin != null || nonspin != null;
+        }
+
+        private static bool TryParseRatingJson(string? json, out float? spin, out float? nonspin)
+        {
+            spin = null;
+            nonspin = null;
+
+            if (string.IsNullOrEmpty(json)) return false;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                var first = root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0 
+                    ? root[0] 
+                    : root;
+
+                return TryParseRatingElement(first, out spin, out nonspin);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void ExtractOrrEzSectionRatings(IDocument document, ParsedCertificateData result)
+        {
+            // ORR-EZ has separate Spinnaker and Non-Spinnaker sections
+            // Each section has a "GPH" row with TOT and TOD values
+            var allText = document.Body?.TextContent ?? "";
+            var tables = document.QuerySelectorAll("table");
+
+            bool inSpinSection = false;
+            bool inNonSpinSection = false;
+
+            foreach (var table in tables)
+            {
+                var tableText = table.TextContent;
+                if (tableText.Contains("Spinnaker") && !tableText.Contains("Non-Spinnaker"))
+                    inSpinSection = true;
+                if (tableText.Contains("Non-Spinnaker"))
+                {
+                    inSpinSection = false;
+                    inNonSpinSection = true;
+                }
+
+                var rows = table.QuerySelectorAll("tr");
+                foreach (var row in rows)
+                {
+                    var rowCells = row.QuerySelectorAll("td");
+                    if (rowCells.Length < 2) continue;
+
+                    var label = rowCells[0].TextContent.Trim();
+                    if (label != "GPH") continue;
+
+                    // The next cell should be the TOT value (the multiplier, e.g. 0.882)
+                    // or the TOD value (sec/mi, e.g. 604.4)
+                    for (int j = 1; j < rowCells.Length; j++)
+                    {
+                        var valText = rowCells[j].TextContent.Trim();
+                        if (float.TryParse(valText, NumberStyles.Float, CultureInfo.InvariantCulture, out var val) && val > 0)
+                        {
+                            // TOD values (sec/mi) are typically > 100
+                            // TOT values (multiplier) are typically < 2
+                            if (val > 100) // This is a TOD (sec/mi) — use as GPH
+                            {
+                                if (inSpinSection && result.RatingSpinnaker == null)
+                                    result.RatingSpinnaker = val;
+                                else if (inNonSpinSection && result.RatingNonSpinnaker == null)
+                                    result.RatingNonSpinnaker = val;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static Dictionary<string, object> ExtractPolarTable(IDocument document, bool isOrrEz)
+        {
+            var polarData = new Dictionary<string, object>();
+
+            // Look for tables with "Polar Time Allowances" header or wind speed headers
+            var tables = document.QuerySelectorAll("table");
+
+            foreach (var table in tables)
+            {
+                var headerRow = table.QuerySelector("tr");
+                if (headerRow == null) continue;
+
+                var headerCells = headerRow.QuerySelectorAll("td, th");
+                if (headerCells.Length < 3) continue;
+
+                // Check if this looks like a polar table (first column is angles, headers are wind speeds)
+                var firstHeader = headerCells[0].TextContent.Trim().ToLowerInvariant();
+                if (!firstHeader.Contains("wind") && !firstHeader.Contains("angle") && firstHeader != "true wind speed")
+                    continue;
+
+                // Parse the table
+                var windSpeeds = new List<string>();
+                for (int i = 1; i < headerCells.Length; i++)
+                {
+                    var ws = headerCells[i].TextContent.Trim().Replace(" kts", "").Replace(" kt", "");
+                    if (!string.IsNullOrEmpty(ws))
+                        windSpeeds.Add(ws);
+                }
+
+                var rows = table.QuerySelectorAll("tr");
+                var angles = new Dictionary<string, Dictionary<string, float>>();
+
+                for (int r = 1; r < rows.Length; r++) // Skip header row
+                {
+                    var cells = rows[r].QuerySelectorAll("td");
+                    if (cells.Length < 2) continue;
+
+                    var angleLabel = cells[0].TextContent.Trim();
+                    if (string.IsNullOrEmpty(angleLabel)) continue;
+
+                    var values = new Dictionary<string, float>();
+                    for (int c = 1; c < cells.Length && c - 1 < windSpeeds.Count; c++)
+                    {
+                        if (float.TryParse(cells[c].TextContent.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+                            values[windSpeeds[c - 1]] = val;
+                    }
+
+                    if (values.Count > 0)
+                        angles[angleLabel] = values;
+                }
+
+                if (angles.Count > 0)
+                {
+                    // Determine if this is spinnaker or non-spinnaker section
+                    var tableContext = GetTableSectionContext(table);
+                    var key = tableContext.Contains("non", StringComparison.OrdinalIgnoreCase)
+                        ? "nonSpinnaker" : "spinnaker";
+                    polarData[key] = angles;
+                }
+            }
+
+            return polarData;
+        }
+
+        private static string GetTableSectionContext(IElement table)
+        {
+            // Walk up to find section headers
+            var sibling = table.PreviousElementSibling;
+            for (int i = 0; i < 5 && sibling != null; i++)
+            {
+                var text = sibling.TextContent.Trim();
+                if (text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
+                    return "non-spinnaker";
+                if (text.Contains("Spinnaker", StringComparison.OrdinalIgnoreCase))
+                    return "spinnaker";
+                sibling = sibling.PreviousElementSibling;
+            }
+            return "spinnaker"; // default
+        }
+
+        private static Dictionary<string, object> ExtractBenchmarkRatings(IDocument document, bool isOrrEz)
+        {
+            var benchmarks = new Dictionary<string, object>();
+
+            var cells = document.QuerySelectorAll("td");
+            for (int i = 0; i < cells.Length - 1; i++)
+            {
+                var label = cells[i].TextContent.Trim();
+
+                if (label.StartsWith("TOT") || label.StartsWith("TOD"))
+                {
+                    var valText = cells[i + 1].TextContent.Trim();
+                    if (float.TryParse(valText, out var val))
+                    {
+                        benchmarks[label.Replace(" ", "_").Replace("(", "").Replace(")", "")] = val;
+                    }
+                }
+            }
+
+            return benchmarks;
+        }
+
+        private static DateTime? TryParseDate(string value)
+        {
+            if (DateTime.TryParse(value, out var date))
+                return date;
+            return null;
+        }
+    }
+}

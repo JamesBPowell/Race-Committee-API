@@ -1,74 +1,74 @@
-# Certificate System — Revised Implementation Plan
+# Certificate System — Implementation Plan
 
-Implement a certificate management system that treats **certificates as files first, data second**. Boat owners upload their rating certificate PDFs, the system stores them in blob storage, and (for ORR/ORR-EZ) automatically parses out the structured rating data. The Race Committee can review the original certificate document when accepting entries.
-
-## User Review Required
-
-> [!IMPORTANT]
-> **The big change: Certificates are files.**
-> The previous plan treated certificates as purely manual data entry. This revision adds file upload/storage as the primary workflow. The certificate PDF is the source of truth — data fields (GPH, polar tables, etc.) are *extracted from* it. For PHRF, where certificates are simpler and vary by region, manual data entry is also supported.
-
-> [!IMPORTANT]
-> **Per-type data entry strategy:**
-> - **PHRF**: Manual entry of rating number + optional file upload. PHRF certs vary wildly by region and are often just a single number. Manual entry is appropriate.
-> - **ORR-EZ**: PDF upload with automated parsing. Structured polar table (wind speed × angle grid), GPH, cert number, dates. Target: parse from the PDF.
-> - **ORR (Full)**: PDF upload with automated parsing. Same as ORR-EZ but with more data (additional measurement details, full polar curves). Target: parse from the PDF.
-
-> [!WARNING]
-> **PDF Parsing is a phased effort.**
-> Building robust PDF parsers for ORR/ORR-EZ certificates requires example files to develop against. Phase 1 (this plan) builds the upload + storage infrastructure and a manual-entry fallback. Phase 2 (separate effort) implements the PDF parsing pipeline once we have sample certificate files to reverse-engineer the layout.
-
-> [!IMPORTANT]
-> **Storage backend: Azure Blob Storage.**
-> The infrastructure already provisions a Storage Account (`sonicspiritstorage`). We'll use Azure Blob Storage with a `certificates` container. Files are stored as `{boatId}/{certificateId}/{filename}` and served via SAS URLs for authorized download. This requires adding the `Azure.Storage.Blobs` NuGet package.
+Implement a certificate management system where **certificates are files stored with the boat** so the Race Committee can review them when accepting entries. ORR/ORR-EZ data is parsed automatically from regattaman.com HTML pages. PHRF data is entered manually with an optional PDF upload for RC verification.
 
 ---
 
-## Research Findings
+## Architecture Summary
 
-### Certificate File Formats by Type
+### Per-Type Strategy
 
-| Type | Format | Data Complexity | Entry Strategy |
-|------|--------|----------------|----------------|
-| **PHRF** | Varies by region. Often a simple letter/card. Sometimes a PDF. | Single rating number (sec/nm) + optional adjustments for spinnaker/non-spinnaker | **Manual entry** of rating. Optional file upload for reference. |
-| **ORR-EZ** | Standardized PDF from Regatta Management (regattaman.com) | Cert #, GPH, polar table (sec/mi at 8 wind speeds × 10+ angles), config (rig type, keel, prop) | **PDF upload → automated parse.** Fallback: manual GPH entry. |
-| **ORR (Full)** | Standardized PDF from ORA via US Sailing | Everything in ORR-EZ plus detailed measurement data, full polar curves, sail inventory | **PDF upload → automated parse.** Fallback: manual GPH entry. |
+| Type | Source | Storage | Data Entry | Parsing |
+|------|--------|---------|------------|---------|
+| **PHRF** | PDF from regional board | Upload PDF to blob storage | **Manual** — owner enters rating | None. PDF is for RC verification of self-stated rating. |
+| **ORR-EZ** | HTML on regattaman.com | Store URL + `SourceHtml` snapshot | **Automated** — parse HTML | AngleSharp parses structured tables for polars, GPH, config |
+| **ORR** | HTML on regattaman.com | Store URL + `SourceHtml` snapshot | **Automated** — parse HTML | Same as ORR-EZ but more fields |
 
-### Key Data Fields to Extract (ORR-EZ / ORR)
+### Three-Layer Data Model
 
-**Administrative:** Certificate Number, Issue Date, Expiration Date, Boat Name, Sail Number, Owner
-**Configuration:** Rig Type, Keel Type, Propeller Type/Installation, Propeller Blades
-**Performance (Polar Table):**
-- Wind speeds: 6, 8, 10, 12, 14, 16, 20, 25 kts
-- Angles: Beat VMG, 52°, 60°, 75°, 90°, 110°, 120°, 135°, 150°, 165°, Run VMG
-- Values: seconds per nautical mile at each wind speed × angle combination
-- GPH (General Purpose Handicap): the single "all-purpose" rating number
+| Layer | Field(s) | Purpose | Mutability |
+|-------|----------|---------|------------|
+| **Source** | `Certificate.SourceUrl`, `SourceHtml` | Link to authoritative cert + disaster-recovery snapshot | Updated on refresh |
+| **Parsed Data** | `Certificate.RawData` (JSON), `GPH`, dates, cert # | Current certificate data. JSON = schema-flexible | Updated on refresh |
+| **Audit Snapshot** | `Entry.RatingSnapshot` (JSON), `Entry.Rating` | Frozen copy at time of scoring. **The audit trail.** | **Never mutated** |
 
-### Sources for Example Certificates
+### Snapshot Versioning & Immutability
 
-To build the PDF parser, we need example certificate files. Potential sources:
+- Every `RatingSnapshot` includes a `schemaVersion` (e.g., `"ORR-2026-v1"`)
+- **Scored races are frozen** — results are read-only, no re-scoring on view
+- **Historical rating display** = flat rating number + JSON download link
+- **Current rating display** = structured UI (polar tables, benchmarks) only when `schemaVersion` matches the current version constant
+- When ORR changes their cert format, we bump the version and update the parser. Old snapshots are untouched — they degrade gracefully to raw download
 
-1. **regattaman.com** → ORR-EZ valid list has links to individual PDF certs
-2. **offshoreracingrule.org** → Official ORR resource, may have sample certs
-3. **Regatta entry lists** (Newport Bermuda, Transpac, Rolex Big Boat Series) → Published fleet ratings often link to certs
-4. **Your own certificates** — Do you have ORR or ORR-EZ certificates we can use as development samples?
+---
 
-> [!IMPORTANT]
-> **Action needed:** We need 2-3 sample ORR-EZ and/or ORR certificate PDFs to develop the parser against. Can you provide examples, or should I attempt to download public ones from regatta entry lists?
+## ORR / ORR-EZ Certificate Structure (regattaman.com)
+
+### URL Patterns
+```
+List:   https://www.regattaman.com/cert_list.php?crule=ORR
+        https://www.regattaman.com/cert_list.php?crule=ORRez
+Cert:   https://www.regattaman.com/cert_form.php?sku={sku_id}
+```
+
+### ORR Certificate Tabs
+- **Data** — Boat specs, measurements, rig, sails, configuration
+- **Offshore Polars** — Polar time allowances (wind speed × angle, sec/mi)
+- **Short Course Polars** — Same format, different course assumptions
+- **Ratings** — GPH, TOT/TOD benchmarks, performance metrics, custom ratings
+- **Line Drawing** — Hull profile
+
+### ORR-EZ Certificate Tabs
+- **Data** — Simplified boat specs, config
+- **Polars** — Polar time allowances, Spinnaker + Non-Spinnaker
+- **Std Ratings** — GPH (TOT/TOD), PCS ratings by course type
+- **PHRF Ratings** — Standard 5 Winds and Legacy 4 Winds (TOT/TOD × course × wind band)
+
+### Key Data Fields (Both Types)
+- **Administrative**: Cert #, Valid Year, Issue/Expiration, Owner, Boat Name, Sail Number, Class
+- **Configuration**: Rig Type, Keel Type, Prop Type, Hull/Mast Construction
+- **GPH**: General Purpose Handicap (sec/mi)
+- **Polar Table**: sec/mi at angles (Beat VMG, 52°–165°, Run VMG) × wind speeds (4–24 kts)
+- **Benchmark Ratings**: TOT factor and TOD (sec/mi)
+- **PCS Ratings**: By course type (Random Leg, W50/L50, W60/L40, Mostly WW/LW/Reach)
 
 ---
 
 ## Proposed Changes
 
-### Phase 1: Upload, Storage & Manual Entry (This Implementation)
-
----
-
-### API — Data Model Updates
+### Data Model
 
 #### [MODIFY] [Certificate.cs](file:///c:/Projects/race-committee/api/Models/Certificate.cs)
-
-Add file metadata fields to the existing Certificate model:
 
 ```csharp
 public class Certificate
@@ -79,67 +79,203 @@ public class Certificate
     public Boat Boat { get; set; } = default!;
 
     public string CertificateType { get; set; } = string.Empty; // "PHRF", "ORR", "ORREZ"
-
     public string CertificateNumber { get; set; } = string.Empty;
-
     public DateTime? IssueDate { get; set; }
     public DateTime? ValidUntil { get; set; }
+    public float? RatingSpinnaker { get; set; }       // GPH (spin) for ORR/ORREZ, spin rating for PHRF
+    public float? RatingNonSpinnaker { get; set; }    // GPH (non-spin) for ORR/ORREZ, non-spin rating for PHRF
+    public string? Configuration { get; set; }        // Parsed from cert: crew config, spin type, etc.
+    public string RawData { get; set; } = "{}";    // JSON: full parsed output (polars, config, ratings)
 
-    public float? GPH { get; set; }
+    // --- File storage (PHRF PDFs) ---
+    public string? FileName { get; set; }
+    public string? BlobPath { get; set; }
+    public string? ContentType { get; set; }
+    public long? FileSizeBytes { get; set; }
+    public DateTime? FileUploadedAt { get; set; }
 
-    public string RawData { get; set; } = "{}"; // JSON: parsed polar data, config, etc.
+    // --- Remote certificate reference (ORR/ORREZ) ---
+    public string? SourceUrl { get; set; }          // regattaman.com cert URL
+    public string? SourceSku { get; set; }          // SKU parameter for re-fetching
+    public string? SourceHtml { get; set; }         // Raw HTML snapshot for disaster recovery
 
-    // --- NEW: File storage fields ---
-    public string? FileName { get; set; }         // Original uploaded filename
-    public string? BlobPath { get; set; }          // Path in blob storage: "{boatId}/{certId}/{filename}"
-    public string? ContentType { get; set; }       // MIME type (application/pdf, image/jpeg, etc.)
-    public long? FileSizeBytes { get; set; }        // File size for display/validation
-    public DateTime? FileUploadedAt { get; set; }   // When the file was uploaded
-
-    // --- NEW: Parsing status ---
-    public string ParseStatus { get; set; } = "None"; // "None", "Pending", "Success", "Failed", "Manual"
-    public string? ParseErrors { get; set; }           // JSON array of parsing error messages
+    // --- Parse status ---
+    public string ParseStatus { get; set; } = "None"; // None, Pending, Success, Failed, Manual
+    public string? ParseErrors { get; set; }
+    public string? SchemaVersion { get; set; }      // e.g. "ORR-2026-v1", "PHRF-v1"
 }
 ```
 
-**Key decisions:**
-- `BlobPath` stores the blob key (not a URL) — URLs are generated on-demand with SAS tokens for security
-- `ParseStatus` tracks whether automated data extraction has been attempted and its result
-- `ParseErrors` captures specific issues so the user can fix/re-upload
-- `"Manual"` parse status means the user chose to enter data by hand (valid for PHRF)
+#### Schema Version Constants
+
+```csharp
+public static class CertificateSchemas
+{
+    public const string CurrentOrr = "ORR-2026-v1";
+    public const string CurrentOrrEz = "ORREZ-2026-v1";
+    public const string CurrentPhrf = "PHRF-v1";
+}
+```
+
+#### Entry.RatingSnapshot JSON Structure
+
+```jsonc
+{
+  "schemaVersion": "ORREZ-2026-v1",
+  "capturedAt": "2026-04-12T14:30:00Z",
+  "certificateId": 42,
+  "certificateNumber": "EZ10025",
+  "sourceUrl": "https://www.regattaman.com/cert_form.php?sku=...",
+  "ratingSpinnaker": 437.1,
+  "ratingNonSpinnaker": 462.8,
+  "polarTable": {
+    "spinnaker": {
+      "beatVmg": { "4": 1453.25, "6": 1032.08, ... },
+      "52": { "4": 910.63, "6": 661.39, ... },
+      // ... more angles
+    },
+    "nonSpinnaker": { /* same structure */ }
+  },
+  "benchmarkRatings": {
+    "totSpin": 0.882, "todSpin": 604.4,
+    "totNonSpin": 0.828, "todNonSpin": 643.7
+  },
+  "pcsRatings": { /* by course type */ },
+  "configuration": { /* rig, keel, prop, etc. */ }
+}
+```
 
 ---
 
-### API — File Storage Service
+### Regatta / Race Immutability
+
+#### [MODIFY] [Regatta.cs](file:///c:/Projects/race-committee/api/Models/Regatta.cs) (or Race.cs)
+
+Add finalization state:
+
+```csharp
+public bool IsFinalized { get; set; } = false;
+public DateTime? FinalizedAt { get; set; }
+```
+
+Once finalized:
+- Race results are read-only (API rejects score updates)
+- Entry rating data renders as flat number + "Download snapshot" link
+- No "Refresh Certificate" or "Re-score" actions available
+
+---
+
+### File Storage Service
 
 #### [NEW] [IFileStorageService.cs](file:///c:/Projects/race-committee/api/Services/IFileStorageService.cs)
-
-Abstraction over blob storage to keep controllers clean and enable local dev with filesystem fallback:
 
 ```csharp
 public interface IFileStorageService
 {
-    Task<string> UploadAsync(string containerName, string blobPath, Stream fileStream, string contentType);
-    Task<Stream?> DownloadAsync(string containerName, string blobPath);
-    Task<string> GetDownloadUrlAsync(string containerName, string blobPath, TimeSpan expiry);
-    Task DeleteAsync(string containerName, string blobPath);
+    Task<string> UploadAsync(string container, string blobPath, Stream file, string contentType);
+    Task<Stream?> DownloadAsync(string container, string blobPath);
+    Task<string> GetDownloadUrlAsync(string container, string blobPath, TimeSpan expiry);
+    Task DeleteAsync(string container, string blobPath);
 }
 ```
 
-#### [NEW] [AzureBlobStorageService.cs](file:///c:/Projects/race-committee/api/Services/AzureBlobStorageService.cs)
+#### [NEW] AzureBlobStorageService.cs
+Azure Blob implementation. Connection string already in infrastructure (`StorageAccountConnectionString`).
 
-Implementation using `Azure.Storage.Blobs`:
-- Connects via connection string from `appsettings.json` (`StorageAccountConnectionString`)
-- `GetDownloadUrlAsync` generates a time-limited SAS URL (e.g., 15 min) for secure file access
-- Container `certificates` is auto-created on first use
+#### [NEW] LocalFileStorageService.cs
+Dev fallback — saves to `wwwroot/uploads/certificates/` on disk.
 
-#### [NEW] [LocalFileStorageService.cs](file:///c:/Projects/race-committee/api/Services/LocalFileStorageService.cs)
-
-Development fallback: stores files to `wwwroot/uploads/certificates/` on disk. Used when no Azure connection string is configured.
+#### [MODIFY] [api.csproj](file:///c:/Projects/race-committee/api/api.csproj)
+```xml
+<PackageReference Include="Azure.Storage.Blobs" Version="12.24.0" />
+<PackageReference Include="AngleSharp" Version="1.3.0" />
+```
 
 ---
 
-### API — DTOs
+### Certificate Parsing Service
+
+#### [NEW] [ICertificateParserService.cs](file:///c:/Projects/race-committee/api/Services/ICertificateParserService.cs)
+
+```csharp
+public interface ICertificateParserService
+{
+    Task<ParsedCertificateData> ParseFromUrlAsync(string url, string certType);
+    Task<ParsedCertificateData> ParseFromHtmlAsync(string html, string certType);
+}
+
+public class ParsedCertificateData
+{
+    public string CertificateNumber { get; set; }
+    public string BoatName { get; set; }
+    public string SailNumber { get; set; }
+    public string BoatClass { get; set; }
+    public DateTime? IssueDate { get; set; }
+    public DateTime? ExpirationDate { get; set; }
+    public float? RatingSpinnaker { get; set; }
+    public float? RatingNonSpinnaker { get; set; }
+    public string SchemaVersion { get; set; }
+    public string RawHtml { get; set; }               // For SourceHtml storage
+    public string RawDataJson { get; set; }            // Full parsed output as JSON
+}
+```
+
+#### [NEW] [RegattamanParserService.cs](file:///c:/Projects/race-committee/api/Services/RegattamanParserService.cs)
+
+Implementation using `HttpClient` + `AngleSharp`:
+1. Fetch cert page HTML
+2. Parse `<input>` elements with `title` attributes for labeled values
+3. Parse structured tables for polar data (wind speed × angle grid)
+4. Extract GPH, benchmark ratings, PCS ratings, configuration
+5. Store raw HTML in `SourceHtml`
+6. Stamp with current `SchemaVersion`
+
+---
+
+### Certificate List Service (for dropdown search)
+
+#### [NEW] [ICertificateListService.cs](file:///c:/Projects/race-committee/api/Services/ICertificateListService.cs)
+
+Fetches and caches the regattaman.com valid certificate lists for dropdown selection:
+
+```csharp
+public interface ICertificateListService
+{
+    Task<IEnumerable<CertificateListItem>> SearchAsync(string certType, string query);
+}
+
+public class CertificateListItem
+{
+    public string Sku { get; set; }                // SKU for cert_form.php URL
+    public string CertificateNumber { get; set; }  // e.g. "EZ10025" or "US43209"
+    public string BoatName { get; set; }
+    public string SailNumber { get; set; }
+    public string BoatType { get; set; }
+    public string DisplayText { get; set; }        // "EZ10025 - Geronimo - USA 198"
+    public string Url { get; set; }                // Full cert_form.php URL
+}
+```
+
+Implementation:
+- Fetches `cert_list.php?crule=ORR` and `cert_list.php?crule=ORRez` via HttpClient
+- **Filters to valid (non-expired) certificates only** — uses the `effDate` parameter or filters by expiration column
+- Parses the HTML table rows to extract cert ID, boat name, sail number, SKU link
+- Caches results in memory with a configurable TTL (e.g., 1 hour)
+- `SearchAsync` filters by boat name OR sail number (case-insensitive contains)
+- Cert number suffixes (-SH, -DH, -OD, etc.) provide natural disambiguation of multiple certs per boat
+
+#### [NEW] CertificateListController or endpoint on CertificatesController
+
+```
+GET api/certificates/search?type=ORR&query=geronimo
+GET api/certificates/search?type=ORREZ&query=USA+198
+```
+
+Returns matching `CertificateListItem[]` for the dropdown.
+
+---
+
+### DTOs
 
 #### [NEW] [CertificateDto.cs](file:///c:/Projects/race-committee/api/Models/DTOs/CertificateDto.cs)
 
@@ -152,155 +288,125 @@ public class CertificateDto
     public string CertificateNumber { get; set; }
     public DateTime? IssueDate { get; set; }
     public DateTime? ValidUntil { get; set; }
-    public float? GPH { get; set; }
-
-    // File info for the UI
+    public float? RatingSpinnaker { get; set; }
+    public float? RatingNonSpinnaker { get; set; }
+    public string? Configuration { get; set; }
     public string? FileName { get; set; }
-    public long? FileSizeBytes { get; set; }
-    public bool HasFile { get; set; }               // Computed: BlobPath != null
-    public string? FileDownloadUrl { get; set; }     // SAS URL, populated on request
-
-    // Parse status
+    public bool HasFile { get; set; }
+    public string? FileDownloadUrl { get; set; }
+    public string? SourceUrl { get; set; }
     public string ParseStatus { get; set; }
-    public string? ParseErrors { get; set; }
+    public string? SchemaVersion { get; set; }
 }
 
-// For PHRF manual entry (no file required)
-public class CreateCertificateManualDto
+public class CreateCertificateManualDto       // PHRF
 {
-    public string CertificateType { get; set; }       // "PHRF"
+    public string CertificateType { get; set; }  // "PHRF"
     public string? CertificateNumber { get; set; }
     public DateTime? IssueDate { get; set; }
     public DateTime? ValidUntil { get; set; }
-    public float? GPH { get; set; }                   // PHRF rating value
+    public float? RatingSpinnaker { get; set; }      // PHRF spin rating
+    public float? RatingNonSpinnaker { get; set; }    // PHRF non-spin rating
 }
 
-// For updating manually-entered data (any type)
+public class ImportCertificateDto              // ORR/ORREZ
+{
+    public string CertificateType { get; set; }  // "ORR" or "ORREZ"
+    public string SourceUrl { get; set; }        // regattaman.com cert URL
+}
+
 public class UpdateCertificateDto
 {
     public string? CertificateNumber { get; set; }
     public DateTime? IssueDate { get; set; }
     public DateTime? ValidUntil { get; set; }
-    public float? GPH { get; set; }
-    public string? RawData { get; set; }
+    public float? RatingSpinnaker { get; set; }
+    public float? RatingNonSpinnaker { get; set; }
 }
 ```
 
-File upload is handled as `multipart/form-data` on the controller endpoint, not via a JSON DTO.
+---
+
+### Certificates Service & Controller
+
+#### [NEW] ICertificatesService / CertificatesService
+
+Methods:
+- `GetCertificatesForBoatAsync(boatId, userId)` → list
+- `GetCertificateAsync(id, userId)` → single with download URL
+- `CreateCertificateManualAsync(boatId, dto, userId)` → PHRF manual entry
+- `ImportCertificateAsync(boatId, dto, userId)` → fetch + parse regattaman URL
+- `UploadFileAsync(boatId, certId, file, userId)` → attach PDF
+- `UpdateCertificateAsync(id, dto, userId)` → edit data
+- `DeleteCertificateAsync(id, userId)` → delete cert + blob
+- `RefreshFromSourceAsync(id, userId)` → re-fetch + re-parse from SourceUrl
+- `GetSnapshotDownloadAsync(entryId, userId)` → download RatingSnapshot JSON
+
+#### [NEW] CertificatesController
+
+Routes: `api/boats/{boatId}/certificates`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/` | List certs for boat |
+| `GET` | `/{id}` | Get single cert |
+| `POST` | `/` | Manual entry (PHRF) |
+| `POST` | `/import` | Import from regattaman URL (ORR/ORREZ) |
+| `POST` | `/{id}/upload` | Upload PDF file (multipart) |
+| `PUT` | `/{id}` | Update cert data |
+| `DELETE` | `/{id}` | Delete cert + file |
+| `POST` | `/{id}/refresh` | Re-parse from source URL |
+| `GET` | `/{id}/download` | Download uploaded file |
+
+Search endpoint (not boat-scoped):
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `api/certificates/search?type=ORR&query=...` | Search regattaman cert list |
 
 ---
 
-### API — Certificates Service
-
-#### [NEW] [ICertificatesService.cs](file:///c:/Projects/race-committee/api/Services/ICertificatesService.cs)
-
-```
-GetCertificatesForBoatAsync(int boatId, string userId) → IEnumerable<CertificateDto>
-GetCertificateAsync(int id, string userId) → CertificateDto?
-CreateCertificateManualAsync(int boatId, CreateCertificateManualDto dto, string userId) → CertificateDto
-UploadCertificateAsync(int boatId, string certType, IFormFile file, string userId) → CertificateDto
-UpdateCertificateAsync(int id, UpdateCertificateDto dto, string userId) → bool
-DeleteCertificateAsync(int id, string userId) → (bool Success, string ErrorMessage)
-GetFileDownloadUrlAsync(int id, string userId) → string?  // SAS URL for PDF download
-```
-
-#### [NEW] [CertificatesService.cs](file:///c:/Projects/race-committee/api/Services/CertificatesService.cs)
-
-Implementation:
-- All methods verify `Boat.OwnerId == userId` OR user is on the regatta committee (for RC review)
-- `UploadCertificateAsync`:
-  1. Validates file type (PDF, JPG, PNG — max 10MB)
-  2. Creates Certificate record with `ParseStatus = "Pending"` for ORR/ORREZ, `"Manual"` for PHRF
-  3. Uploads to blob storage at `{boatId}/{certId}/{filename}`
-  4. Sets `BlobPath`, `FileName`, `ContentType`, `FileSizeBytes`, `FileUploadedAt`
-  5. (Phase 2) Kicks off parsing pipeline for ORR/ORREZ
-  6. (Phase 1) For now, sets `ParseStatus = "Pending"` — user can manually enter GPH as a fallback
-- Delete cascades to blob storage (deletes the file too)
-
----
-
-### API — Controller
-
-#### [NEW] [CertificatesController.cs](file:///c:/Projects/race-committee/api/Controllers/CertificatesController.cs)
-
-Nested under boats: `api/boats/{boatId}/certificates`
-
-| Method | Route | Content-Type | Description |
-|--------|-------|-------------|-------------|
-| `GET` | `api/boats/{boatId}/certificates` | JSON | List all certificates for a boat |
-| `GET` | `api/boats/{boatId}/certificates/{id}` | JSON | Get single certificate with download URL |
-| `POST` | `api/boats/{boatId}/certificates` | JSON | Add certificate via manual entry (PHRF) |
-| `POST` | `api/boats/{boatId}/certificates/upload` | multipart/form-data | Upload certificate PDF (ORR/ORREZ) |
-| `PUT` | `api/boats/{boatId}/certificates/{id}` | JSON | Update certificate data |
-| `DELETE` | `api/boats/{boatId}/certificates/{id}` | — | Delete certificate + blob |
-| `GET` | `api/boats/{boatId}/certificates/{id}/download` | Redirect | Get SAS URL / redirect to download |
-
----
-
-### API — DI & Configuration
+### DI & Configuration
 
 #### [MODIFY] [Program.cs](file:///c:/Projects/race-committee/api/Program.cs)
 
 ```csharp
-// Storage service: Azure Blob in production, local filesystem in dev
-var storageConnectionString = builder.Configuration["StorageAccountConnectionString"];
-if (!string.IsNullOrEmpty(storageConnectionString))
-{
-    builder.Services.AddSingleton<IFileStorageService>(
-        new AzureBlobStorageService(storageConnectionString));
-}
-else
-{
-    builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
-}
-
 builder.Services.AddScoped<ICertificatesService, CertificatesService>();
-```
+builder.Services.AddScoped<ICertificateParserService, RegattamanParserService>();
+builder.Services.AddScoped<ICertificateListService, RegattamanCertificateListService>();
+builder.Services.AddHttpClient<ICertificateParserService, RegattamanParserService>();
+builder.Services.AddHttpClient<ICertificateListService, RegattamanCertificateListService>();
 
-#### [MODIFY] [api.csproj](file:///c:/Projects/race-committee/api/api.csproj)
-
-Add NuGet package:
-```xml
-<PackageReference Include="Azure.Storage.Blobs" Version="12.24.0" />
+var storageConn = builder.Configuration["StorageAccountConnectionString"];
+if (!string.IsNullOrEmpty(storageConn))
+    builder.Services.AddSingleton<IFileStorageService>(new AzureBlobStorageService(storageConn));
+else
+    builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 ```
 
 ---
 
-### API — DB Migration
-
-#### [NEW] EF Migration
-
-Add migration for the new Certificate columns:
-```
-dotnet ef migrations add AddCertificateFileFields
-```
-
-New columns: `FileName`, `BlobPath`, `ContentType`, `FileSizeBytes`, `FileUploadedAt`, `ParseStatus`, `ParseErrors`
-
----
-
-### API — BoatDto & Entry Integration
-
-*(Unchanged from previous plan — include certificates in BoatDto, ActiveCertificateId on entries, auto-populate rating from GPH)*
+### BoatDto & Entry Integration
 
 #### [MODIFY] [BoatDto.cs](file:///c:/Projects/race-committee/api/Models/DTOs/BoatDto.cs)
-Add `Certificates` collection to BoatDto.
+Add `Certificates` collection.
 
 #### [MODIFY] [BoatsService.cs](file:///c:/Projects/race-committee/api/Services/BoatsService.cs)
 Include certificates when fetching boats.
 
 #### [MODIFY] [UpdateEntryDto.cs](file:///c:/Projects/race-committee/api/Models/DTOs/UpdateEntryDto.cs)
-Add `ActiveCertificateId` field.
+Add `ActiveCertificateId`.
 
 #### [MODIFY] [RegattasService.cs](file:///c:/Projects/race-committee/api/Services/RegattasService.cs)
-Auto-populate entry rating from selected certificate GPH.
+- When `ActiveCertificateId` is set: validate cert belongs to boat, populate `Entry.Rating` from `RatingSpinnaker` or `RatingNonSpinnaker` based on race/class spinnaker configuration, snapshot full cert data into `RatingSnapshot` with `schemaVersion`
+- When regatta is finalized: reject score updates
 
 #### [MODIFY] [RegattaDetailsDto.cs](file:///c:/Projects/race-committee/api/Models/DTOs/RegattaDetailsDto.cs)
-Add `ActiveCertificateId` and `ActiveCertificateType` to EntryDto.
+Add `ActiveCertificateId`, `ActiveCertificateType`, `IsFinalized` to relevant DTOs.
 
 ---
 
-### Frontend — Hooks
+### Frontend
 
 #### [NEW] [useCertificates.ts](file:///c:/Projects/race-committee/ui/src/hooks/useCertificates.ts)
 
@@ -312,153 +418,144 @@ interface CertificateResponse {
     certificateNumber: string;
     issueDate: string | null;
     validUntil: string | null;
-    gph: number | null;
+    ratingSpinnaker: number | null;
+    ratingNonSpinnaker: number | null;
     fileName: string | null;
-    fileSizeBytes: number | null;
     hasFile: boolean;
     fileDownloadUrl: string | null;
+    sourceUrl: string | null;
     parseStatus: string;
-    parseErrors: string | null;
+    schemaVersion: string | null;
+}
+
+interface CertificateSearchResult {
+    sku: string;
+    certificateNumber: string;
+    boatName: string;
+    sailNumber: string;
+    boatType: string;
+    displayText: string;    // "EZ10025 - Geronimo - USA 198"
+    url: string;
 }
 
 // Hooks
 useCertificates(boatId) → { certificates, isLoading, error, refetch }
 
-// Mutation functions
-createCertificateManual(boatId, data) → CertificateResponse
-uploadCertificate(boatId, certType, file) → CertificateResponse  // FormData upload
-updateCertificate(boatId, certId, data) → void
-deleteCertificate(boatId, certId) → void
-downloadCertificate(boatId, certId) → triggers browser download
+// Mutations
+createCertificateManual(boatId, data)
+importCertificate(boatId, { type, sourceUrl })
+uploadFile(boatId, certId, file)
+updateCertificate(boatId, certId, data)
+deleteCertificate(boatId, certId)
+refreshCertificate(boatId, certId)
+
+// Search (for dropdown)
+searchCertificates(type, query) → CertificateSearchResult[]
 ```
-
----
-
-### Frontend — Certificate Modal
 
 #### [NEW] [CertificateFormModal.tsx](file:///c:/Projects/race-committee/ui/src/components/CertificateFormModal.tsx)
 
-Two-mode modal depending on certificate type:
+**Step 1: Choose certificate type** (PHRF, ORR, ORR-EZ)
 
-**Mode A: PHRF (Manual Entry)**
-- Certificate Type: dropdown (pre-selected to PHRF)
+**PHRF mode:**
 - Certificate Number (text)
-- PHRF Rating (number — the main value)
+- PHRF Rating (number)
 - Issue Date / Valid Until (date pickers)
-- Optional: File upload drop zone for reference copy
+- File upload drop zone (PDF for RC verification)
 
-**Mode B: ORR / ORR-EZ (File Upload Primary)**
-- Certificate Type: dropdown (ORR or ORR-EZ)
-- **File upload drop zone** (drag & drop or click to browse)
-  - Accepts: PDF, JPG, PNG (max 10MB)
-  - Shows upload progress
-  - On success: displays filename, file size, parse status
-- After upload, shows extracted data (if parsing succeeds) or manual-entry fallback fields:
-  - Certificate Number
-  - GPH (number)
-  - Issue Date / Valid Until
-- Parse status indicator:
-  - 🟡 Pending — "Automated parsing coming soon. Enter key data manually."
-  - 🟢 Success — "Data extracted from certificate"
-  - 🔴 Failed — "Could not parse certificate. Please enter data manually."
+**ORR / ORR-EZ mode — two input methods:**
 
-Uses existing design system: `modal-overlay`, `modal-container`, `modal-header`, `input-field`, `form-select`, `btn-base` classes.
+1. **Dropdown search** (primary):
+   - Searchable dropdown (filters as you type)
+   - Filters regattaman cert list by boat name OR sail number
+   - Display text: `"EZ10025 - Geronimo - USA 198"` or `"US43209 - MEANIE - NZL10000"`
+   - After selection: shows spin/non-spin ratings for confirmation
+   - On select: auto-fills the URL, triggers import + parse
+   
+2. **Manual URL entry** (fallback):
+   - Text field: "Paste regattaman.com certificate URL"
+   - Validates URL matches `cert_form.php?sku=...` pattern
+   - On submit: triggers import + parse
 
----
+**After import:**
+- Shows extracted data summary (cert #, boat name, spin/non-spin ratings, validity)
+- Parse status indicator (✅ Success, ❌ Failed with errors)
+- If parse failed: manual rating entry fallback (spin + non-spin fields)
 
-### Frontend — BoatCard Enhancement
+Uses existing design system classes.
 
 #### [MODIFY] [BoatCard.tsx](file:///c:/Projects/race-committee/ui/src/components/BoatCard.tsx)
 
 - Certificate count badge
-- Each certificate shows: type pill + cert number + file icon (📄 if has file, ✏️ if manual-only)
-- Validity status (valid/expired)
-- Click to open edit modal
-- "View Certificate" link triggers download of the original PDF
+- Each cert: type pill + cert # + validity status
+- 📄 icon (has uploaded file) or 🔗 icon (linked to regattaman)
+- Click cert → edit modal
+- "View Certificate" → opens regattaman URL or downloads PDF
 - "Add Certificate" button
 
----
+#### [MODIFY] Regatta entries table
 
-### Frontend — Entries Table
-
-#### [MODIFY] [page.tsx (RegattaPage)](file:///c:/Projects/race-committee/ui/src/app/dashboard/regattas/%5Bid%5D/page.tsx)
-
-- Certificate column with type badge or "Manual"
-- "View Cert" link to download the original PDF (for RC review)
+**Active regatta (not finalized):**
+- Certificate column: type badge + cert #
+- "View Cert" link (regattaman URL or PDF download)
 - Certificate selector dropdown in edit mode
+- If `schemaVersion` matches current: show structured rating info on hover/expand (spin/non-spin ratings, key benchmarks)
+
+**Finalized regatta:**
+- Certificate column: type badge + flat rating number
+- "Download Rating Snapshot" link (JSON file)
+- No edit controls, no "Refresh", no re-score
+- No structured polar/rating display (avoids backwards-compat burden)
 
 ---
 
-### Phase 2: PDF Parsing Pipeline (Future)
+## Scoping Decisions
 
-> [!NOTE]
-> Phase 2 is **out of scope** for this implementation but is documented here as the roadmap.
+### Expiration Handling (MVP)
+- **Certificate dropdowns and search filter to valid (non-expired) only** — reduces noise from variant suffixes (-OD-3 etc.)
+- **Expired certs remain in the DB** — not deleted, just hidden from selection
+- **No RC override for expired certs in MVP** — planned as future feature (see below)
+- **Multiple certs per boat fully supported** — a boat may have base, -SH, -DH, -OD certs simultaneously; only valid ones appear in selection
 
-#### Parsing Approach
-
-The strategy depends on the certificate format:
-
-1. **ORR-EZ PDFs** (from regattaman.com): Likely machine-generated with consistent layout
-   - **Primary tool:** `pdfplumber` (Python) or a .NET PDF library
-   - Extract text, locate the polar table by anchor keywords
-   - Parse the sec/mi grid into structured JSON
-   
-2. **ORR Full PDFs** (from US Sailing/ORA): Similar approach but more fields
-
-3. **Fallback for messy PDFs:** Azure Document Intelligence or an LLM vision model for table extraction
-
-#### Phase 2 Architecture
-
-```
-[Upload] → [Blob Storage] → [Parse Queue] → [Parser Service]
-                                                    ↓
-                                             [Update Certificate]
-                                             - ParseStatus = "Success"/"Failed"
-                                             - RawData = { polar JSON }
-                                             - GPH = extracted value
-                                             - CertificateNumber = extracted
-                                             - IssueDate / ValidUntil = extracted
-```
-
-The parser would be either:
-- An in-process background service (for v1 simplicity)
-- An Azure Function triggered by blob upload (for production scale)
+### Future Feature: Expired Certificate Override
+Race committees sometimes need to accept last-minute entries with expired certificates. A future `AllowExpiredCertificates` regatta-level setting would:
+- Unlock expired certs in the entry certificate selector
+- Require the expired cert's `schemaVersion` to match the regatta's scoring method
+- Show a clear visual warning that the cert is expired
+- **Not implementing in MVP** — noted here for future planning
 
 ---
 
 ## Open Questions
 
 > [!IMPORTANT]
-> 1. **Sample certificates needed.** Do you have ORR-EZ or ORR certificate PDFs we can use as development samples for the parser? Without examples, Phase 2 can't proceed — but Phase 1 (upload/store/manual entry) works fine independently.
-
-> [!IMPORTANT]
-> 2. **File access control for Race Committee.** When a Race Committee member reviews entries, they need to view/download the certificate file. The current auth model only allows `Boat.OwnerId` to access their own certificates. Should RC members get read-only access to certificates for boats entered in their regatta?
+> **RC access control**: Race Committee members need to view certificates for boats entered in their regatta. Add read-only cert access for RC members?
 
 > [!NOTE]
-> 3. **Certificate types** — Should `CertificateType` be constrained to `PHRF`, `ORR`, `ORREZ`? Or do we need others (e.g., IRC, ORC Club)?
+> **Certificate types**: Constrain to `PHRF`, `ORR`, `ORREZ`? Or allow IRC, ORC Club, etc.?
 
 > [!NOTE]
-> 4. **Expiration enforcement** — Should expired certificates (`ValidUntil < today`) be blocked from selection or just show a warning?
+> **Delete behavior**: Block deletion if entry references cert, or null-out and fall back?
 
 > [!NOTE]
-> 5. **Delete behavior** — Block deletion if any entry references the certificate, or null-out and fall back to `DefaultRating`?
-
-> [!NOTE]
-> 6. **Max file size** — 10MB seems reasonable for PDF + scan certificates?
+> **Cache TTL for cert list**: 1 hour for the regattaman cert list cache? Configurable?
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- Build the API: `dotnet build` from `api/` directory
-- Run the UI dev server: `npm run dev` from `ui/` — no build errors
-- Run existing E2E tests: `npx playwright test` from `e2e/`
+### Build Checks
+- `dotnet build` from `api/`
+- `npm run dev` from `ui/`
+- `npx playwright test` from `e2e/`
 
 ### Manual Verification
-1. **PHRF manual entry**: My Boats → Add Certificate (PHRF) → enter rating number → appears on BoatCard
-2. **ORR file upload**: My Boats → Add Certificate (ORR-EZ) → upload a PDF → file stored, filename displayed, download link works
-3. **Download**: Click "View Certificate" → PDF opens in browser/downloads
-4. **Entry integration**: Regatta → Entries → select certificate → rating auto-populates
-5. **RC review**: As a Race Committee member, view an entry → "View Certificate" link downloads the PDF
-6. **Local dev fallback**: Dev without Azure connection string → files saved to disk, still works
+1. **PHRF manual entry**: Add cert → enter rating → upload PDF → download works
+2. **ORR-EZ dropdown import**: Search "Geronimo" → select from dropdown → data auto-parsed → spin/non-spin ratings populated
+3. **ORR URL import**: Paste regattaman URL → parsed → cert linked
+4. **Refresh**: Click refresh → re-fetches, updates data
+5. **Entry integration**: Select cert on entry → rating auto-populates → RatingSnapshot created
+6. **Finalized regatta**: Results read-only, rating shows flat number + download link
+7. **Schema mismatch**: Old snapshot with outdated schemaVersion → shows download only, no structured view
+8. **RC review**: Committee member views entry → can open regattaman link or download PDF
+9. **Local dev**: Works without Azure connection string (filesystem fallback)

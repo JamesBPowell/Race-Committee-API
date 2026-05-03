@@ -33,23 +33,23 @@ namespace api.Controllers
 
         // GET: api/boats
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<BoatDto>>> GetBoats()
+        public async Task<ActionResult<IEnumerable<BoatDto>>> GetBoats([FromQuery] bool includeCertificates = false)
         {
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boats = await _boatsService.GetBoatsAsync(userId);
+            var boats = await _boatsService.GetBoatsAsync(userId, includeCertificates);
             return Ok(boats);
         }
 
         // GET: api/boats/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<BoatDto>> GetBoat(int id)
+        public async Task<ActionResult<BoatDto>> GetBoat(int id, [FromQuery] bool includeCertificates = false)
         {
             var userId = GetCurrentUserId();
             if (userId == null) return Unauthorized();
 
-            var boat = await _boatsService.GetBoatAsync(id, userId);
+            var boat = await _boatsService.GetBoatAsync(id, userId, includeCertificates);
 
             if (boat == null)
             {

@@ -1,19 +1,38 @@
 import { API_BASE_URL } from './constants';
 
+const inFlight = new Map<string, Promise<any>>();
+
 export const apiClient = {
     async get<T>(endpoint: string): Promise<T> {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-        });
-
-        if (!response.ok) {
-            throw new Error(`API GET request failed: ${response.statusText}`);
+        const url = `${API_BASE_URL}${endpoint}`;
+        
+        // Deduplicate in-flight GET requests
+        if (inFlight.has(url)) {
+            return inFlight.get(url) as Promise<T>;
         }
-        return response.json();
+
+        const fetchPromise = (async () => {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API GET request failed: ${response.statusText}`);
+                }
+                return await response.json();
+            } finally {
+                // Remove from in-flight map once finished (success or failure)
+                inFlight.delete(url);
+            }
+        })();
+
+        inFlight.set(url, fetchPromise);
+        return fetchPromise;
     },
 
     async post<T>(endpoint: string, data: unknown): Promise<T> {

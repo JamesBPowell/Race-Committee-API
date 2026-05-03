@@ -63,6 +63,23 @@ builder.Services.AddScoped<IRacesService, RacesService>();
 builder.Services.AddScoped<IScoringService, ScoringService>();
 builder.Services.AddScoped<IFleetsService, FleetsService>();
 
+// Certificate services
+builder.Services.AddScoped<ICertificatesService, CertificatesService>();
+builder.Services.AddHttpClient<ICertificateParserService, RegattamanParserService>();
+builder.Services.AddHttpClient<ICertificateListService, RegattamanCertificateListService>();
+
+// File storage: local filesystem in dev, Azure Blob in production
+var storageConnectionString = builder.Configuration["StorageAccountConnectionString"];
+if (!string.IsNullOrEmpty(storageConnectionString))
+{
+    // TODO: Add AzureBlobStorageService when deploying to Azure
+    builder.Services.AddSingleton<IFileStorageService>(new LocalFileStorageService());
+}
+else
+{
+    builder.Services.AddSingleton<IFileStorageService>(new LocalFileStorageService());
+}
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

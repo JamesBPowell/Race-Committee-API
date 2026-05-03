@@ -21,6 +21,7 @@ namespace RaceCommittee.Api.Models
         public string MakeModel { get; set; } = string.Empty;
 
         public float? DefaultRating { get; set; }
+        public string DefaultRatingType { get; set; } = "PHRF"; // "PHRF", "GPH" (SecondsPerMile)
 
         public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
         public ICollection<Entry> Entries { get; set; } = new List<Entry>();

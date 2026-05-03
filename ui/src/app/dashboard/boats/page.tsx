@@ -1,15 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import BoatCard from '@/components/BoatCard';
 import BoatFormModal, { BoatData } from '@/components/BoatFormModal';
 import { useBoats } from '@/hooks/useBoats';
+import { useCertificates, CertificateResponse } from '@/hooks/useCertificates';
 import { apiClient } from '@/lib/api';
 
+// BoatCard now receives certificates directly from the boats list
+// to avoid the N+1 problem of fetching certificates per boat.
+
 export default function MyBoatsPage() {
-    const { boats, isLoading, error, refetch } = useBoats();
+    const { boats, isLoading, error, refetch } = useBoats(true);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,8 +93,10 @@ export default function MyBoatsPage() {
                         <BoatCard
                             key={boat.id}
                             boat={boat}
+                            certificates={boat.certificates || []}
                             onEdit={handleEditClick}
                             onDelete={handleDeleteClick}
+                            onCertificatesChanged={refetch}
                         />
                     ))}
                 </div>

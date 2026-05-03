@@ -32,6 +32,9 @@ namespace RaceCommittee.Api.Models.DTOs
         public string? OwnerName { get; set; }
         public float? Rating { get; set; }
         public string? RegistrationStatus { get; set; }
+        public int? ActiveCertificateId { get; set; }
+        public string? ActiveCertificateType { get; set; }
+        public string? ActiveCertificateNumber { get; set; }
     }
 
     public class RaceDto
