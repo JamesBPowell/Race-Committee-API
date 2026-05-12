@@ -58,9 +58,28 @@ Cert:   https://www.regattaman.com/cert_form.php?sku={sku_id}
 - **Administrative**: Cert #, Valid Year, Issue/Expiration, Owner, Boat Name, Sail Number, Class
 - **Configuration**: Rig Type, Keel Type, Prop Type, Hull/Mast Construction
 - **GPH**: General Purpose Handicap (sec/mi)
-- **Polar Table**: sec/mi at angles (Beat VMG, 52°–165°, Run VMG) × wind speeds (4–24 kts)
-- **Benchmark Ratings**: TOT factor and TOD (sec/mi)
-- **PCS Ratings**: By course type (Random Leg, W50/L50, W60/L40, Mostly WW/LW/Reach)
+- **Polar Table**: sec/mi at angles (Beat VMG, 52°–165°, Run VMG) × wind speeds (4–24 kts). **Must capture all variants**: Spinnaker, Non-Spinnaker, Offshore, Short Course.
+- **Benchmark Ratings**: TOT factor and TOD (sec/mi) for various configurations.
+- **PCS (Performance Curve Scoring) Ratings**: Specific handicap numbers generated for standard course types (e.g., Random Leg, W50/L50, mostly WW/LW) across different wind bands.
+
+---
+
+## ORR & ORR-EZ Scoring Methods
+
+Based on the Offshore Racing Association rules, Race Committees have multiple options for scoring a fleet. Our parser must capture the data necessary to support all of these:
+
+1. **Time-on-Distance (ToD)**
+   - **How it works:** Rating is given in seconds per mile (sec/mi). Corrected time = Elapsed time - (Rating × Distance).
+   - **Data Required:** GPH (General Purpose Handicap) or specific TOD benchmark ratings from the certificate.
+2. **Time-on-Time (ToT)**
+   - **How it works:** Rating is a Time Correction Factor (TCF) multiplier. Corrected time = Elapsed time × TCF.
+   - **Data Required:** TOT benchmarks (e.g., 0.882 for spin, 0.828 for non-spin). Often used when course length is uncertain or wind is variable.
+3. **Course-Specific Scoring / PCS**
+   - **How it works:** The Race Committee selects a specific course configuration (e.g., Windward/Leeward 50/50, or Random Leg). The certificate provides ratings specific to that course, sometimes across Light/Medium/Heavy wind bands.
+   - **Data Required:** `pcsRatings` tables from the certificate.
+4. **Full Performance Curve Scoring (PCS) / Implied Wind**
+   - **How it works:** The ultimate high-fidelity scoring. The RC inputs the course distance and type. The system calculates an "Implied Wind" for the winning boat based on its elapsed time against its polar curve. Other boats are then scored against their own polar curves *at that same implied wind*.
+   - **Data Required:** The complete `polarTable` matrix (Wind Speeds × Wind Angles) for precise VPP interpolation.
 
 ---
 
@@ -129,9 +148,9 @@ public static class CertificateSchemas
   "ratingSpinnaker": 437.1,
   "ratingNonSpinnaker": 462.8,
   "polarTable": {
-    "spinnaker": {
-      "beatVmg": { "4": 1453.25, "6": 1032.08, ... },
-      "52": { "4": 910.63, "6": 661.39, ... },
+    "spinnaker": { // or "offshoreSpinnaker" / "shortCourseSpinnaker"
+      "beatVmg": { "4": 1453.25, "6": 1032.08 },
+      "52": { "4": 910.63, "6": 661.39 }
       // ... more angles
     },
     "nonSpinnaker": { /* same structure */ }
@@ -140,7 +159,10 @@ public static class CertificateSchemas
     "totSpin": 0.882, "todSpin": 604.4,
     "totNonSpin": 0.828, "todNonSpin": 643.7
   },
-  "pcsRatings": { /* by course type */ },
+  "pcsRatings": {
+    "randomLeg": { "light": 650.1, "medium": 580.4, "heavy": 520.1 },
+    "windwardLeeward": { "light": 680.0, "medium": 600.0, "heavy": 540.0 }
+  },
   "configuration": { /* rig, keel, prop, etc. */ }
 }
 ```
@@ -225,10 +247,11 @@ public class ParsedCertificateData
 Implementation using `HttpClient` + `AngleSharp`:
 1. Fetch cert page HTML
 2. Parse `<input>` elements with `title` attributes for labeled values
-3. Parse structured tables for polar data (wind speed × angle grid)
-4. Extract GPH, benchmark ratings, PCS ratings, configuration
-5. Store raw HTML in `SourceHtml`
-6. Stamp with current `SchemaVersion`
+3. Parse structured tables for polar data (wind speed × angle grid). **Critically, must distinguish between `Offshore`, `Short Course`, `Spinnaker`, and `Non-Spinnaker` table contexts**.
+4. Extract GPH, benchmark ratings (TOT/TOD).
+5. Extract PCS ratings by parsing the specific course-type rating tables (e.g., W50/L50, Random Leg).
+6. Store raw HTML in `SourceHtml`
+7. Stamp with current `SchemaVersion`
 
 ---
 

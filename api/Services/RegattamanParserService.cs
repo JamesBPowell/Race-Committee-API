@@ -68,15 +68,22 @@ namespace RaceCommittee.Api.Services
                 ["schemaVersion"] = schemaVersion
             };
 
-            // Try to extract polar table data
+            // Extract polar table data
             var polarData = ExtractPolarTable(document, isOrrEz);
-            if (polarData.Count > 0)
-                rawData["polarTable"] = polarData;
 
             // Try to extract benchmark ratings
             var benchmarks = ExtractBenchmarkRatings(document, isOrrEz);
             if (benchmarks.Count > 0)
                 rawData["benchmarkRatings"] = benchmarks;
+
+            // Extract PCS ratings (this will also populate dynamic polar tables)
+            var pcsRatings = ExtractPcsRatings(document, polarData);
+
+            if (polarData.Count > 0)
+                rawData["polarTable"] = polarData;
+
+            if (pcsRatings.Count > 0)
+                rawData["pcsRatings"] = pcsRatings;
 
             result.RawDataJson = JsonSerializer.Serialize(rawData, new JsonSerializerOptions
             {
@@ -398,7 +405,8 @@ namespace RaceCommittee.Api.Services
                     var values = new Dictionary<string, float>();
                     for (int c = 1; c < cells.Length && c - 1 < windSpeeds.Count; c++)
                     {
-                        if (float.TryParse(cells[c].TextContent.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+                        var cellText = cells[c].TextContent.Trim().Replace(",", "");
+                        if (float.TryParse(cellText, NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
                             values[windSpeeds[c - 1]] = val;
                     }
 
@@ -408,11 +416,76 @@ namespace RaceCommittee.Api.Services
 
                 if (angles.Count > 0)
                 {
-                    // Determine if this is spinnaker or non-spinnaker section
-                    var tableContext = GetTableSectionContext(table);
-                    var key = tableContext.Contains("non", StringComparison.OrdinalIgnoreCase)
-                        ? "nonSpinnaker" : "spinnaker";
+                    // Determine if this is spinnaker or non-spinnaker section, and offshore vs short course
+                    var key = GetTableSectionContext(table);
                     polarData[key] = angles;
+                }
+            }
+
+            // Also check for ORR-EZ newer formats using CSS Grids instead of tables
+            var gridDivs = document.QuerySelectorAll("div.ratingGrid-9");
+            foreach (var grid in gridDivs)
+            {
+                // Verify it's a polar block
+                if (!grid.ClassList.Contains("polar_block_cert")) continue;
+
+                var spans = grid.QuerySelectorAll("span").ToList();
+                if (spans.Count < 10) continue;
+
+                var firstSpanText = spans[0].TextContent.Trim().ToLowerInvariant();
+                if (!firstSpanText.Contains("wind") && !firstSpanText.Contains("angle") && firstSpanText != "true wind speed")
+                    continue;
+
+                // Extract wind speeds (first row: spans 1-9)
+                var windSpeeds = new List<string>();
+                for (int i = 1; i < 10 && i < spans.Count; i++)
+                {
+                    var ws = spans[i].TextContent.Trim().Replace(" kts", "").Replace(" kt", "");
+                    if (!string.IsNullOrEmpty(ws))
+                        windSpeeds.Add(ws);
+                }
+
+                var angles = new Dictionary<string, Dictionary<string, float>>();
+                
+                // Subsequent rows: chunks of 10 spans
+                for (int r = 10; r < spans.Count; r += 10)
+                {
+                    if (r + 9 >= spans.Count) break; // Incomplete row
+
+                    var angleLabel = spans[r].TextContent.Trim();
+                    if (string.IsNullOrEmpty(angleLabel)) continue;
+
+                    var values = new Dictionary<string, float>();
+                    for (int c = 1; c <= 9 && c - 1 < windSpeeds.Count; c++)
+                    {
+                        var valueText = spans[r + c].TextContent.Trim().Replace(",", "");
+                        if (float.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+                            values[windSpeeds[c - 1]] = val;
+                    }
+
+                    if (values.Count > 0)
+                        angles[angleLabel] = values;
+                }
+
+                if (angles.Count > 0)
+                {
+                    var parent = grid.ParentElement;
+                    string context = "spinnaker"; // Default
+                    while (parent != null)
+                    {
+                        if (parent.Id == "polar_time_ns" || parent.ClassList.Contains("nonspin"))
+                        {
+                            context = "nonSpinnaker";
+                            break;
+                        }
+                        if (parent.Id == "polar_time_spin" || parent.ClassList.Contains("spin"))
+                        {
+                            context = "spinnaker";
+                            break;
+                        }
+                        parent = parent.ParentElement;
+                    }
+                    polarData[context] = angles;
                 }
             }
 
@@ -423,16 +496,29 @@ namespace RaceCommittee.Api.Services
         {
             // Walk up to find section headers
             var sibling = table.PreviousElementSibling;
-            for (int i = 0; i < 5 && sibling != null; i++)
+            var context = "spinnaker"; // default
+            
+            for (int i = 0; i < 10 && sibling != null; i++)
             {
                 var text = sibling.TextContent.Trim();
+                
+                if (text.Contains("Offshore", StringComparison.OrdinalIgnoreCase) && text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
+                    return "offshoreNonSpinnaker";
+                if (text.Contains("Offshore", StringComparison.OrdinalIgnoreCase))
+                    return "offshoreSpinnaker";
+                if (text.Contains("Short Course", StringComparison.OrdinalIgnoreCase) && text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
+                    return "shortCourseNonSpinnaker";
+                if (text.Contains("Short Course", StringComparison.OrdinalIgnoreCase))
+                    return "shortCourseSpinnaker";
+                    
                 if (text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    return "non-spinnaker";
-                if (text.Contains("Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    return "spinnaker";
+                    context = "nonSpinnaker";
+                else if (text.Contains("Spinnaker", StringComparison.OrdinalIgnoreCase))
+                    context = "spinnaker";
+                    
                 sibling = sibling.PreviousElementSibling;
             }
-            return "spinnaker"; // default
+            return context;
         }
 
         private static Dictionary<string, object> ExtractBenchmarkRatings(IDocument document, bool isOrrEz)
@@ -455,6 +541,120 @@ namespace RaceCommittee.Api.Services
             }
 
             return benchmarks;
+        }
+
+        private static Dictionary<string, object> ExtractPcsRatings(IDocument document, Dictionary<string, object> polarData)
+        {
+            var pcsData = new Dictionary<string, object>();
+
+            // 1. Try parsing from JSON blocks first (modern Regattaman certs)
+            var blocks = document.QuerySelectorAll(".ratBlock");
+            foreach (var block in blocks)
+            {
+                var json = block.GetAttribute("data-ratingjson");
+                if (string.IsNullOrEmpty(json)) continue;
+
+                try
+                {
+                    using var jdoc = JsonDocument.Parse(json);
+                    var elements = jdoc.RootElement.ValueKind == JsonValueKind.Array 
+                        ? (System.Collections.Generic.IEnumerable<System.Text.Json.JsonElement>)jdoc.RootElement.EnumerateArray() 
+                        : new[] { jdoc.RootElement };
+
+                    foreach (var element in elements)
+                    {
+                        var course = element.TryGetProperty("course", out var cProp) ? cProp.GetString() : null;
+                        var wind = element.TryGetProperty("wind", out var wProp) ? wProp.GetString() : "";
+
+                        // Skip GPH since it's handled in ExtractRatingsSummary, and ensure we have a course
+                        if (string.IsNullOrEmpty(course) || course.Equals("GPH", StringComparison.OrdinalIgnoreCase)) continue;
+
+                        var safeCourseType = course.Replace(" ", "").Replace("/", "").Replace("-", "").Replace(".", "");
+                        if (string.IsNullOrEmpty(safeCourseType)) continue;
+                        safeCourseType = char.ToLowerInvariant(safeCourseType[0]) + safeCourseType.Substring(1);
+
+                        var bandName = string.IsNullOrEmpty(wind) ? "rating" : wind.ToLowerInvariant().Replace(" ", "");
+                        var isPolarData = int.TryParse(bandName, out _); // if it's a numeric wind speed, it's true Polar Time Allowances
+
+                        if (TryParseRatingElement(element, out var spin, out var nonspin))
+                        {
+                            var targetData = isPolarData ? polarData : pcsData;
+
+                            if (spin.HasValue)
+                            {
+                                var key = safeCourseType + "Spin";
+                                if (!targetData.ContainsKey(key)) targetData[key] = new Dictionary<string, float>();
+                                ((Dictionary<string, float>)targetData[key])[bandName] = spin.Value;
+                            }
+                            if (nonspin.HasValue)
+                            {
+                                var key = safeCourseType + "NonSpin";
+                                if (!targetData.ContainsKey(key)) targetData[key] = new Dictionary<string, float>();
+                                ((Dictionary<string, float>)targetData[key])[bandName] = nonspin.Value;
+                            }
+                        }
+                    }
+                }
+                catch { /* skip invalid JSON */ }
+            }
+
+            if (pcsData.Count > 0) return pcsData;
+
+            // 2. Fallback to HTML table parsing (legacy certs)
+            var tables = document.QuerySelectorAll("table");
+            foreach (var table in tables)
+            {
+                var headerRow = table.QuerySelector("tr");
+                if (headerRow == null) continue;
+
+                var text = table.TextContent;
+                if (text.Contains("Windward", StringComparison.OrdinalIgnoreCase) || 
+                    text.Contains("Random Leg", StringComparison.OrdinalIgnoreCase) || 
+                    text.Contains("Course Type", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("Mostly WW", StringComparison.OrdinalIgnoreCase))
+                {
+                    var headerCells = headerRow.QuerySelectorAll("td, th").Select(c => c.TextContent.Trim()).ToList();
+                    if (headerCells.Count < 2) continue;
+                    
+                    var rows = table.QuerySelectorAll("tr").Skip(1);
+                    foreach (var row in rows)
+                    {
+                        var cells = row.QuerySelectorAll("td");
+                        if (cells.Length < 2) continue;
+
+                        var courseType = cells[0].TextContent.Trim();
+                        if (string.IsNullOrEmpty(courseType) || courseType.Length > 40 || courseType == "GPH") continue;
+                        
+                        var safeCourseType = courseType.Replace(" ", "").Replace("/", "").Replace("-", "").Replace(".", "");
+                        if (string.IsNullOrEmpty(safeCourseType)) continue;
+                        safeCourseType = char.ToLowerInvariant(safeCourseType[0]) + safeCourseType.Substring(1);
+
+                        var courseValues = new Dictionary<string, float>();
+                        for (int c = 1; c < cells.Length && c < headerCells.Count; c++)
+                        {
+                            var headerName = headerCells[c].ToLowerInvariant().Replace(" ", "");
+                            if (string.IsNullOrEmpty(headerName)) headerName = "band" + c;
+                            
+                            if (float.TryParse(cells[c].TextContent.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+                            {
+                                courseValues[headerName] = val;
+                            }
+                        }
+
+                        if (courseValues.Count > 0)
+                        {
+                            var context = GetTableSectionContext(table);
+                            var key = safeCourseType + (context.Contains("non", StringComparison.OrdinalIgnoreCase) ? "NonSpin" : "Spin");
+                            
+                            if (!pcsData.ContainsKey(key))
+                            {
+                                pcsData[key] = courseValues;
+                            }
+                        }
+                    }
+                }
+            }
+            return pcsData;
         }
 
         private static DateTime? TryParseDate(string value)
