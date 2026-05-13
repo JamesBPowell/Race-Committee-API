@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Loader2, Ruler } from 'lucide-react';
+import { X, Loader2, Ruler, Wind } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { RaceResponse, StartType, CourseType, FleetResponse } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
@@ -41,6 +41,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         startType: StartType.Staggered,
         courseType: CourseType.WindwardLeeward,
         courseDistance: 0,
+        windSpeed: 0,
+        windDirection: 0,
         raceFleets: [] as {
             id: number;
             fleetId: number;
@@ -49,6 +51,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             startTimeOffset: string;
             courseType: CourseType | null;
             courseDistance: number | null;
+            windSpeed: number | null;
+            windDirection: number | null;
             includeInOverall: boolean;
         }[]
     });
@@ -65,6 +69,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             startType: race.startType ?? StartType.Staggered,
             courseType: race.courseType ?? CourseType.WindwardLeeward,
             courseDistance: race.courseDistance ?? 0,
+            windSpeed: race.windSpeed ?? 0,
+            windDirection: race.windDirection ?? 0,
             raceFleets: fleets.map(f => {
                 const rf = race.raceFleets?.find(r => r.fleetId === f.id);
                 return {
@@ -75,6 +81,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     raceNumber: rf?.raceNumber ?? 1,
                     courseType: rf?.courseType ?? null,
                     courseDistance: rf?.courseDistance ?? null,
+                    windSpeed: rf?.windSpeed ?? null,
+                    windDirection: rf?.windDirection ?? null,
                     includeInOverall: rf?.includeInOverall ?? true
                 };
             })
@@ -94,7 +102,9 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                 status: formData.status,
                 startType: formData.startType,
                 courseType: formData.courseType,
-                courseDistance: formData.courseDistance || null,
+                courseDistance: formData.courseDistance !== undefined ? formData.courseDistance : null,
+                windSpeed: formData.windSpeed !== undefined ? formData.windSpeed : null,
+                windDirection: formData.windDirection !== undefined ? formData.windDirection : null,
                 raceFleets: formData.raceFleets.map(rf => ({
                     id: rf.id,
                     fleetId: rf.fleetId,
@@ -102,6 +112,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     startTimeOffset: rf.startTimeOffset || null,
                     courseType: rf.courseType,
                     courseDistance: rf.courseDistance || null,
+                    windSpeed: rf.windSpeed,
+                    windDirection: rf.windDirection,
                     includeInOverall: rf.includeInOverall
                 }))
             });
@@ -182,8 +194,17 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                             >
                                 <option value={CourseType.WindwardLeeward}>Windward-Leeward</option>
                                 <option value={CourseType.RandomLeg}>Random Leg</option>
-                                <option value={CourseType.Triangle}>Triangle</option>
-                                <option value={CourseType.Olympic}>Olympic</option>
+                                <option value={CourseType.MostlyLW}>Mostly L/W</option>
+                                <option value={CourseType.MostlyReach}>Mostly Reach</option>
+                                <option value={CourseType.CircularRandom}>Circular Random</option>
+                                <option value={CourseType.MostlyWW}>Mostly WW</option>
+                                <option value={CourseType.WL5050}>WL 50/50</option>
+                                <option value={CourseType.WL6040}>WL 60/40</option>
+                                <option value={CourseType.ClosedCourse}>Closed Course</option>
+                                <option value={CourseType.BayviewMac}>Bayview Mac</option>
+                                <option value={CourseType.ChicagoMac}>Chicago Mac</option>
+                                <option value={CourseType.PacificCup}>Pacific Cup</option>
+                                <option value={CourseType.Transpac}>Transpac</option>
                             </select>
                         </div>
                     </div>
@@ -209,13 +230,13 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                         </div>
                     </div>
 
-                    <div className="p-4 bg-slate-800/50 rounded-xl border border-white/5 space-y-4">
-                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Race Parameters</h3>
-                        <div className="grid grid-cols-1">
+                    <div className="p-4 bg-slate-800/50 rounded-xl border border-white/5">
+                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Default Race Parameters</h3>
+                        <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <Label className="flex items-center gap-2 text-[10px]">
                                     <Ruler className="w-3 h-3 text-emerald-400" />
-                                    Default Dist (nm)
+                                    Dist (nm)
                                 </Label>
                                 <Input
                                     type="number"
@@ -224,7 +245,35 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                                     onChange={(e) => setFormData({ ...formData, courseDistance: parseFloat(e.target.value) || 0 })}
                                 />
                             </div>
+                            <div>
+                                <Label className="flex items-center gap-2 text-[10px]">
+                                    <Wind className="w-3 h-3 text-cyan-400" />
+                                    Wind (kts)
+                                </Label>
+                                <Input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={formData.windSpeed}
+                                    onChange={(e) => setFormData({ ...formData, windSpeed: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div>
+                                <Label className="flex items-center gap-2 text-[10px]">
+                                    <Wind className="w-3 h-3 text-indigo-400" />
+                                    Dir (°)
+                                </Label>
+                                <Input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    max="360"
+                                    value={formData.windDirection}
+                                    onChange={(e) => setFormData({ ...formData, windDirection: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
                         </div>
+                        <p className="mt-3 text-[9px] text-slate-500 italic">Required for deterministic ORR-EZ Performance Curve scoring.</p>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">

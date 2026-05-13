@@ -192,11 +192,11 @@ namespace RaceCommittee.Api.Services
                     result.RatingSpinnaker = val;
                     result.RatingType = "SecondsPerMile";
                     result.NormalizedToD = val;
-                    return;
+                    if (!isOrrEz) return;
                 }
             }
 
-            // Fallback: If still not found, try a regex on the entire raw HTML for the specific span#gph pattern
+            // Fallback: If still not found (or for ORR-EZ), try a regex on the entire raw HTML for the specific span#gph pattern
             // This bypasses any DOM parsing issues for huge files with duplicate IDs.
             var rawHtml = document.Source.Text;
             var gphMatch = System.Text.RegularExpressions.Regex.Match(rawHtml, @"id=""gph""[^>]*>(\d+(\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -205,7 +205,7 @@ namespace RaceCommittee.Api.Services
                 result.RatingSpinnaker = gphVal;
                 result.RatingType = "SecondsPerMile";
                 result.NormalizedToD = gphVal;
-                return;
+                if (!isOrrEz) return;
             }
 
             // Regattaman modern certificates also store rating data in data-ratingjson attributes
@@ -228,22 +228,28 @@ namespace RaceCommittee.Api.Services
                         var course = element.TryGetProperty("course", out var cProp) ? cProp.GetString() : null;
                         var rtype = element.TryGetProperty("rtype", out var rProp) ? rProp.GetString() : null;
 
-                        bool matches = field == "PHRF_bm" || 
+                        bool isPhrfBm = field == "PHRF_bm";
+                        bool matches = isPhrfBm || 
                                      string.Equals(course, "GPH", StringComparison.OrdinalIgnoreCase) ||
                                      string.Equals(rtype, "TOD", StringComparison.OrdinalIgnoreCase);
 
                         if (matches && TryParseRatingElement(element, out var spin, out var nonspin))
                         {
+                            // If we already found PHRF_bm, don't overwrite it with GPH
+                            if (result.RatingType == "PHRF" && !isPhrfBm) continue;
+
                             result.RatingSpinnaker = spin;
                             result.RatingNonSpinnaker = nonspin;
-                            result.RatingType = field == "PHRF_bm" ? "PHRF" : "SecondsPerMile";
+                            result.RatingType = isPhrfBm ? "PHRF" : "SecondsPerMile";
                             
                             if (result.RatingType == "PHRF" && spin.HasValue)
                                 result.NormalizedToD = spin.Value + 550;
                             else
                                 result.NormalizedToD = spin;
                                 
-                            return;
+                            // If it's ORR-EZ, we really want PHRF_bm. If we found it, we can stop.
+                            // If we only found GPH, keep looking in case PHRF_bm appears in another block.
+                            if (!isOrrEz || isPhrfBm) return;
                         }
                     }
                 }
@@ -337,7 +343,11 @@ namespace RaceCommittee.Api.Services
                     if (rowCells.Length < 2) continue;
 
                     var label = rowCells[0].TextContent.Trim();
-                    if (label != "GPH") continue;
+                    bool isRatingLabel = label.Contains("GPH", StringComparison.OrdinalIgnoreCase) || 
+                                       label.Contains("Benchmark", StringComparison.OrdinalIgnoreCase) || 
+                                       label.Contains("PHRF", StringComparison.OrdinalIgnoreCase);
+
+                    if (!isRatingLabel) continue;
 
                     // The next cell should be the TOT value (the multiplier, e.g. 0.882)
                     // or the TOD value (sec/mi, e.g. 604.4)
@@ -348,11 +358,11 @@ namespace RaceCommittee.Api.Services
                         {
                             // TOD values (sec/mi) are typically > 100
                             // TOT values (multiplier) are typically < 2
-                            if (val > 100) // This is a TOD (sec/mi) — use as GPH
+                            if (val > 100) // This is a TOD (sec/mi) — use as rating
                             {
-                                if (inSpinSection && result.RatingSpinnaker == null)
+                                if (inSpinSection)
                                     result.RatingSpinnaker = val;
-                                else if (inNonSpinSection && result.RatingNonSpinnaker == null)
+                                else if (inNonSpinSection)
                                     result.RatingNonSpinnaker = val;
                                 break;
                             }
@@ -582,15 +592,17 @@ namespace RaceCommittee.Api.Services
 
                             if (spin.HasValue)
                             {
-                                var key = safeCourseType + "Spin";
-                                if (!targetData.ContainsKey(key)) targetData[key] = new Dictionary<string, float>();
-                                ((Dictionary<string, float>)targetData[key])[bandName] = spin.Value;
+                                if (!targetData.ContainsKey("spin")) targetData["spin"] = new Dictionary<string, Dictionary<string, float>>();
+                                var spinDict = (Dictionary<string, Dictionary<string, float>>)targetData["spin"];
+                                if (!spinDict.ContainsKey(safeCourseType)) spinDict[safeCourseType] = new Dictionary<string, float>();
+                                spinDict[safeCourseType][bandName] = spin.Value;
                             }
                             if (nonspin.HasValue)
                             {
-                                var key = safeCourseType + "NonSpin";
-                                if (!targetData.ContainsKey(key)) targetData[key] = new Dictionary<string, float>();
-                                ((Dictionary<string, float>)targetData[key])[bandName] = nonspin.Value;
+                                if (!targetData.ContainsKey("nonSpin")) targetData["nonSpin"] = new Dictionary<string, Dictionary<string, float>>();
+                                var nonSpinDict = (Dictionary<string, Dictionary<string, float>>)targetData["nonSpin"];
+                                if (!nonSpinDict.ContainsKey(safeCourseType)) nonSpinDict[safeCourseType] = new Dictionary<string, float>();
+                                nonSpinDict[safeCourseType][bandName] = nonspin.Value;
                             }
                         }
                     }
@@ -644,12 +656,12 @@ namespace RaceCommittee.Api.Services
                         if (courseValues.Count > 0)
                         {
                             var context = GetTableSectionContext(table);
-                            var key = safeCourseType + (context.Contains("non", StringComparison.OrdinalIgnoreCase) ? "NonSpin" : "Spin");
-                            
-                            if (!pcsData.ContainsKey(key))
-                            {
-                                pcsData[key] = courseValues;
-                            }
+                            var isNonSpin = context.Contains("non", StringComparison.OrdinalIgnoreCase);
+                            var topKey = isNonSpin ? "nonSpin" : "spin";
+
+                            if (!pcsData.ContainsKey(topKey)) pcsData[topKey] = new Dictionary<string, Dictionary<string, float>>();
+                            var dict = (Dictionary<string, Dictionary<string, float>>)pcsData[topKey];
+                            dict[safeCourseType] = courseValues;
                         }
                     }
                 }

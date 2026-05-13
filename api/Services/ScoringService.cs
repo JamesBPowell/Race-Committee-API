@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -257,17 +258,45 @@ namespace RaceCommittee.Api.Services
 
         private TimeSpan CalculateCorrectedTime(ScoringMethod method, string configJson, TimeSpan elapsed, Entry entry, RaceFleet? raceFleet, Race race)
         {
+            // 1. One-Design and Portsmouth scoring (currently not tied to certificate schema versions)
+            if (method == ScoringMethod.OneDesign) return elapsed;
+            if (method == ScoringMethod.Portsmouth)
+            {
+                float pRating = entry.Rating ?? 0;
+                if (pRating == 0) return elapsed;
+                return TimeSpan.FromSeconds((elapsed.TotalSeconds / pRating) * 100);
+            }
+
+            // 2. Attempt to use the version-specific logic from the Rating Snapshot
+            if (!string.IsNullOrEmpty(entry.RatingSnapshot) && entry.RatingSnapshot != "{}")
+            {
+                var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                try
+                {
+                    var snapshotData = JsonSerializer.Deserialize<BaseCertificateData>(entry.RatingSnapshot, options);
+                    if (snapshotData != null)
+                    {
+                        float distance = raceFleet?.CourseDistance ?? race?.CourseDistance ?? 0;
+                        float? windSpeed = raceFleet?.WindSpeed ?? race?.WindSpeed;
+                        var courseType = raceFleet?.CourseType ?? race?.CourseType;
+                        bool isNonSpin = string.Equals(entry.Configuration, BoatConfiguration.NonSpinnaker, StringComparison.OrdinalIgnoreCase);
+
+                        return snapshotData.CalculateCorrectedTime(method, configJson, elapsed, distance, windSpeed, courseType, isNonSpin);
+                    }
+                }
+                catch { /* fallback to legacy static scoring if snapshot is corrupt */ }
+            }
+
+            // 3. Fallback: Legacy static rating logic (Time-on-Distance or Time-on-Time)
+            // This is used if no snapshot is available or for manual entries.
             float rating = entry.Rating ?? 0;
+            float fallbackDistance = raceFleet?.CourseDistance ?? race?.CourseDistance ?? 0;
 
             switch (method)
             {
-                case ScoringMethod.OneDesign:
-                    return elapsed;
-
                 case ScoringMethod.PHRF_TOT:
                     float a = 650;
                     float b = 550;
-
                     if (!string.IsNullOrEmpty(configJson))
                     {
                         try
@@ -278,31 +307,12 @@ namespace RaceCommittee.Api.Services
                         }
                         catch { }
                     }
-
                     double totMultiplier = a / (b + rating);
                     return TimeSpan.FromSeconds(elapsed.TotalSeconds * totMultiplier);
 
                 case ScoringMethod.PHRF_TOD:
-                    float distance = raceFleet?.CourseDistance ?? race?.CourseDistance ?? 0;
-                    // Rating is sec/mile
-                    double allowanceSeconds = rating * distance;
-                    return TimeSpan.FromSeconds(Math.Max(0, elapsed.TotalSeconds - allowanceSeconds));
-
-                case ScoringMethod.Portsmouth:
-                    if (rating == 0) return elapsed;
-                    return TimeSpan.FromSeconds((elapsed.TotalSeconds / rating) * 100);
-
                 case ScoringMethod.ORR_EZ_GPH:
-                    // Similar to PHRF TOT
-                    if (rating == 0) return elapsed;
-                    return TimeSpan.FromSeconds(elapsed.TotalSeconds * (600 / rating)); // Approximate multiplier
-
-                case ScoringMethod.ORR_EZ_PC:
-                case ScoringMethod.ORR_Full_PC:
-                    // Mocked interpolation for initial phase
-                    // In a full implementation, parse entry.RatingSnapshot JSON to find the exact target speed
-                    // based on wind speed, wind angle (course type), and calculate custom allowance
-                    return elapsed;
+                    return TimeSpan.FromSeconds(Math.Max(0, elapsed.TotalSeconds - (rating * fallbackDistance)));
 
                 default:
                     return elapsed;

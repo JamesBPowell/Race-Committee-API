@@ -444,8 +444,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                         <option value={ScoringMethod.PHRF_TOT}>PHRF Time-on-Time</option>
                                         <option value={ScoringMethod.PHRF_TOD}>PHRF Time-on-Distance</option>
                                         <option value={ScoringMethod.ORR_EZ_GPH}>ORR-EZ General (GPH)</option>
-                                        <option value={ScoringMethod.ORR_EZ_PC}>ORR-EZ Performance Curve</option>
-                                        <option value={ScoringMethod.ORR_Full_PC}>ORR Full Performance Curve</option>
+                                        <option value={ScoringMethod.ORR_EZ_PC}>ORR-EZ Performance Curve (Deterministic)</option>
+                                        <option value={ScoringMethod.ORR_Full_PC} disabled>ORR Full PC (Future Implementation)</option>
                                         <option value={ScoringMethod.Portsmouth}>Portsmouth Yardstick</option>
                                     </select>
                                 </div>
@@ -454,7 +454,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                         onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
                                         disabled={isManagingFleets}
                                         variant="gradient"
-                                        colorTheme="emerald"
+                                        colorTheme="cyan"
                                         className="shadow-lg shadow-emerald-900/20 flex-1 md:flex-none"
                                         isLoading={isManagingFleets}
                                     >

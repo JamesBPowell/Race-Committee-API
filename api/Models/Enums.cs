@@ -22,7 +22,29 @@ namespace RaceCommittee.Api.Models
     {
         WindwardLeeward = 0,
         RandomLeg = 1,
-        Triangle = 2,
-        Olympic = 3
+        MostlyLW = 2,
+        MostlyReach = 3,
+        CircularRandom = 4,
+        MostlyWW = 5,
+        WL5050 = 6,
+        WL6040 = 7,
+        ClosedCourse = 8,
+        BayviewMac = 9,
+        ChicagoMac = 10,
+        PacificCup = 11,
+        Transpac = 12
+    }
+
+    public static class BoatConfiguration
+    {
+        public const string Spinnaker = "Spinnaker";
+        public const string NonSpinnaker = "Non-Spinnaker";
+    }
+
+    public static class WindBand
+    {
+        public const string Light = "light";
+        public const string Medium = "medium";
+        public const string Heavy = "heavy";
     }
 }

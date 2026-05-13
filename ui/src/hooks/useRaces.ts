@@ -52,12 +52,16 @@ export function useRaces() {
         startType?: StartType;
         courseType?: CourseType;
         courseDistance?: number | null;
+        windSpeed?: number | null;
+        windDirection?: number | null;
         raceFleets?: {
             fleetId: number;
             raceNumber?: number | null;
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             courseDistance?: number | null;
+            windSpeed?: number | null;
+            windDirection?: number | null;
             includeInOverall?: boolean;
         }[];
     }) => {
@@ -83,6 +87,8 @@ export function useRaces() {
         startType?: StartType;
         courseType?: CourseType;
         courseDistance?: number | null;
+        windSpeed?: number | null;
+        windDirection?: number | null;
         raceFleets?: {
             id?: number;
             fleetId: number;
@@ -90,6 +96,8 @@ export function useRaces() {
             startTimeOffset?: string | null;
             courseType?: CourseType | null;
             courseDistance?: number | null;
+            windSpeed?: number | null;
+            windDirection?: number | null;
             includeInOverall?: boolean;
         }[];
     }) => {

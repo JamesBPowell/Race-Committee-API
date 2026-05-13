@@ -292,10 +292,32 @@ namespace RaceCommittee.Api.Services
             if (!string.IsNullOrEmpty(dto.RegistrationStatus))
             {
                 entry.RegistrationStatus = dto.RegistrationStatus;
+                
+                // If moving to Accepted, ensure we have a fresh snapshot
+                if (dto.RegistrationStatus == "Accepted" && entry.ActiveCertificateId.HasValue)
+                {
+                    var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
+                    if (cert != null)
+                    {
+                        entry.RatingSnapshot = cert.RawData;
+                        var isSpinnaker = entry.Configuration != "Non-Spinnaker";
+                        entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
+                    }
+                }
             }
             if (!string.IsNullOrEmpty(dto.Configuration))
             {
                 entry.Configuration = dto.Configuration;
+            }
+
+            // Validation: if fleet uses ORR/ORREZ PC, ensure a certificate is linked
+            var fleet = await _context.Fleets.FindAsync(entry.FleetId);
+            if (fleet != null && (fleet.ScoringMethod == ScoringMethod.ORR_EZ_PC || fleet.ScoringMethod == ScoringMethod.ORR_Full_PC))
+            {
+                if (!entry.ActiveCertificateId.HasValue && entry.RegistrationStatus == "Accepted")
+                {
+                    throw new InvalidOperationException("A valid certificate is required for the selected scoring method before accepting the entry.");
+                }
             }
 
             // Handle certificate assignment with rating auto-population
@@ -316,25 +338,64 @@ namespace RaceCommittee.Api.Services
                     var isSpinnaker = entry.Configuration != "Non-Spinnaker";
                     entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
 
-                    // Snapshot the certificate data for audit trail
-                    entry.RatingSnapshot = System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        schemaVersion = cert.SchemaVersion,
-                        capturedAt = DateTime.UtcNow,
-                        certificateId = cert.Id,
-                        certificateNumber = cert.CertificateNumber,
-                        certificateType = cert.CertificateType,
-                        sourceUrl = cert.SourceUrl,
-                        ratingSpinnaker = cert.RatingSpinnaker,
-                        ratingNonSpinnaker = cert.RatingNonSpinnaker,
-                        configuration = cert.Configuration,
-                        rawData = cert.RawData != "{}" ? System.Text.Json.JsonDocument.Parse(cert.RawData).RootElement : default
-                    });
+                    // Snapshot the full polymorphic certificate data for deterministic scoring
+                    entry.RatingSnapshot = cert.RawData;
                 }
             }
 
             await _context.SaveChangesAsync();
             return entry;
+        }
+
+        public async Task<Entry?> RefreshEntrySnapshotAsync(int regattaId, int entryId, string userId)
+        {
+            var regatta = await _context.Regattas
+                .Include(r => r.CommitteeMembers)
+                .FirstOrDefaultAsync(r => r.Id == regattaId);
+
+            if (regatta == null) return null;
+            if (!regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
+                throw new System.UnauthorizedAccessException("Not authorized to manage entries for this regatta");
+
+            var entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
+            if (entry == null) return null;
+
+            if (entry.ActiveCertificateId.HasValue)
+            {
+                var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
+                if (cert != null)
+                {
+                    entry.RatingSnapshot = cert.RawData;
+                    var isSpinnaker = entry.Configuration != "Non-Spinnaker";
+                    entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return entry;
+        }
+
+        public async Task<int> RefreshAllEntrySnapshotsAsync()
+        {
+            var entries = await _context.Entries
+                .Include(e => e.ActiveCertificate)
+                .Where(e => e.ActiveCertificateId.HasValue)
+                .ToListAsync();
+
+            int count = 0;
+            foreach (var entry in entries)
+            {
+                if (entry.ActiveCertificate != null)
+                {
+                    entry.RatingSnapshot = entry.ActiveCertificate.RawData;
+                    var isSpinnaker = entry.Configuration != "Non-Spinnaker";
+                    entry.Rating = isSpinnaker ? entry.ActiveCertificate.RatingSpinnaker : entry.ActiveCertificate.RatingNonSpinnaker;
+                    count++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return count;
         }
 
         private string GenerateSlug(string phrase)

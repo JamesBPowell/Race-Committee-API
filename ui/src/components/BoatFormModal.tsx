@@ -14,6 +14,7 @@ export interface BoatData {
     sailNumber: string;
     makeModel: string;
     defaultRating?: number;
+    defaultRatingType?: string;
 }
 
 interface BoatFormModalProps {

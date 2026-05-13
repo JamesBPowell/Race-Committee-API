@@ -171,10 +171,12 @@ namespace RaceCommittee.Api.Controllers
     public class CertificateSearchController : ControllerBase
     {
         private readonly ICertificateListService _listService;
+        private readonly ICertificatesService _certificatesService;
 
-        public CertificateSearchController(ICertificateListService listService)
+        public CertificateSearchController(ICertificateListService listService, ICertificatesService certificatesService)
         {
             _listService = listService;
+            _certificatesService = certificatesService;
         }
 
         // GET: api/certificates/search?type=ORR&query=geronimo
@@ -188,6 +190,18 @@ namespace RaceCommittee.Api.Controllers
 
             var results = await _listService.SearchAsync(type, query);
             return Ok(results);
+        }
+    
+        // POST: api/certificates/reparse-all
+        [HttpPost("reparse-all")]
+        public async Task<ActionResult<object>> ReparseAll()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+            
+            // This could be restricted to admins, but for now we'll allow committee members or just leave it open to authorized users
+            var count = await _certificatesService.ReparseAllCertificatesAsync();
+            return Ok(new { count });
         }
     }
 }

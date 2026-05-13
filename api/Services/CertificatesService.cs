@@ -71,7 +71,14 @@ namespace RaceCommittee.Api.Services
                 RatingSpinnaker = dto.RatingSpinnaker,
                 RatingNonSpinnaker = dto.RatingNonSpinnaker,
                 ParseStatus = "Manual",
-                SchemaVersion = CertificateSchemas.CurrentPhrf
+                SchemaVersion = CertificateSchemas.CurrentPhrf,
+                RawData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+                {
+                    ["certificateNumber"] = dto.CertificateNumber,
+                    ["baseRatingSpinnaker"] = dto.RatingSpinnaker,
+                    ["baseRatingNonSpinnaker"] = dto.RatingNonSpinnaker,
+                    ["schemaVersion"] = CertificateSchemas.CurrentPhrf
+                })
             };
 
             _context.Certificates.Add(cert);
@@ -266,6 +273,45 @@ namespace RaceCommittee.Api.Services
 
             var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.BlobPath);
             return (stream, cert.ContentType, cert.FileName);
+        }
+    
+        public async Task<int> ReparseAllCertificatesAsync()
+        {
+            var certificates = await _context.Certificates
+                .Where(c => !string.IsNullOrEmpty(c.SourceHtml))
+                .ToListAsync();
+            
+            int count = 0;
+            foreach (var cert in certificates)
+            {
+                try
+                {
+                    var parsed = await _parser.ParseFromHtmlAsync(cert.SourceHtml!, cert.CertificateType);
+                    
+                    cert.CertificateNumber = parsed.CertificateNumber;
+                    cert.IssueDate = parsed.IssueDate;
+                    cert.ValidUntil = parsed.ExpirationDate;
+                    cert.RatingSpinnaker = parsed.RatingSpinnaker;
+                    cert.RatingNonSpinnaker = parsed.RatingNonSpinnaker;
+                    cert.RatingType = parsed.RatingType;
+                    cert.NormalizedToD = parsed.NormalizedToD;
+                    cert.Configuration = parsed.Configuration;
+                    cert.RawData = parsed.RawDataJson;
+                    cert.ParseStatus = "Success";
+                    cert.ParseErrors = null;
+                    cert.SchemaVersion = parsed.SchemaVersion;
+                    
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    cert.ParseStatus = "Failed";
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { ex.Message });
+                }
+            }
+            
+            await _context.SaveChangesAsync();
+            return count;
         }
 
         private static CertificateDto MapToDto(Certificate cert)

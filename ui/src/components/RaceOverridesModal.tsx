@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Ruler, Save, Calendar } from 'lucide-react';
+import { X, Loader2, Ruler, Save, Calendar, Wind } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
 import { RaceResponse, CourseType, FleetResponse, StartType } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
@@ -230,6 +230,32 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                     value={override.courseDistance ?? ''}
                                                     placeholder={race.courseDistance?.toString() || '0.00'}
                                                     onChange={(e) => handleFieldChange(race.id, 'courseDistance', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                                    className="h-7 text-sm px-2 bg-slate-800 border-none"
+                                                />
+                                            </div>
+                                            <div className="bg-slate-900/30 p-2 rounded-xl">
+                                                <Label className="text-[10px] text-slate-500 mb-1 flex items-center gap-1.5">
+                                                    <Wind className="w-3 h-3 text-cyan-400" /> Wind (kts)
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={override.windSpeed ?? ''}
+                                                    placeholder={race.windSpeed?.toString() || '0.0'}
+                                                    onChange={(e) => handleFieldChange(race.id, 'windSpeed', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                                    className="h-7 text-sm px-2 bg-slate-800 border-none"
+                                                />
+                                            </div>
+                                            <div className="bg-slate-900/30 p-2 rounded-xl">
+                                                <Label className="text-[10px] text-slate-500 mb-1 flex items-center gap-1.5">
+                                                    <Wind className="w-3 h-3 text-indigo-400" /> Dir (°)
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    step="1"
+                                                    value={override.windDirection ?? ''}
+                                                    placeholder={race.windDirection?.toString() || '0'}
+                                                    onChange={(e) => handleFieldChange(race.id, 'windDirection', e.target.value === '' ? null : parseInt(e.target.value))}
                                                     className="h-7 text-sm px-2 bg-slate-800 border-none"
                                                 />
                                             </div>

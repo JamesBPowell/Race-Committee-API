@@ -20,8 +20,17 @@ export enum StartType {
 export enum CourseType {
     WindwardLeeward = 0,
     RandomLeg = 1,
-    Triangle = 2,
-    Olympic = 3
+    MostlyLW = 2,
+    MostlyReach = 3,
+    CircularRandom = 4,
+    MostlyWW = 5,
+    WL5050 = 6,
+    WL6040 = 7,
+    ClosedCourse = 8,
+    BayviewMac = 9,
+    ChicagoMac = 10,
+    PacificCup = 11,
+    Transpac = 12
 }
 
 export interface RaceFleetResponse {

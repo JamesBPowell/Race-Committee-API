@@ -17,8 +17,8 @@ interface CertificateFormModalProps {
 
 type CertificateType = 'PHRF' | 'ORR' | 'ORREZ';
 
-export default function CertificateFormModal({ isOpen, onClose, editingCert, onCertificatesChanged }: CertificateFormModalProps) {
-    const { importCertificate, refreshCertificate, deleteCertificate, createManual } = useCertificates(editingCert?.boatId || null);
+export default function CertificateFormModal({ isOpen, onClose, boatId, editingCert, onCertificatesChanged }: CertificateFormModalProps) {
+    const { importCertificate, refreshCertificate, deleteCertificate, createManual, updateCertificate, uploadFile } = useCertificates(editingCert?.boatId || boatId);
     const [step, setStep] = useState<'type' | 'form' | 'import'>(editingCert ? 'form' : 'type');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');

@@ -43,6 +43,8 @@ namespace RaceCommittee.Api.Services
                 StartType = dto.StartType,
                 CourseType = dto.CourseType,
                 CourseDistance = dto.CourseDistance,
+                WindSpeed = dto.WindSpeed,
+                WindDirection = dto.WindDirection,
                 ScoringParameters = "{}" // Default empty parameters
             };
 
@@ -57,6 +59,8 @@ namespace RaceCommittee.Api.Services
                     StartTimeOffset = rfDto?.StartTimeOffset,
                     CourseType = rfDto?.CourseType,
                     CourseDistance = rfDto?.CourseDistance,
+                    WindSpeed = rfDto?.WindSpeed,
+                    WindDirection = rfDto?.WindDirection,
                     IncludeInOverall = rfDto?.IncludeInOverall ?? true,
                     ScoringParameters = "{}"
                 };
@@ -94,6 +98,8 @@ namespace RaceCommittee.Api.Services
             if (dto.StartType.HasValue) race.StartType = dto.StartType.Value;
             if (dto.CourseType.HasValue) race.CourseType = dto.CourseType.Value;
             if (dto.CourseDistance.HasValue) race.CourseDistance = dto.CourseDistance.Value;
+            if (dto.WindSpeed.HasValue) race.WindSpeed = dto.WindSpeed.Value;
+            if (dto.WindDirection.HasValue) race.WindDirection = dto.WindDirection.Value;
 
             if (dto.RaceFleets != null)
             {
@@ -109,6 +115,8 @@ namespace RaceCommittee.Api.Services
                         if (rfUpdate.StartTimeOffset.HasValue) existingRf.StartTimeOffset = rfUpdate.StartTimeOffset;
                         if (rfUpdate.CourseType.HasValue) existingRf.CourseType = rfUpdate.CourseType.Value;
                         if (rfUpdate.CourseDistance.HasValue) existingRf.CourseDistance = rfUpdate.CourseDistance.Value;
+                        if (rfUpdate.WindSpeed.HasValue) existingRf.WindSpeed = rfUpdate.WindSpeed.Value;
+                        if (rfUpdate.WindDirection.HasValue) existingRf.WindDirection = rfUpdate.WindDirection.Value;
                         if (rfUpdate.IncludeInOverall.HasValue) existingRf.IncludeInOverall = rfUpdate.IncludeInOverall.Value;
                     }
                     else if (rfUpdate.FleetId != 0)
@@ -121,6 +129,8 @@ namespace RaceCommittee.Api.Services
                             StartTimeOffset = rfUpdate.StartTimeOffset,
                             CourseType = rfUpdate.CourseType,
                             CourseDistance = rfUpdate.CourseDistance,
+                            WindSpeed = rfUpdate.WindSpeed,
+                            WindDirection = rfUpdate.WindDirection,
                             IncludeInOverall = rfUpdate.IncludeInOverall ?? true,
                             ScoringParameters = "{}"
                         });

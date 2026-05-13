@@ -155,6 +155,26 @@ namespace RaceCommittee.Api.Controllers
             }
         }
 
+        // POST: api/regattas/{id}/entries/{entryId}/refresh-snapshot
+        [HttpPost("{id}/entries/{entryId}/refresh-snapshot")]
+        public async Task<IActionResult> RefreshEntrySnapshot(int id, int entryId)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (userId == null) return Unauthorized();
+
+                var entry = await _regattasService.RefreshEntrySnapshotAsync(id, entryId, userId);
+                if (entry == null) return NotFound();
+
+                return Ok(entry);
+            }
+            catch (System.UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
         // POST: api/regattas/{id}/races
         [HttpPost("{id}/races")]
         public async Task<IActionResult> CreateRace(int id, [FromBody] CreateRaceDto dto)
@@ -180,6 +200,16 @@ namespace RaceCommittee.Api.Controllers
             {
                 return NotFound(ex.Message);
             }
+        }
+        // POST: api/regattas/refresh-all-snapshots
+        [HttpPost("refresh-all-snapshots")]
+        public async Task<IActionResult> RefreshAllSnapshots()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            var count = await _regattasService.RefreshAllEntrySnapshotsAsync();
+            return Ok(new { count });
         }
     }
 }
