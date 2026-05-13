@@ -87,12 +87,111 @@ namespace RaceCommittee.Api.Services
             if (!fleet.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 throw new UnauthorizedAccessException("Not a committee member");
 
+            var oldScoringMethod = fleet.ScoringMethod;
             fleet.Name = dto.Name ?? string.Empty;
             fleet.SequenceOrder = dto.SequenceOrder;
             fleet.ScoringMethod = dto.ScoringMethod;
 
             await _context.SaveChangesAsync();
+
+            if (oldScoringMethod != dto.ScoringMethod)
+            {
+                await ReevaluateFleetEntriesAsync(fleet.Id);
+            }
+
             return fleet;
+        }
+
+        public async Task ReevaluateFleetEntriesAsync(int fleetId)
+        {
+            var fleet = await _context.Fleets.FindAsync(fleetId);
+            if (fleet == null) return;
+
+            var entries = await _context.Entries
+                .Where(e => e.FleetId == fleetId)
+                .ToListAsync();
+
+            foreach (var entry in entries)
+            {
+                var (isValid, message) = await ValidateEntryRequirementsInternalAsync(entry, fleet);
+                
+                if (!isValid)
+                {
+                    // If it was accepted but no longer valid, move back to pending
+                    if (entry.RegistrationStatus == "Accepted")
+                    {
+                        entry.RegistrationStatus = "Pending";
+                    }
+                    entry.StatusNote = message;
+                }
+                else
+                {
+                    // If it's valid, clear the note (it might have been pending due to missing cert)
+                    entry.StatusNote = null;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task<(bool IsValid, string? Message)> ValidateEntryRequirementsInternalAsync(Entry entry, Fleet fleet)
+        {
+            // Check for certificate requirements
+            if (fleet.ScoringMethod == ScoringMethod.ORR_EZ_PC || 
+                fleet.ScoringMethod == ScoringMethod.ORR_Full_PC || 
+                fleet.ScoringMethod == ScoringMethod.ORR_EZ_GPH)
+            {
+                var requiredType = fleet.ScoringMethod == ScoringMethod.ORR_Full_PC ? "ORR" : "ORR-EZ";
+                
+                if (!entry.ActiveCertificateId.HasValue)
+                {
+                    // Check if boat HAS any certificate
+                    var anyCerts = await _context.Certificates
+                        .Where(c => c.BoatId == entry.BoatId)
+                        .ToListAsync();
+                    
+                    if (!anyCerts.Any())
+                    {
+                        return (false, $"A valid {requiredType} certificate is required, but no certificates were found for this boat. Please import or create a certificate first.");
+                    }
+                    
+                    var matchingCerts = anyCerts.Where(c => IsCertificateTypeMatching(c.CertificateType, requiredType)).ToList();
+                    
+                    if (matchingCerts.Any())
+                    {
+                        return (false, $"A valid {requiredType} certificate is required. The boat has {matchingCerts.Count} matching certificate(s) available, but none are currently selected for this regatta entry.");
+                    }
+
+                    return (false, $"A valid {requiredType} certificate is required, but the boat only has {string.Join(", ", anyCerts.Select(c => c.CertificateType).Distinct())} certificates. An {requiredType} certificate is needed for this class.");
+                }
+
+                var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
+                if (cert == null)
+                {
+                    return (false, "The selected certificate could not be found. It may have been deleted.");
+                }
+
+                // Check if the linked certificate type is sufficient
+                if (!IsCertificateTypeMatching(cert.CertificateType, requiredType))
+                {
+                     return (false, $"The class requires an {requiredType} certificate, but the selected certificate is an {cert.CertificateType} certificate.");
+                }
+
+                if (cert.ValidUntil.HasValue && cert.ValidUntil.Value < DateTime.UtcNow)
+                {
+                    return (false, $"The selected {cert.CertificateType} certificate (#{cert.CertificateNumber}) expired on {cert.ValidUntil.Value:d}. Please update or renew the certificate.");
+                }
+            }
+
+            return (true, null);
+        }
+
+        private bool IsCertificateTypeMatching(string certType, string requiredType)
+        {
+            var normalizedCert = certType.Replace("-", "").ToUpperInvariant();
+            var normalizedReq = requiredType.Replace("-", "").ToUpperInvariant();
+            
+            return normalizedCert == normalizedReq;
         }
 
         public async Task<bool> DeleteFleetAsync(int id, string userId)

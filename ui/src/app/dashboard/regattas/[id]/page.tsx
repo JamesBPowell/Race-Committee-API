@@ -4,10 +4,11 @@ import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Anchor, Target, TrendingUp, Shield,
-    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon
+    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle
 } from 'lucide-react';
 import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
+import { useCertificates } from '@/hooks/useCertificates';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal, RegattaResultsView } from '@/features/scoring';
@@ -25,7 +26,20 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
 
     // Entry Edit State
     const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
-    const [editEntryData, setEditEntryData] = useState<{ fleetId: number | null; rating: number | null; registrationStatus: string }>({ fleetId: null, rating: null, registrationStatus: 'Pending' });
+    const [editEntryData, setEditEntryData] = useState<{ 
+        fleetId: number | null; 
+        rating: number | null; 
+        registrationStatus: string;
+        activeCertificateId: number | null;
+    }>({ 
+        fleetId: null, 
+        rating: null, 
+        registrationStatus: 'Pending',
+        activeCertificateId: null
+    });
+
+    const editingEntry = regatta?.entries?.find(e => e.id === editingEntryId);
+    const { certificates: boatCertificates } = useCertificates(editingEntry?.boatId || null);
 
     const [isAddRaceOpen, setIsAddRaceOpen] = useState(false);
     const [editingRaceId, setEditingRaceId] = useState<number | null>(null);
@@ -327,16 +341,36 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                 </td>
                                                 <td className="py-4">
                                                     {editingEntryId === entry.id ? (
-                                                        <input
-                                                            type="number"
-                                                            step="0.1"
-                                                            value={editEntryData.rating ?? ''}
-                                                            onChange={(e) => setEditEntryData({ ...editEntryData, rating: e.target.value ? parseFloat(e.target.value) : null })}
-                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm w-20"
-                                                            placeholder="e.g. 120"
-                                                        />
+                                                        <div className="flex flex-col gap-2">
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={editEntryData.rating ?? ''}
+                                                                onChange={(e) => setEditEntryData({ ...editEntryData, rating: e.target.value ? parseFloat(e.target.value) : null })}
+                                                                className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm w-full"
+                                                                placeholder="Rating"
+                                                            />
+                                                            <select
+                                                                title="Certificate Selection"
+                                                                value={editEntryData.activeCertificateId || ''}
+                                                                onChange={(e) => setEditEntryData({ ...editEntryData, activeCertificateId: e.target.value ? parseInt(e.target.value) : null })}
+                                                                className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-xs w-full"
+                                                            >
+                                                                <option value="">-- No Cert --</option>
+                                                                {boatCertificates?.map(c => (
+                                                                    <option key={c.id} value={c.id}>{c.certificateType} #{c.certificateNumber}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     ) : (
-                                                        <span className="text-slate-300 font-medium">{entry.rating ?? '—'}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-slate-300 font-medium">{entry.rating ?? '—'}</span>
+                                                            {entry.activeCertificateId && (
+                                                                <span className="text-[10px] text-slate-500">
+                                                                    {regatta.fleets?.find(f => f.id === entry.fleetId)?.scoringMethod === ScoringMethod.PHRF_TOT ? 'Manual PHRF' : 'Linked Cert'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className="py-4">
@@ -348,17 +382,23 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                             className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
                                                         >
                                                             <option value="Pending">Pending</option>
-                                                            <option value="Approved">Approved</option>
+                                                            <option value="Accepted">Accepted</option>
                                                             <option value="Rejected">Rejected</option>
                                                         </select>
                                                     ) : (
-                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${entry.registrationStatus === 'Approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${entry.registrationStatus === 'Accepted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                                                             entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                                                                 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                                                             }`}>
                                                             {entry.registrationStatus}
                                                         </span>
                                                     )}
+                                                     {entry.statusNote && (
+                                                         <div className="mt-1 flex items-center gap-1.5 text-[10px] text-amber-400 font-medium">
+                                                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                                                              <span className="leading-tight">{entry.statusNote}</span>
+                                                         </div>
+                                                     )}
                                                 </td>
                                                 <td className="py-4 text-right">
                                                     {editingEntryId === entry.id ? (
@@ -381,7 +421,12 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         <button
                                                             onClick={() => {
                                                                 setEditingEntryId(entry.id);
-                                                                setEditEntryData({ fleetId: entry.fleetId || null, rating: entry.rating ?? null, registrationStatus: entry.registrationStatus });
+                                                                setEditEntryData({ 
+                                                                    fleetId: entry.fleetId || null, 
+                                                                    rating: entry.rating ?? null, 
+                                                                    registrationStatus: entry.registrationStatus,
+                                                                    activeCertificateId: entry.activeCertificateId || null
+                                                                });
                                                             }}
                                                             title="Edit Entry"
                                                             className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
@@ -827,7 +872,7 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
         <div className={`group relative glass-container transition-all duration-300 hover:bg-white/10 overflow-hidden`}>
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">{title}</span>
-                <div className={`p - 2 rounded - xl transition - colors duration - 300 ${colors[color]} `}>
+                <div className={`p-2 rounded-xl transition-colors duration-300 ${colors[color]}`}>
                     {icon}
                 </div>
             </div>

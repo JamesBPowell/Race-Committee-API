@@ -11,5 +11,6 @@ namespace RaceCommittee.Api.Services
         Task<Fleet> UpdateFleetAsync(int id, UpdateFleetDto dto, string userId);
         Task<bool> DeleteFleetAsync(int id, string userId);
         Task<IEnumerable<Fleet>> GetRegattaFleetsAsync(int regattaId);
+        Task ReevaluateFleetEntriesAsync(int fleetId);
     }
 }

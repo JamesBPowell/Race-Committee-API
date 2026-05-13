@@ -25,6 +25,7 @@ namespace RaceCommittee.Api.Models.DTOs
     public class EntryDto
     {
         public int Id { get; set; }
+        public int BoatId { get; set; }
         public int? FleetId { get; set; }
         public string? BoatName { get; set; }
         public string? BoatType { get; set; }
@@ -35,6 +36,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public int? ActiveCertificateId { get; set; }
         public string? ActiveCertificateType { get; set; }
         public string? ActiveCertificateNumber { get; set; }
+        public string? StatusNote { get; set; }
     }
 
     public class RaceDto

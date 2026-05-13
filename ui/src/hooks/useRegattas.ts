@@ -64,6 +64,7 @@ export interface RaceResponse {
 
 export interface EntryResponse {
     id: number;
+    boatId: number;
     fleetId?: number | null;
     boatName: string;
     boatType: string;
@@ -71,6 +72,8 @@ export interface EntryResponse {
     ownerName: string;
     rating?: number | null;
     registrationStatus: string;
+    activeCertificateId?: number | null;
+    statusNote?: string | null;
 }
 
 export interface FleetResponse {
@@ -184,7 +187,7 @@ export function useRegatta(id: string | number) {
         }
     };
 
-    const updateEntry = async (entryId: number, data: { fleetId?: number | null, registrationStatus: string }) => {
+    const updateEntry = async (entryId: number, data: { fleetId?: number | null, activeCertificateId?: number | null, registrationStatus: string }) => {
         setIsLoading(true);
         try {
             await apiClient.put(`/api/regattas/${id}/entries/${entryId}`, data);

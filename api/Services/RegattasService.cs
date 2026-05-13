@@ -182,6 +182,7 @@ namespace RaceCommittee.Api.Services
                     .Select(e => new EntryDto
                     {
                         Id = e.Id,
+                        BoatId = e.BoatId,
                         FleetId = e.FleetId,
                         BoatName = e.Boat?.BoatName ?? "Unknown Boat",
                         BoatType = e.Boat?.MakeModel ?? "Unknown Type",
@@ -191,7 +192,8 @@ namespace RaceCommittee.Api.Services
                         RegistrationStatus = e.RegistrationStatus,
                         ActiveCertificateId = e.ActiveCertificateId,
                         ActiveCertificateType = e.ActiveCertificate?.CertificateType,
-                        ActiveCertificateNumber = e.ActiveCertificate?.CertificateNumber
+                        ActiveCertificateNumber = e.ActiveCertificate?.CertificateNumber,
+                        StatusNote = e.StatusNote
                     })
                     .ToList(), // Materialize to list
                 Fleets = regatta.Fleets?
@@ -278,68 +280,77 @@ namespace RaceCommittee.Api.Services
                 .FirstOrDefaultAsync(r => r.Id == regattaId);
 
             if (regatta == null) return null;
-            if (!regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
-                throw new System.UnauthorizedAccessException("Not authorized to update entries for this regatta");
 
-            var entry = await _context.Entries.FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
+            var entry = await _context.Entries
+                .Include(e => e.Boat)
+                .FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
             if (entry == null) return null;
 
-            entry.FleetId = dto.FleetId;
-            if (dto.Rating.HasValue)
+            var isCommittee = regatta.CommitteeMembers.Any(cm => cm.UserId == userId);
+            var isOwner = entry.Boat?.OwnerId == userId;
+
+            if (!isCommittee && !isOwner)
+                throw new System.UnauthorizedAccessException("Not authorized to update this entry");
+
+            // 1. Apply updates
+            if (isCommittee)
             {
-                entry.Rating = dto.Rating;
+                // Only committee can change Fleet and Status and Manual Rating
+                entry.FleetId = dto.FleetId;
+                if (dto.Rating.HasValue) entry.Rating = dto.Rating;
+                if (!string.IsNullOrEmpty(dto.RegistrationStatus)) entry.RegistrationStatus = dto.RegistrationStatus;
             }
-            if (!string.IsNullOrEmpty(dto.RegistrationStatus))
+            
+            if (!string.IsNullOrEmpty(dto.Configuration)) entry.Configuration = dto.Configuration;
+
+            // 2. Handle certificate assignment (MUST happen before validation)
+            if (dto.ActiveCertificateId != entry.ActiveCertificateId)
             {
-                entry.RegistrationStatus = dto.RegistrationStatus;
-                
-                // If moving to Accepted, ensure we have a fresh snapshot
-                if (dto.RegistrationStatus == "Accepted" && entry.ActiveCertificateId.HasValue)
+                if (dto.ActiveCertificateId.HasValue)
                 {
-                    var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
+                    var cert = await _context.Certificates
+                        .FirstOrDefaultAsync(c => c.Id == dto.ActiveCertificateId.Value);
+
                     if (cert != null)
                     {
-                        entry.RatingSnapshot = cert.RawData;
-                        var isSpinnaker = entry.Configuration != "Non-Spinnaker";
-                        entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
+                        if (cert.BoatId != entry.BoatId)
+                            throw new InvalidOperationException("Certificate does not belong to this boat.");
+
+                        entry.ActiveCertificateId = cert.Id;
+                    }
+                    else
+                    {
+                        entry.ActiveCertificateId = null;
                     }
                 }
-            }
-            if (!string.IsNullOrEmpty(dto.Configuration))
-            {
-                entry.Configuration = dto.Configuration;
-            }
-
-            // Validation: if fleet uses ORR/ORREZ PC, ensure a certificate is linked
-            var fleet = await _context.Fleets.FindAsync(entry.FleetId);
-            if (fleet != null && (fleet.ScoringMethod == ScoringMethod.ORR_EZ_PC || fleet.ScoringMethod == ScoringMethod.ORR_Full_PC))
-            {
-                if (!entry.ActiveCertificateId.HasValue && entry.RegistrationStatus == "Accepted")
+                else
                 {
-                    throw new InvalidOperationException("A valid certificate is required for the selected scoring method before accepting the entry.");
+                    entry.ActiveCertificateId = null;
                 }
             }
 
-            // Handle certificate assignment with rating auto-population
-            if (dto.ActiveCertificateId.HasValue)
+            // 3. Perform Validation
+            var fleet = entry.FleetId.HasValue 
+                ? await _context.Fleets.FindAsync(entry.FleetId.Value)
+                : null;
+            
+            var (isValid, message) = await ValidateEntryRequirementsAsync(entry, fleet);
+            
+            if (entry.RegistrationStatus == "Accepted" && !isValid)
             {
-                var cert = await _context.Certificates
-                    .FirstOrDefaultAsync(c => c.Id == dto.ActiveCertificateId.Value);
+                entry.RegistrationStatus = "Pending";
+            }
+            entry.StatusNote = isValid ? null : message;
 
+            // 4. Update Snapshot/Rating if valid and we have a cert
+            if (isValid && entry.ActiveCertificateId.HasValue)
+            {
+                var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
                 if (cert != null)
                 {
-                    // Validate cert belongs to the entry's boat
-                    if (cert.BoatId != entry.BoatId)
-                        throw new InvalidOperationException("Certificate does not belong to this boat.");
-
-                    entry.ActiveCertificateId = cert.Id;
-
-                    // Auto-populate rating based on configuration
+                    entry.RatingSnapshot = cert.RawData;
                     var isSpinnaker = entry.Configuration != "Non-Spinnaker";
                     entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
-
-                    // Snapshot the full polymorphic certificate data for deterministic scoring
-                    entry.RatingSnapshot = cert.RawData;
                 }
             }
 
@@ -396,6 +407,68 @@ namespace RaceCommittee.Api.Services
 
             await _context.SaveChangesAsync();
             return count;
+        }
+
+        public async Task<(bool IsValid, string? Message)> ValidateEntryRequirementsAsync(Entry entry, Fleet? fleet)
+        {
+            if (fleet == null) return (true, null);
+
+            // Check for certificate requirements
+            if (fleet.ScoringMethod == ScoringMethod.ORR_EZ_PC || 
+                fleet.ScoringMethod == ScoringMethod.ORR_Full_PC || 
+                fleet.ScoringMethod == ScoringMethod.ORR_EZ_GPH)
+            {
+                var requiredType = fleet.ScoringMethod == ScoringMethod.ORR_Full_PC ? "ORR" : "ORR-EZ";
+                
+                if (!entry.ActiveCertificateId.HasValue)
+                {
+                    // Check if boat HAS any certificate
+                    var anyCerts = await _context.Certificates
+                        .Where(c => c.BoatId == entry.BoatId)
+                        .ToListAsync();
+                    
+                    if (!anyCerts.Any())
+                    {
+                        return (false, $"A valid {requiredType} certificate is required, but no certificates were found for this boat. Please import or create a certificate first.");
+                    }
+                    
+                    var matchingCerts = anyCerts.Where(c => IsCertificateTypeMatching(c.CertificateType, requiredType)).ToList();
+                    
+                    if (matchingCerts.Any())
+                    {
+                        return (false, $"A valid {requiredType} certificate is required. The boat has {matchingCerts.Count} matching certificate(s) available, but none are currently selected for this regatta entry.");
+                    }
+
+                    return (false, $"A valid {requiredType} certificate is required, but the boat only has {string.Join(", ", anyCerts.Select(c => c.CertificateType).Distinct())} certificates. An {requiredType} certificate is needed for this class.");
+                }
+
+                var cert = await _context.Certificates.FindAsync(entry.ActiveCertificateId.Value);
+                if (cert == null)
+                {
+                    return (false, "The selected certificate could not be found. It may have been deleted.");
+                }
+
+                // Check if the linked certificate type is sufficient
+                if (!IsCertificateTypeMatching(cert.CertificateType, requiredType))
+                {
+                     return (false, $"The class requires an {requiredType} certificate, but the selected certificate is an {cert.CertificateType} certificate.");
+                }
+
+                if (cert.ValidUntil.HasValue && cert.ValidUntil.Value < DateTime.UtcNow)
+                {
+                    return (false, $"The selected {cert.CertificateType} certificate (#{cert.CertificateNumber}) expired on {cert.ValidUntil.Value:d}. Please update or renew the certificate.");
+                }
+            }
+
+            return (true, null);
+        }
+
+        private bool IsCertificateTypeMatching(string certType, string requiredType)
+        {
+            var normalizedCert = certType.Replace("-", "").ToUpperInvariant();
+            var normalizedReq = requiredType.Replace("-", "").ToUpperInvariant();
+            
+            return normalizedCert == normalizedReq;
         }
 
         private string GenerateSlug(string phrase)

@@ -5,30 +5,56 @@ import Link from 'next/link';
 import {
     ChevronLeft, Trophy, Calendar, Anchor, Users, Target, Info
 } from 'lucide-react';
-import { RegattaResponse, ScoringMethod } from '@/hooks/useRegattas';
+import { RegattaResponse, ScoringMethod, useRegatta } from '@/hooks/useRegattas';
 import { useRaces, FinishResultDto } from '@/hooks/useRaces';
+import { useCertificates } from '@/hooks/useCertificates';
 import { RegattaResultsView, formatDuration, courseLabel } from '@/features/scoring';
+import { AlertCircle, Edit, Save, Loader2, X } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface RacerRegattaPageProps {
     regatta: RegattaResponse;
 }
 
-
-
-export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
+export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegattaPageProps) {
     const [activeTab, setActiveTab] = useState<'Results' | 'Schedule' | 'My Entry' | 'Class'>('Results');
+    const { regatta, updateEntry, isLoading: isUpdating } = useRegatta(initialRegatta.id);
     const { getRaceResults } = useRaces();
 
-    const myEntryId = regatta.myEntryId;
-    const myEntry = regatta.entries?.find(e => e.id === myEntryId);
+    const myEntryId = regatta?.myEntryId || initialRegatta.myEntryId;
+    const currentRegatta = regatta || initialRegatta;
+    const myEntry = currentRegatta.entries?.find(e => e.id === myEntryId);
     const myFleetId = myEntry?.fleetId;
-    const myFleet = regatta.fleets?.find(f => f.id === myFleetId);
+    const myFleet = currentRegatta.fleets?.find(f => f.id === myFleetId);
+
+    // Editing state
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({
+        activeCertificateId: myEntry?.activeCertificateId || null,
+        configuration: myEntry?.configuration || 'Spinnaker'
+    });
+
+    const { certificates } = useCertificates(myEntry?.boatId || null);
+
+    const handleSaveEntry = async () => {
+        if (!myEntryId) return;
+        try {
+            await updateEntry(myEntryId, {
+                ...editData,
+                registrationStatus: myEntry?.registrationStatus || 'Pending'
+            });
+            setIsEditing(false);
+        } catch (err) {
+            console.error("Failed to update entry:", err);
+            alert("Failed to save changes. Please try again.");
+        }
+    };
 
     const scoredRaces = useMemo(() =>
-        (regatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing'),
-        [regatta.races]
+        (currentRegatta.races || []).filter(r => r.status === 'Completed' || r.status === 'Scored' || r.status === 'Racing'),
+        [currentRegatta.races]
     );
-    const allRaces = regatta.races || [];
+    const allRaces = currentRegatta.races || [];
 
     // Standing summary for hero banner
     interface BoatStanding {
@@ -89,15 +115,15 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
                 <div className="relative z-10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-extrabold text-white tracking-tight">{regatta.name}</h1>
-                            <p className="text-slate-400 mt-1">{regatta.organization} · {regatta.location}</p>
+                            <h1 className="text-3xl font-extrabold text-white tracking-tight">{currentRegatta.name}</h1>
+                            <p className="text-slate-400 mt-1">{currentRegatta.organization} · {currentRegatta.location}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className={`badge-base ${regatta.status === 'Live' ? 'badge-live' :
-                                regatta.status === 'Completed' ? 'badge-completed' :
+                            <span className={`badge-base ${currentRegatta.status === 'Live' ? 'badge-live' :
+                                currentRegatta.status === 'Completed' ? 'badge-completed' :
                                     'badge-upcoming'
                                 }`}>
-                                {regatta.status}
+                                {currentRegatta.status}
                             </span>
                         </div>
                     </div>
@@ -148,7 +174,7 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
 
             {/* ═══════════ RESULTS TAB ═══════════ */}
             {activeTab === 'Results' && (
-                <RegattaResultsView regatta={regatta} myEntryId={myEntryId} />
+                <RegattaResultsView regatta={currentRegatta} myEntryId={myEntryId} />
             )}
 
             {/* ═══════════ SCHEDULE TAB ═══════════ */}
@@ -201,22 +227,114 @@ export default function RacerRegattaPage({ regatta }: RacerRegattaPageProps) {
 
             {/* ═══════════ MY ENTRY TAB ═══════════ */}
             {activeTab === 'My Entry' && (
-                <div className="max-w-2xl mx-auto">
+                <div className="max-w-2xl mx-auto space-y-6">
                     {myEntry ? (
-                        <div className="glass-container space-y-6">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Anchor className="w-5 h-5 text-cyan-400" /> My Entry
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="glass-container relative overflow-visible">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                    <Anchor className="w-5 h-5 text-cyan-400" /> My Entry
+                                </h3>
+                                {!isEditing ? (
+                                    <button 
+                                        onClick={() => {
+                                            setIsEditing(true);
+                                            setEditData({
+                                                activeCertificateId: myEntry.activeCertificateId || null,
+                                                configuration: myEntry.configuration || 'Spinnaker'
+                                            });
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700 border border-slate-700/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all"
+                                    >
+                                        <Edit className="w-3.5 h-3.5" /> Edit Entry
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Button 
+                                            onClick={handleSaveEntry}
+                                            isLoading={isUpdating}
+                                            size="sm"
+                                            variant="gradient"
+                                            className="px-4"
+                                        >
+                                            <Save className="w-3.5 h-3.5 mr-2" /> Save
+                                        </Button>
+                                        <button 
+                                            onClick={() => setIsEditing(false)}
+                                            className="p-2 text-slate-400 hover:text-white transition-colors"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                                 <InfoField label="Boat Name" value={myEntry.boatName} />
                                 <InfoField label="Sail Number" value={myEntry.sailNumber} />
                                 <InfoField label="Make / Model" value={myEntry.boatType || '—'} />
+                                
+                                <div className="space-y-2">
+                                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Configuration</p>
+                                    {isEditing ? (
+                                        <select
+                                            value={editData.configuration}
+                                            onChange={(e) => setEditData({ ...editData, configuration: e.target.value })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-2 px-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                                        >
+                                            <option value="Spinnaker">Spinnaker</option>
+                                            <option value="Non-Spinnaker">Non-Spinnaker</option>
+                                        </select>
+                                    ) : (
+                                        <p className="text-white font-medium">{myEntry.configuration || 'Spinnaker'}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Rating Certificate</p>
+                                    {isEditing ? (
+                                        <select
+                                            value={editData.activeCertificateId || ''}
+                                            onChange={(e) => setEditData({ ...editData, activeCertificateId: e.target.value ? parseInt(e.target.value) : null })}
+                                            className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-2 px-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                                        >
+                                            <option value="">-- No Certificate Selected --</option>
+                                            {certificates?.map(c => (
+                                                <option key={c.id} value={c.id}>{c.certificateType} #{c.certificateNumber}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <p className="text-white font-medium">
+                                            {myEntry.activeCertificateId 
+                                                ? `${myEntry.activeCertificateType} #${myEntry.activeCertificateNumber}`
+                                                : 'No certificate selected'}
+                                        </p>
+                                    )}
+                                </div>
+
                                 <InfoField label="Rating" value={myEntry.rating?.toString() ?? '—'} />
                                 <InfoField label="Class" value={myFleet?.name ?? 'Unassigned'} />
                                 <InfoField label="Scoring Method" value={myFleet ? ScoringMethod[myFleet.scoringMethod]?.replace(/_/g, ' ') : '—'} />
-                                <InfoField label="Registration Status" value={myEntry.registrationStatus} />
-                                <InfoField label="Owner" value={myEntry.ownerName} />
+                                
+                                <div className="space-y-2">
+                                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Registration Status</p>
+                                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${myEntry.registrationStatus === 'Accepted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                        myEntry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                            'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        }`}>
+                                        {myEntry.registrationStatus}
+                                    </span>
+                                </div>
                             </div>
+
+                            {myEntry.statusNote && (
+                                <div className="mt-10 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4">
+                                    <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-1">Status Note</p>
+                                        <p className="text-sm text-amber-100/80 leading-relaxed font-medium">{myEntry.statusNote}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="text-center py-20 text-slate-500 border border-dashed border-slate-800 rounded-3xl bg-slate-900/20">
