@@ -20,6 +20,7 @@ export interface CertificateResponse {
     hasFile: boolean;
     fileDownloadUrl: string | null;
     sourceUrl: string | null;
+    sourceContentPath: string | null;
     parseStatus: string;
     schemaVersion: string | null;
 }

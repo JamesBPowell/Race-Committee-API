@@ -4,7 +4,7 @@ import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Anchor, Target, TrendingUp, Shield,
-    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle, ArrowUpDown
+    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle, ArrowUpDown, FileText
 } from 'lucide-react';
 import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useToast } from '@/components/ui/Toast';
@@ -461,9 +461,20 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                                 <span className="text-white font-semibold tabular-nums">{entry.rating ?? '—'}</span>
                                                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{ratingLabel}</span>
                                                             </div>
-                                                            {entry.activeCertificateType && (
+                                                            {entry.activeCertificateType && entry.activeCertificateId ? (
+                                                                <a 
+                                                                    href={`/api/boats/${entry.boatId}/certificates/${entry.activeCertificateId}/mhtml`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-[10px] text-cyan-500 hover:text-cyan-400 hover:underline inline-flex items-center gap-1"
+                                                                    title="View Certificate Snapshot"
+                                                                >
+                                                                    <FileText className="w-3 h-3" />
+                                                                    {entry.activeCertificateType} #{entry.activeCertificateNumber}
+                                                                </a>
+                                                            ) : entry.activeCertificateType ? (
                                                                 <span className="text-[10px] text-slate-600">{entry.activeCertificateType} #{entry.activeCertificateNumber}</span>
-                                                            )}
+                                                            ) : null}
                                                         </td>
                                                         <td className="py-3.5">
                                                             <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${

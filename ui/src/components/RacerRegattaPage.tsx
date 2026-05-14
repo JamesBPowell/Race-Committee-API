@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-    ChevronLeft, Trophy, Calendar, Anchor, Users, Target, Info
+    ChevronLeft, Trophy, Calendar, Anchor, Users, Target, Info, Trash2
 } from 'lucide-react';
 import { RegattaResponse, ScoringMethod, useRegatta } from '@/hooks/useRegattas';
 import { useRaces, FinishResultDto } from '@/hooks/useRaces';
@@ -390,7 +390,7 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
                                     <Users className="w-5 h-5 text-cyan-400" /> {myFleet.name} Competitors
                                 </h3>
                                 <span className="text-xs text-slate-400 font-medium">
-                                    {(regatta.entries || []).filter(e => e.fleetId === myFleet.id).length} boats
+                                    {(regatta?.entries || []).filter(e => e.fleetId === myFleet.id).length} boats
                                 </span>
                             </div>
                             <div className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden">
@@ -405,7 +405,7 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {(regatta.entries || [])
+                                        {(regatta?.entries || [])
                                             .filter(e => e.fleetId === myFleet.id)
                                             .map(entry => {
                                                 const isMe = entry.id === myEntryId;

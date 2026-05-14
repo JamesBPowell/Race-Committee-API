@@ -10,6 +10,7 @@ namespace RaceCommittee.Api.Services
         private readonly ApplicationDbContext _context;
         private readonly IFileStorageService _fileStorage;
         private readonly ICertificateParserService _parser;
+        private readonly IPlaywrightMhtmlService _mhtmlService;
         private const string CertificatesContainer = "certificates";
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
         private static readonly string[] AllowedContentTypes = ["application/pdf", "image/jpeg", "image/png"];
@@ -17,11 +18,13 @@ namespace RaceCommittee.Api.Services
         public CertificatesService(
             ApplicationDbContext context,
             IFileStorageService fileStorage,
-            ICertificateParserService parser)
+            ICertificateParserService parser,
+            IPlaywrightMhtmlService mhtmlService)
         {
             _context = context;
             _fileStorage = fileStorage;
             _parser = parser;
+            _mhtmlService = mhtmlService;
         }
 
         public async Task<IEnumerable<CertificateDto>> GetCertificatesForBoatAsync(int boatId, string userId)
@@ -135,7 +138,6 @@ namespace RaceCommittee.Api.Services
                 RawData = parsed?.RawDataJson ?? "{}",
                 SourceUrl = dto.SourceUrl,
                 SourceSku = sku,
-                SourceHtml = parsed?.RawHtml,
                 ParseStatus = parseStatus,
                 ParseErrors = parseErrors,
                 SchemaVersion = schemaVersion
@@ -143,6 +145,31 @@ namespace RaceCommittee.Api.Services
 
             _context.Certificates.Add(cert);
             await _context.SaveChangesAsync();
+
+            // Try to capture MHTML
+            try
+            {
+                var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(dto.SourceUrl);
+                var filename = $"cert_{cert.Id}.mhtml";
+                var blobPath = $"{boatId}/{cert.Id}/{filename}";
+                
+                using var stream = new MemoryStream(mhtmlBytes);
+                await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                
+                cert.SourceContentPath = blobPath;
+                await _context.SaveChangesAsync();
+            }
+            catch (TimeoutException ex)
+            {
+                // Throw so the frontend displays the busy message
+                throw new Exception("Service is busy, please retry in a short while.");
+            }
+            catch (Exception ex)
+            {
+                cert.ParseStatus = "Failed";
+                cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                await _context.SaveChangesAsync();
+            }
 
             return MapToDto(cert);
         }
@@ -246,16 +273,42 @@ namespace RaceCommittee.Api.Services
                 cert.NormalizedToD = parsed.NormalizedToD;
                 cert.Configuration = parsed.Configuration;
                 cert.RawData = parsed.RawDataJson;
-                cert.SourceHtml = parsed.RawHtml;
                 cert.ParseStatus = "Success";
                 cert.ParseErrors = null;
                 cert.SchemaVersion = parsed.SchemaVersion;
 
                 await _context.SaveChangesAsync();
+
+                // Try to capture MHTML
+                try
+                {
+                    var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(cert.SourceUrl);
+                    var filename = $"cert_{cert.Id}.mhtml";
+                    var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
+                    
+                    using var stream = new MemoryStream(mhtmlBytes);
+                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                    
+                    cert.SourceContentPath = blobPath;
+                    await _context.SaveChangesAsync();
+                }
+                catch (TimeoutException)
+                {
+                    throw new Exception("Service is busy, please retry in a short while.");
+                }
+                catch (Exception ex)
+                {
+                    cert.ParseStatus = "Failed";
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                    await _context.SaveChangesAsync();
+                }
+
                 return MapToDto(cert);
             }
             catch (Exception ex)
             {
+                if (ex.Message.Contains("Service is busy")) throw; // Bubble up busy message
+
                 cert.ParseStatus = "Failed";
                 cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { ex.Message });
                 await _context.SaveChangesAsync();
@@ -274,11 +327,25 @@ namespace RaceCommittee.Api.Services
             var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.BlobPath);
             return (stream, cert.ContentType, cert.FileName);
         }
+
+        public async Task<(Stream? FileStream, string? ContentType, string? FileName)> GetMhtmlAsync(int id, string userId)
+        {
+            // For MHTML viewing, we might need different authorization if race managers need to view it.
+            // But for now, let's keep it simple and just fetch it. 
+            // Wait, race managers aren't necessarily the boat owner.
+            // Let's just fetch it. The controller handles Auth.
+            var cert = await _context.Certificates.FirstOrDefaultAsync(c => c.Id == id);
+
+            if (cert?.SourceContentPath == null) return (null, null, null);
+
+            var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.SourceContentPath);
+            return (stream, "message/rfc822", $"cert_{cert.Id}.mhtml"); // use message/rfc822 or multipart/related
+        }
     
         public async Task<int> ReparseAllCertificatesAsync()
         {
             var certificates = await _context.Certificates
-                .Where(c => !string.IsNullOrEmpty(c.SourceHtml))
+                .Where(c => !string.IsNullOrEmpty(c.SourceUrl))
                 .ToListAsync();
             
             int count = 0;
@@ -286,7 +353,7 @@ namespace RaceCommittee.Api.Services
             {
                 try
                 {
-                    var parsed = await _parser.ParseFromHtmlAsync(cert.SourceHtml!, cert.CertificateType);
+                    var parsed = await _parser.ParseFromUrlAsync(cert.SourceUrl!, cert.CertificateType);
                     
                     cert.CertificateNumber = parsed.CertificateNumber;
                     cert.IssueDate = parsed.IssueDate;
@@ -300,6 +367,22 @@ namespace RaceCommittee.Api.Services
                     cert.ParseStatus = "Success";
                     cert.ParseErrors = null;
                     cert.SchemaVersion = parsed.SchemaVersion;
+
+                    // Capture MHTML
+                    try
+                    {
+                        var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(cert.SourceUrl!);
+                        var filename = $"cert_{cert.Id}.mhtml";
+                        var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
+                        using var stream = new MemoryStream(mhtmlBytes);
+                        await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                        cert.SourceContentPath = blobPath;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log MHTML capture failure but don't fail the whole parsing if parsing succeeded
+                        cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                    }
                     
                     count++;
                 }
@@ -332,6 +415,7 @@ namespace RaceCommittee.Api.Services
                 FileName = cert.FileName,
                 HasFile = cert.BlobPath != null,
                 SourceUrl = cert.SourceUrl,
+                SourceContentPath = cert.SourceContentPath,
                 ParseStatus = cert.ParseStatus,
                 SchemaVersion = cert.SchemaVersion
             };

@@ -37,7 +37,7 @@ namespace RaceCommittee.Api.Models
         // --- Remote certificate reference (ORR/ORREZ) ---
         public string? SourceUrl { get; set; }            // regattaman.com cert URL
         public string? SourceSku { get; set; }            // SKU parameter for re-fetching
-        public string? SourceHtml { get; set; }           // Raw HTML snapshot for disaster recovery
+        public string? SourceContentPath { get; set; }    // Path to the local MHTML snapshot
 
         // --- Parse status ---
         public string ParseStatus { get; set; } = "None"; // None, Pending, Success, Failed, Manual

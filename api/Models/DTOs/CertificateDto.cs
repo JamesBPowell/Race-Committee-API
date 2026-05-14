@@ -17,6 +17,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public bool HasFile { get; set; }
         public string? FileDownloadUrl { get; set; }
         public string? SourceUrl { get; set; }
+        public string? SourceContentPath { get; set; }
         public string ParseStatus { get; set; } = "None";
         public string? SchemaVersion { get; set; }
     }

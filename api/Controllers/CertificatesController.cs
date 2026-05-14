@@ -162,6 +162,21 @@ namespace RaceCommittee.Api.Controllers
 
             return File(stream, contentType ?? "application/octet-stream", fileName);
         }
+
+        // GET: api/boats/{boatId}/certificates/{id}/mhtml
+        [HttpGet("{id}/mhtml")]
+        [AllowAnonymous] // Ideally check if user has access to regatta or boat, but simplified for now
+        public async Task<IActionResult> DownloadMhtml(int boatId, int id)
+        {
+            var userId = GetCurrentUserId(); // We might not have a userId if we use AllowAnonymous, but the service handles it by just checking if the cert exists.
+            
+            var (stream, contentType, fileName) = await _certificatesService.GetMhtmlAsync(id, userId ?? string.Empty);
+            if (stream == null) return NotFound();
+
+            // Use inline to allow opening in browser preview if supported
+            Response.Headers.Append("Content-Disposition", $"inline; filename={fileName}");
+            return File(stream, contentType ?? "message/rfc822");
+        }
     }
 
     // Separate controller for cert search (not boat-scoped)

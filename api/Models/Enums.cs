@@ -32,7 +32,9 @@ namespace RaceCommittee.Api.Models
         BayviewMac = 9,
         ChicagoMac = 10,
         PacificCup = 11,
-        Transpac = 12
+        Transpac = 12,
+        Triangle = 13,
+        Olympic = 14
     }
 
     public static class BoatConfiguration

@@ -384,14 +384,25 @@ export default function CertificateFormModal({ isOpen, onClose, boatId, editingC
                             <Button onClick={handleRefresh} isLoading={isLoading} variant="ghost" className="flex-1">
                                 <RefreshCw className="w-4 h-4 mr-2" /> Re-parse from Source
                             </Button>
-                            <a
-                                href={currentCert.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-cyan-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
-                            >
-                                <ExternalLink className="w-4 h-4" /> View on Regattaman
-                            </a>
+                            {currentCert.sourceContentPath ? (
+                                <a
+                                    href={`/api/boats/${currentCert.boatId}/certificates/${currentCert.id}/mhtml`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-cyan-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex-1"
+                                >
+                                    <FileText className="w-4 h-4" /> View MHTML Certificate
+                                </a>
+                            ) : (
+                                <a
+                                    href={currentCert.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-slate-400 hover:text-cyan-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex-1"
+                                >
+                                    <ExternalLink className="w-4 h-4" /> View on Regattaman
+                                </a>
+                            )}
                         </div>
                     )}
 
