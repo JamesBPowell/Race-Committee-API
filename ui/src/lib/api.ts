@@ -80,7 +80,14 @@ export const apiClient = {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(errorText || `API DELETE request failed: ${response.statusText}`);
+            let errorMessage = errorText || `API DELETE request failed: ${response.statusText}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.message) errorMessage = errorJson.message;
+            } catch {
+                // Not JSON, use raw text
+            }
+            throw new Error(errorMessage);
         }
     }
 };

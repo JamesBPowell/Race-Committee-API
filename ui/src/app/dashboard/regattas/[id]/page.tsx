@@ -7,17 +7,22 @@ import {
     Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle, ArrowUpDown
 } from 'lucide-react';
 import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
+import { useToast } from '@/components/ui/Toast';
 import { useRaces } from '@/hooks/useRaces';
 import { useCertificates } from '@/hooks/useCertificates';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal, RegattaResultsView } from '@/features/scoring';
 import RaceOverridesModal from '@/components/RaceOverridesModal';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { useConfirm } from '@/components/ui/ConfirmContext';
 import RacerRegattaPage from '@/components/RacerRegattaPage';
 import Button from '@/components/ui/Button';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const { showToast } = useToast();
+    const confirm = useConfirm();
     const { regatta, isLoading, error, refetch, updateRegatta, updateEntry, deleteEntry } = useRegatta(id);
     const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
     const { deleteRace, isLoading: isDeleting } = useRaces();
@@ -216,10 +221,15 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const handleDeleteFleet = async (id: number) => {
-        if (confirm('Are you sure you want to delete this class? This will also affect races and entries in this class.')) {
+    const handleDeleteFleet = async (fleetId: number) => {
+        if (await confirm({
+            title: 'Delete Class?',
+            message: 'Are you sure you want to delete this class? This will also affect races and entries in this class.',
+            confirmText: 'Delete Class',
+            variant: 'danger'
+        })) {
             try {
-                await deleteFleet(id);
+                await deleteFleet(fleetId);
                 refetch();
             } catch (err) {
                 console.error("Failed to delete fleet:", err);
@@ -228,7 +238,12 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     };
 
     const handleDeleteRace = async (raceId: number) => {
-        if (confirm('Are you sure you want to delete this race?')) {
+        if (await confirm({
+            title: 'Delete Race?',
+            message: 'Are you sure you want to delete this race? All finish data for this race will be permanently lost.',
+            confirmText: 'Delete Race',
+            variant: 'danger'
+        })) {
             try {
                 await deleteRace(raceId);
                 refetch();
@@ -523,12 +538,17 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                                     <div className="ml-auto flex items-center gap-2">
                                                                         <button 
                                                                             onClick={async () => {
-                                                                                if (confirm('Are you sure you want to remove this entry? This action cannot be undone if no races have been sailed.')) {
+                                                                                if (await confirm({
+                                                                                    title: 'Remove Entry?',
+                                                                                    message: 'Are you sure you want to remove this entry? This action cannot be undone if no races have been sailed.',
+                                                                                    confirmText: 'Remove Entry',
+                                                                                    variant: 'danger'
+                                                                                })) {
                                                                                     try {
                                                                                         await deleteEntry(entry.id);
                                                                                         setEditingEntryId(null);
                                                                                     } catch (err) {
-                                                                                        alert(err instanceof Error ? err.message : 'Failed to delete entry');
+                                                                                        showToast(err instanceof Error ? err.message : 'Failed to delete entry', 'error');
                                                                                     }
                                                                                 }
                                                                             }}

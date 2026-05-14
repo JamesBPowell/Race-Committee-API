@@ -379,6 +379,7 @@ namespace RaceCommittee.Api.Services
             var entry = await _context.Entries
                 .Include(e => e.Boat)
                 .Include(e => e.Finishes)
+                    .ThenInclude(f => f.Race)
                 .FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
 
             if (entry == null) return (false, "Entry not found.");
@@ -389,12 +390,16 @@ namespace RaceCommittee.Api.Services
             if (!isCommittee && !isOwner)
                 return (false, "Not authorized to delete this entry.");
 
-            // 1. Prevent deletion if the entry has specific finish records (hard constraint)
-            if (entry.Finishes.Any())
-                return (false, "Cannot delete an entry that has recorded finishes. This would invalidate race results. Set status to 'Rejected' instead.");
+            // 1. Prevent deletion if the entry has meaningful finishes in active/completed races
+            var hasActiveFinishes = entry.Finishes.Any(f => 
+                f.Race.Status == "Completed" || 
+                f.Race.Status == "Racing" || 
+                f.Race.Status == "InSequence");
 
-            // 2. Prevent deletion if scoring has been run or racing is active for the regatta
-            // Deleting an entry after scoring changes the "Total Entries" count used for DNF/DNS penalties (Entered + 1)
+            if (hasActiveFinishes)
+                return (false, "Cannot withdraw an entry that has already participated in racing. Use 'Rejected' status instead to preserve race history.");
+
+            // 2. Prevent deletion if the regatta has overall started scoring or racing
             var hasScoredOrActiveRaces = regatta.Races.Any(r => 
                 r.Status == "Completed" || 
                 r.Status == "Racing" || 
@@ -402,7 +407,7 @@ namespace RaceCommittee.Api.Services
 
             if (hasScoredOrActiveRaces)
             {
-                return (false, "Cannot delete entries once racing has begun or scoring has been recorded for the regatta. This is necessary to maintain scoring consistency for other competitors. Please use 'Rejected' to withdraw the entry.");
+                return (false, "Registration is locked because racing has begun for this regatta. Please contact the Race Committee to withdraw.");
             }
 
             _context.Entries.Remove(entry);

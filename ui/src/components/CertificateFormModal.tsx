@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, Search, ExternalLink, CheckCircle2, XCircle, RefreshCw, FileText, Loader2, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { useConfirm } from '@/components/ui/ConfirmContext';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { useCertificates, useCertificateSearch, CertificateResponse } from '@/hooks/useCertificates';
@@ -19,6 +20,7 @@ type CertificateType = 'PHRF' | 'ORR' | 'ORREZ';
 
 export default function CertificateFormModal({ isOpen, onClose, boatId, editingCert, onCertificatesChanged }: CertificateFormModalProps) {
     const { importCertificate, refreshCertificate, deleteCertificate, createManual, updateCertificate, uploadFile } = useCertificates(editingCert?.boatId || boatId);
+    const confirm = useConfirm();
     const [step, setStep] = useState<'type' | 'form' | 'import'>(editingCert ? 'form' : 'type');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -193,7 +195,12 @@ export default function CertificateFormModal({ isOpen, onClose, boatId, editingC
 
     const handleDelete = async () => {
         if (!editingCert) return;
-        if (!confirm('Are you sure you want to remove this certificate? This action cannot be undone.')) return;
+        if (await confirm({
+            title: 'Remove Certificate?',
+            message: 'Are you sure you want to remove this certificate? This action cannot be undone.',
+            confirmText: 'Remove',
+            variant: 'danger'
+        })) {
 
         setIsLoading(true);
         setError('');
@@ -205,7 +212,8 @@ export default function CertificateFormModal({ isOpen, onClose, boatId, editingC
         } finally {
             setIsLoading(false);
         }
-    };
+    }
+};
 
     const renderTypeSelector = () => (
         <div className="p-6 space-y-4">

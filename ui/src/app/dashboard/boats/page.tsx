@@ -6,14 +6,14 @@ import Button from '@/components/ui/Button';
 import BoatCard from '@/components/BoatCard';
 import BoatFormModal, { BoatData } from '@/components/BoatFormModal';
 import { useBoats } from '@/hooks/useBoats';
-import { useCertificates, CertificateResponse } from '@/hooks/useCertificates';
+import { useConfirm } from '@/components/ui/ConfirmContext';
+import { useToast } from '@/components/ui/Toast';
 import { apiClient } from '@/lib/api';
-
-// BoatCard now receives certificates directly from the boats list
-// to avoid the N+1 problem of fetching certificates per boat.
 
 export default function MyBoatsPage() {
     const { boats, isLoading, error, refetch } = useBoats(true);
+    const confirm = useConfirm();
+    const { showToast } = useToast();
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,14 +30,19 @@ export default function MyBoatsPage() {
     };
 
     const handleDeleteClick = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this boat?')) return;
-
-        try {
-            await apiClient.delete(`/api/boats/${id}`);
-            // Optimistically update or refetch
-            refetch();
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to delete boat.');
+        if (await confirm({
+            title: 'Delete Boat?',
+            message: 'Are you sure you want to delete this boat? This will also remove all associated certificates and history.',
+            confirmText: 'Delete Boat',
+            variant: 'danger'
+        })) {
+            try {
+                await apiClient.delete(`/api/boats/${id}`);
+                showToast('Boat deleted successfully', 'success');
+                refetch();
+            } catch (err) {
+                showToast(err instanceof Error ? err.message : 'Failed to delete boat.', 'error');
+            }
         }
     };
 

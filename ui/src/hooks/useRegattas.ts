@@ -185,7 +185,6 @@ export function useRegatta(id: string | number) {
             await apiClient.put(`/api/regattas/${id}`, data);
             await fetchRegatta();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to update regatta");
             throw err;
         } finally {
             setIsLoading(false);
@@ -203,7 +202,6 @@ export function useRegatta(id: string | number) {
             await apiClient.put(`/api/regattas/${id}/entries/${entryId}`, data);
             await fetchRegatta();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to update entry");
             throw err;
         } finally {
             setIsLoading(false);
@@ -216,7 +214,6 @@ export function useRegatta(id: string | number) {
             await apiClient.delete(`/api/regattas/${id}/entries/${entryId}`);
             await fetchRegatta();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to delete entry");
             throw err;
         } finally {
             setIsLoading(false);

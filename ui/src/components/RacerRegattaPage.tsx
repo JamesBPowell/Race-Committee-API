@@ -11,6 +11,8 @@ import { useCertificates } from '@/hooks/useCertificates';
 import { RegattaResultsView, formatDuration, courseLabel } from '@/features/scoring';
 import { AlertCircle, Edit, Save, Loader2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmContext';
 import Button from '@/components/ui/Button';
 
 interface RacerRegattaPageProps {
@@ -20,6 +22,8 @@ interface RacerRegattaPageProps {
 export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegattaPageProps) {
     const [activeTab, setActiveTab] = useState<'Results' | 'Schedule' | 'My Entry' | 'Class'>('Results');
     const { regatta, updateEntry, deleteEntry, isLoading: isUpdating } = useRegatta(initialRegatta.id);
+    const { showToast } = useToast();
+    const confirm = useConfirm();
     const { getRaceResults } = useRaces();
 
     const myEntryId = regatta?.myEntryId || initialRegatta.myEntryId;
@@ -55,12 +59,17 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
 
     const handleWithdraw = async () => {
         if (!myEntry) return;
-        if (confirm('Are you sure you want to withdraw your entry? This cannot be undone once processed.')) {
+        if (await confirm({
+            title: 'Withdraw Entry?',
+            message: 'Are you sure you want to withdraw your entry? This cannot be undone once processed.',
+            confirmText: 'Withdraw',
+            variant: 'danger'
+        })) {
             try {
                 await deleteEntry(myEntry.id);
                 router.push('/dashboard');
             } catch (err) {
-                alert(err instanceof Error ? err.message : 'Failed to withdraw entry');
+                showToast(err instanceof Error ? err.message : 'Failed to withdraw entry', 'error');
             }
         }
     };
