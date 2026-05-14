@@ -146,15 +146,15 @@ namespace RaceCommittee.Api.Services
             _context.Certificates.Add(cert);
             await _context.SaveChangesAsync();
 
-            // Try to capture MHTML
+            // Try to capture print-view HTML snapshot
             try
             {
-                var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(dto.SourceUrl);
-                var filename = $"cert_{cert.Id}.mhtml";
+                var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(dto.SourceUrl);
+                var filename = $"cert_{cert.Id}.html";
                 var blobPath = $"{boatId}/{cert.Id}/{filename}";
                 
-                using var stream = new MemoryStream(mhtmlBytes);
-                await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                using var stream = new MemoryStream(htmlBytes);
+                await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
                 
                 cert.SourceContentPath = blobPath;
                 await _context.SaveChangesAsync();
@@ -167,7 +167,7 @@ namespace RaceCommittee.Api.Services
             catch (Exception ex)
             {
                 cert.ParseStatus = "Failed";
-                cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
                 await _context.SaveChangesAsync();
             }
 
@@ -279,15 +279,15 @@ namespace RaceCommittee.Api.Services
 
                 await _context.SaveChangesAsync();
 
-                // Try to capture MHTML
+                // Try to capture print-view HTML snapshot
                 try
                 {
-                    var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(cert.SourceUrl);
-                    var filename = $"cert_{cert.Id}.mhtml";
+                    var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl);
+                    var filename = $"cert_{cert.Id}.html";
                     var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
                     
-                    using var stream = new MemoryStream(mhtmlBytes);
-                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                    using var stream = new MemoryStream(htmlBytes);
+                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
                     
                     cert.SourceContentPath = blobPath;
                     await _context.SaveChangesAsync();
@@ -299,7 +299,7 @@ namespace RaceCommittee.Api.Services
                 catch (Exception ex)
                 {
                     cert.ParseStatus = "Failed";
-                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
                     await _context.SaveChangesAsync();
                 }
 
@@ -330,16 +330,12 @@ namespace RaceCommittee.Api.Services
 
         public async Task<(Stream? FileStream, string? ContentType, string? FileName)> GetMhtmlAsync(int id, string userId)
         {
-            // For MHTML viewing, we might need different authorization if race managers need to view it.
-            // But for now, let's keep it simple and just fetch it. 
-            // Wait, race managers aren't necessarily the boat owner.
-            // Let's just fetch it. The controller handles Auth.
             var cert = await _context.Certificates.FirstOrDefaultAsync(c => c.Id == id);
 
             if (cert?.SourceContentPath == null) return (null, null, null);
 
             var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.SourceContentPath);
-            return (stream, "message/rfc822", $"cert_{cert.Id}.mhtml"); // use message/rfc822 or multipart/related
+            return (stream, "text/html", $"cert_{cert.Id}.html");
         }
     
         public async Task<int> ReparseAllCertificatesAsync()
@@ -368,20 +364,20 @@ namespace RaceCommittee.Api.Services
                     cert.ParseErrors = null;
                     cert.SchemaVersion = parsed.SchemaVersion;
 
-                    // Capture MHTML
+                    // Capture print-view HTML snapshot
                     try
                     {
-                        var mhtmlBytes = await _mhtmlService.ExtractPrintMhtmlAsync(cert.SourceUrl!);
-                        var filename = $"cert_{cert.Id}.mhtml";
+                        var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl!);
+                        var filename = $"cert_{cert.Id}.html";
                         var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
-                        using var stream = new MemoryStream(mhtmlBytes);
-                        await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "multipart/related");
+                        using var stream = new MemoryStream(htmlBytes);
+                        await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
                         cert.SourceContentPath = blobPath;
                     }
                     catch (Exception ex)
                     {
-                        // Log MHTML capture failure but don't fail the whole parsing if parsing succeeded
-                        cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture MHTML: " + ex.Message });
+                        // Log snapshot capture failure but don't fail the whole parsing if parsing succeeded
+                        cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
                     }
                     
                     count++;
