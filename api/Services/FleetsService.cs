@@ -35,6 +35,8 @@ namespace RaceCommittee.Api.Services
                 Name = dto.Name ?? string.Empty,
                 SequenceOrder = dto.SequenceOrder,
                 ScoringMethod = dto.ScoringMethod,
+                AllowMixedConfiguration = dto.AllowMixedConfiguration,
+                DefaultConfiguration = dto.DefaultConfiguration ?? BoatConfiguration.Spinnaker,
                 ScoringConfiguration = "{}" // Default empty config
             };
 
@@ -91,6 +93,8 @@ namespace RaceCommittee.Api.Services
             fleet.Name = dto.Name ?? string.Empty;
             fleet.SequenceOrder = dto.SequenceOrder;
             fleet.ScoringMethod = dto.ScoringMethod;
+            fleet.AllowMixedConfiguration = dto.AllowMixedConfiguration;
+            fleet.DefaultConfiguration = dto.DefaultConfiguration ?? BoatConfiguration.Spinnaker;
 
             await _context.SaveChangesAsync();
 

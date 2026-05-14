@@ -76,7 +76,7 @@ namespace RaceCommittee.Api.Services
                         finish.ElapsedDuration = elapsed;
 
                         // Apply scoring algorithm
-                        var corrected = CalculateCorrectedTime(fleet.ScoringMethod, fleet.ScoringConfiguration, elapsed, finish.Entry, raceFleet, race);
+                        var corrected = CalculateCorrectedTime(fleet, elapsed, finish.Entry, raceFleet, race);
 
                         // Add penalties
                         if (finish.TimePenalty.HasValue)
@@ -256,8 +256,11 @@ namespace RaceCommittee.Api.Services
             return results.OrderBy(r => r.FleetId).ThenBy(r => r.Points).ToList();
         }
 
-        private TimeSpan CalculateCorrectedTime(ScoringMethod method, string configJson, TimeSpan elapsed, Entry entry, RaceFleet? raceFleet, Race race)
+        private TimeSpan CalculateCorrectedTime(Fleet fleet, TimeSpan elapsed, Entry entry, RaceFleet? raceFleet, Race race)
         {
+            var method = fleet.ScoringMethod;
+            var configJson = fleet.ScoringConfiguration;
+
             // 1. One-Design and Portsmouth scoring (currently not tied to certificate schema versions)
             if (method == ScoringMethod.OneDesign) return elapsed;
             if (method == ScoringMethod.Portsmouth)
@@ -279,7 +282,10 @@ namespace RaceCommittee.Api.Services
                         float distance = raceFleet?.CourseDistance ?? race?.CourseDistance ?? 0;
                         float? windSpeed = raceFleet?.WindSpeed ?? race?.WindSpeed;
                         var courseType = raceFleet?.CourseType ?? race?.CourseType;
-                        bool isNonSpin = string.Equals(entry.Configuration, BoatConfiguration.NonSpinnaker, StringComparison.OrdinalIgnoreCase);
+                        
+                        // Determine configuration based on fleet settings
+                        string config = fleet.AllowMixedConfiguration ? entry.Configuration : fleet.DefaultConfiguration;
+                        bool isNonSpin = string.Equals(config, BoatConfiguration.NonSpinnaker, StringComparison.OrdinalIgnoreCase);
 
                         return snapshotData.CalculateCorrectedTime(method, configJson, elapsed, distance, windSpeed, courseType, isNonSpin);
                     }

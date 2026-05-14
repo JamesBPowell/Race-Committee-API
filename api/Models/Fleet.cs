@@ -16,6 +16,9 @@ namespace RaceCommittee.Api.Models
         public ScoringMethod ScoringMethod { get; set; }
         public string ScoringConfiguration { get; set; } = "{}"; // JSON for method-specific settings (e.g. TOT coefficients)
 
+        public bool AllowMixedConfiguration { get; set; } = false;
+        public string DefaultConfiguration { get; set; } = BoatConfiguration.Spinnaker;
+
         public ICollection<Entry> Entries { get; set; } = new List<Entry>();
         public ICollection<Race> Races { get; set; } = new List<Race>();
         public ICollection<RaceFleet> ParticipatingInRaces { get; set; } = new List<RaceFleet>();

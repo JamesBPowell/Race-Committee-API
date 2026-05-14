@@ -31,11 +31,13 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         rating: number | null; 
         registrationStatus: string;
         activeCertificateId: number | null;
+        configuration: string;
     }>({ 
         fleetId: null, 
         rating: null, 
         registrationStatus: 'Pending',
-        activeCertificateId: null
+        activeCertificateId: null,
+        configuration: 'Spinnaker'
     });
 
     const editingEntry = regatta?.entries?.find(e => e.id === editingEntryId);
@@ -52,6 +54,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [editingFleet, setEditingFleet] = useState<FleetResponse | null>(null);
     const [fleetName, setFleetName] = useState('');
     const [scoringMethod, setScoringMethod] = useState<ScoringMethod>(ScoringMethod.PHRF_TOT);
+    const [allowMixedConfiguration, setAllowMixedConfiguration] = useState(false);
+    const [defaultConfiguration, setDefaultConfiguration] = useState('Spinnaker');
 
     const [regattaSettings, setRegattaSettings] = useState({
         name: '',
@@ -125,10 +129,14 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             await createFleet(regatta.id, {
                 name: fleetName,
                 sequenceOrder: (regatta.fleets?.length || 0) + 1,
-                scoringMethod: scoringMethod
+                scoringMethod: scoringMethod,
+                allowMixedConfiguration: allowMixedConfiguration,
+                defaultConfiguration: defaultConfiguration
             });
             setFleetName('');
             setScoringMethod(ScoringMethod.PHRF_TOT);
+            setAllowMixedConfiguration(false);
+            setDefaultConfiguration('Spinnaker');
             setIsAddFleetOpen(false);
             refetch();
         } catch (err) {
@@ -142,9 +150,13 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             await updateFleet(editingFleet.id, {
                 name: fleetName,
                 sequenceOrder: editingFleet.sequenceOrder,
-                scoringMethod: scoringMethod
+                scoringMethod: scoringMethod,
+                allowMixedConfiguration: allowMixedConfiguration,
+                defaultConfiguration: defaultConfiguration
             });
             setFleetName('');
+            setAllowMixedConfiguration(false);
+            setDefaultConfiguration('Spinnaker');
             setEditingFleet(null);
             refetch();
         } catch (err) {
@@ -324,7 +336,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                 <td className="py-4 text-slate-300">{entry.boatType}</td>
                                                 <td className="py-4">
                                                     {editingEntryId === entry.id ? (
-                                                        <select
+                                                        <>
+                                                            <select
                                                             title="Fleet Selection"
                                                             value={editEntryData.fleetId || ''}
                                                             onChange={(e) => setEditEntryData({ ...editEntryData, fleetId: e.target.value ? parseInt(e.target.value) : null })}
@@ -335,8 +348,25 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                                 <option key={f.id} value={f.id}>{f.name}</option>
                                                             ))}
                                                         </select>
+                                                        {regatta.fleets?.find(f => f.id === editEntryData.fleetId)?.allowMixedConfiguration && (
+                                                            <select
+                                                                title="Entry Configuration"
+                                                                value={editEntryData.configuration}
+                                                                onChange={(e) => setEditEntryData({ ...editEntryData, configuration: e.target.value })}
+                                                                className="mt-2 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-[10px] w-full font-bold uppercase"
+                                                            >
+                                                                <option value="Spinnaker">Spinnaker</option>
+                                                                <option value="Non-Spinnaker">Non-Spinnaker</option>
+                                                            </select>
+                                                        )}
+                                                    </>
                                                     ) : (
-                                                        <span className="text-cyan-400 font-medium">{regatta.fleets?.find(f => f.id === entry.fleetId)?.name || 'Unassigned'}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-cyan-400 font-medium">{regatta.fleets?.find(f => f.id === entry.fleetId)?.name || 'Unassigned'}</span>
+                                                            {regatta.fleets?.find(f => f.id === entry.fleetId)?.allowMixedConfiguration && (
+                                                                <span className="text-[10px] text-slate-500 font-bold uppercase">Mixed Fleet</span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className="py-4">
@@ -368,6 +398,11 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                             {entry.activeCertificateId && (
                                                                 <span className="text-[10px] text-slate-500">
                                                                     {regatta.fleets?.find(f => f.id === entry.fleetId)?.scoringMethod === ScoringMethod.PHRF_TOT ? 'Manual PHRF' : 'Linked Cert'}
+                                                                </span>
+                                                            )}
+                                                            {entry.configuration && (
+                                                                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tighter">
+                                                                    {entry.configuration}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -425,7 +460,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                                     fleetId: entry.fleetId || null, 
                                                                     rating: entry.rating ?? null, 
                                                                     registrationStatus: entry.registrationStatus,
-                                                                    activeCertificateId: entry.activeCertificateId || null
+                                                                    activeCertificateId: entry.activeCertificateId || null,
+                                                                    configuration: entry.configuration || 'Spinnaker'
                                                                 });
                                                             }}
                                                             title="Edit Entry"
@@ -494,6 +530,31 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                         <option value={ScoringMethod.Portsmouth}>Portsmouth Yardstick</option>
                                     </select>
                                 </div>
+                                <div className="w-full md:w-48 space-y-1.5">
+                                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest ml-1">Configuration</label>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="flex items-center gap-2 text-white text-sm cursor-pointer hover:text-cyan-300 transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                checked={allowMixedConfiguration}
+                                                onChange={(e) => setAllowMixedConfiguration(e.target.checked)}
+                                                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/50"
+                                            />
+                                            <span>Allow Mixed Fleet</span>
+                                        </label>
+                                        {!allowMixedConfiguration && (
+                                            <select
+                                                title="Default Configuration"
+                                                value={defaultConfiguration}
+                                                onChange={(e) => setDefaultConfiguration(e.target.value)}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-xs"
+                                            >
+                                                <option value="Spinnaker">Spinnaker</option>
+                                                <option value="Non-Spinnaker">Non-Spinnaker</option>
+                                            </select>
+                                        )}
+                                    </div>
+                                </div>
                                 <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
                                     <Button
                                         onClick={editingFleet ? handleUpdateFleet : handleAddFleet}
@@ -537,6 +598,13 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         Order: {fleet.sequenceOrder}
                                                     </span>
                                                 </div>
+                                                <div className="mt-2">
+                                                    {fleet.allowMixedConfiguration ? (
+                                                        <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Mixed Configs</span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/20">{fleet.defaultConfiguration}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
@@ -554,6 +622,8 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                         setEditingFleet(fleet);
                                                         setFleetName(fleet.name);
                                                         setScoringMethod(fleet.scoringMethod);
+                                                        setAllowMixedConfiguration(fleet.allowMixedConfiguration);
+                                                        setDefaultConfiguration(fleet.defaultConfiguration);
                                                     }}
                                                     title="Edit Class"
                                                     className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"

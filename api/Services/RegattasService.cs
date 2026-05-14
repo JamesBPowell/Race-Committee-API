@@ -193,7 +193,8 @@ namespace RaceCommittee.Api.Services
                         ActiveCertificateId = e.ActiveCertificateId,
                         ActiveCertificateType = e.ActiveCertificate?.CertificateType,
                         ActiveCertificateNumber = e.ActiveCertificate?.CertificateNumber,
-                        StatusNote = e.StatusNote
+                        StatusNote = e.StatusNote,
+                        Configuration = e.Configuration
                     })
                     .ToList(), // Materialize to list
                 Fleets = regatta.Fleets?
@@ -203,7 +204,9 @@ namespace RaceCommittee.Api.Services
                         Id = f.Id,
                         Name = f.Name,
                         SequenceOrder = f.SequenceOrder,
-                        ScoringMethod = f.ScoringMethod
+                        ScoringMethod = f.ScoringMethod,
+                        AllowMixedConfiguration = f.AllowMixedConfiguration,
+                        DefaultConfiguration = f.DefaultConfiguration
                     })
             };
         }
@@ -349,7 +352,13 @@ namespace RaceCommittee.Api.Services
                 if (cert != null)
                 {
                     entry.RatingSnapshot = cert.RawData;
-                    var isSpinnaker = entry.Configuration != "Non-Spinnaker";
+                    
+                    // Determine configuration based on fleet settings
+                    string config = (fleet != null && fleet.AllowMixedConfiguration) 
+                        ? entry.Configuration 
+                        : (fleet?.DefaultConfiguration ?? BoatConfiguration.Spinnaker);
+                        
+                    var isSpinnaker = config != BoatConfiguration.NonSpinnaker;
                     entry.Rating = isSpinnaker ? cert.RatingSpinnaker : cert.RatingNonSpinnaker;
                 }
             }

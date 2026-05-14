@@ -74,6 +74,7 @@ export interface EntryResponse {
     registrationStatus: string;
     activeCertificateId?: number | null;
     statusNote?: string | null;
+    configuration?: string;
 }
 
 export interface FleetResponse {
@@ -81,6 +82,8 @@ export interface FleetResponse {
     name: string;
     sequenceOrder: number;
     scoringMethod: ScoringMethod;
+    allowMixedConfiguration: boolean;
+    defaultConfiguration: string;
 }
 
 export interface RegattaResponse {
@@ -187,7 +190,12 @@ export function useRegatta(id: string | number) {
         }
     };
 
-    const updateEntry = async (entryId: number, data: { fleetId?: number | null, activeCertificateId?: number | null, registrationStatus: string }) => {
+    const updateEntry = async (entryId: number, data: { 
+        fleetId?: number | null, 
+        activeCertificateId?: number | null, 
+        registrationStatus: string,
+        configuration?: string
+    }) => {
         setIsLoading(true);
         try {
             await apiClient.put(`/api/regattas/${id}/entries/${entryId}`, data);
@@ -214,7 +222,13 @@ export function useFleets() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const createFleet = async (regattaId: number, data: { name: string, sequenceOrder: number, scoringMethod: ScoringMethod }) => {
+    const createFleet = async (regattaId: number, data: { 
+        name: string, 
+        sequenceOrder: number, 
+        scoringMethod: ScoringMethod,
+        allowMixedConfiguration: boolean,
+        defaultConfiguration: string
+    }) => {
         setIsLoading(true);
         try {
             await apiClient.post(`/api/fleets/regatta/${regattaId}`, data);
@@ -226,7 +240,13 @@ export function useFleets() {
         }
     };
 
-    const updateFleet = async (id: number, data: { name: string, sequenceOrder: number, scoringMethod: ScoringMethod }) => {
+    const updateFleet = async (id: number, data: { 
+        name: string, 
+        sequenceOrder: number, 
+        scoringMethod: ScoringMethod,
+        allowMixedConfiguration: boolean,
+        defaultConfiguration: string
+    }) => {
         setIsLoading(true);
         try {
             await apiClient.put(`/api/fleets/${id}`, data);

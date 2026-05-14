@@ -37,6 +37,7 @@ namespace RaceCommittee.Api.Models.DTOs
         public string? ActiveCertificateType { get; set; }
         public string? ActiveCertificateNumber { get; set; }
         public string? StatusNote { get; set; }
+        public string? Configuration { get; set; }
     }
 
     public class RaceDto

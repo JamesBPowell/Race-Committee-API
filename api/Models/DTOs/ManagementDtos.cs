@@ -9,6 +9,8 @@ namespace RaceCommittee.Api.Models.DTOs
         public string? Name { get; set; }
         public int SequenceOrder { get; set; }
         public ScoringMethod ScoringMethod { get; set; }
+        public bool AllowMixedConfiguration { get; set; }
+        public string DefaultConfiguration { get; set; } = string.Empty;
     }
 
     public class CreateFleetDto
@@ -17,6 +19,8 @@ namespace RaceCommittee.Api.Models.DTOs
         public string? Name { get; set; }
         public int SequenceOrder { get; set; }
         public ScoringMethod ScoringMethod { get; set; }
+        public bool AllowMixedConfiguration { get; set; }
+        public string DefaultConfiguration { get; set; } = BoatConfiguration.Spinnaker;
     }
 
     public class UpdateFleetDto
@@ -25,6 +29,8 @@ namespace RaceCommittee.Api.Models.DTOs
         public string? Name { get; set; }
         public int SequenceOrder { get; set; }
         public ScoringMethod ScoringMethod { get; set; }
+        public bool AllowMixedConfiguration { get; set; }
+        public string DefaultConfiguration { get; set; } = BoatConfiguration.Spinnaker;
     }
 
     public class UpdateRegattaDto
