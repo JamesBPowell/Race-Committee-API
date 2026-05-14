@@ -367,6 +367,49 @@ namespace RaceCommittee.Api.Services
             return entry;
         }
 
+        public async Task<(bool Success, string ErrorMessage)> DeleteEntryAsync(int regattaId, int entryId, string userId)
+        {
+            var regatta = await _context.Regattas
+                .Include(r => r.CommitteeMembers)
+                .Include(r => r.Races)
+                .FirstOrDefaultAsync(r => r.Id == regattaId);
+
+            if (regatta == null) return (false, "Regatta not found.");
+
+            var entry = await _context.Entries
+                .Include(e => e.Boat)
+                .Include(e => e.Finishes)
+                .FirstOrDefaultAsync(e => e.Id == entryId && e.RegattaId == regattaId);
+
+            if (entry == null) return (false, "Entry not found.");
+
+            var isCommittee = regatta.CommitteeMembers.Any(cm => cm.UserId == userId);
+            var isOwner = entry.Boat?.OwnerId == userId;
+
+            if (!isCommittee && !isOwner)
+                return (false, "Not authorized to delete this entry.");
+
+            // 1. Prevent deletion if the entry has specific finish records (hard constraint)
+            if (entry.Finishes.Any())
+                return (false, "Cannot delete an entry that has recorded finishes. This would invalidate race results. Set status to 'Rejected' instead.");
+
+            // 2. Prevent deletion if scoring has been run or racing is active for the regatta
+            // Deleting an entry after scoring changes the "Total Entries" count used for DNF/DNS penalties (Entered + 1)
+            var hasScoredOrActiveRaces = regatta.Races.Any(r => 
+                r.Status == "Completed" || 
+                r.Status == "Racing" || 
+                r.Status == "InSequence");
+
+            if (hasScoredOrActiveRaces)
+            {
+                return (false, "Cannot delete entries once racing has begun or scoring has been recorded for the regatta. This is necessary to maintain scoring consistency for other competitors. Please use 'Rejected' to withdraw the entry.");
+            }
+
+            _context.Entries.Remove(entry);
+            await _context.SaveChangesAsync();
+            return (true, string.Empty);
+        }
+
         public async Task<Entry?> RefreshEntrySnapshotAsync(int regattaId, int entryId, string userId)
         {
             var regatta = await _context.Regattas

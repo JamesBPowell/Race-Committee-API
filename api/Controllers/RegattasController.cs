@@ -155,6 +155,27 @@ namespace RaceCommittee.Api.Controllers
             }
         }
 
+        // DELETE: api/regattas/{id}/entries/{entryId}
+        [HttpDelete("{id}/entries/{entryId}")]
+        public async Task<IActionResult> DeleteEntry(int id, int entryId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            var result = await _regattasService.DeleteEntryAsync(id, entryId, userId);
+
+            if (!result.Success)
+            {
+                if (result.ErrorMessage.Contains("not found", System.StringComparison.OrdinalIgnoreCase))
+                    return NotFound(result.ErrorMessage);
+                if (result.ErrorMessage.Contains("Not authorized", System.StringComparison.OrdinalIgnoreCase))
+                    return Forbid();
+                return BadRequest(new { message = result.ErrorMessage });
+            }
+
+            return NoContent();
+        }
+
         // POST: api/regattas/{id}/entries/{entryId}/refresh-snapshot
         [HttpPost("{id}/entries/{entryId}/refresh-snapshot")]
         public async Task<IActionResult> RefreshEntrySnapshot(int id, int entryId)

@@ -4,7 +4,7 @@ import React, { use, useState } from 'react';
 import Link from 'next/link';
 import {
     ChevronLeft, Calendar, MapPin, Anchor, Target, TrendingUp, Shield,
-    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle
+    Plus, Trash2, Trophy, Users, Save, Edit, Loader2, Settings as SettingsIcon, AlertCircle, ArrowUpDown
 } from 'lucide-react';
 import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseType } from '@/hooks/useRegattas';
 import { useRaces } from '@/hooks/useRaces';
@@ -18,7 +18,7 @@ import Button from '@/components/ui/Button';
 
 export default function RegattaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const { regatta, isLoading, error, refetch, updateRegatta, updateEntry } = useRegatta(id);
+    const { regatta, isLoading, error, refetch, updateRegatta, updateEntry, deleteEntry } = useRegatta(id);
     const { createFleet, updateFleet, deleteFleet, isLoading: isManagingFleets } = useFleets();
     const { deleteRace, isLoading: isDeleting } = useRaces();
 
@@ -56,6 +56,9 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
     const [scoringMethod, setScoringMethod] = useState<ScoringMethod>(ScoringMethod.PHRF_TOT);
     const [allowMixedConfiguration, setAllowMixedConfiguration] = useState(false);
     const [defaultConfiguration, setDefaultConfiguration] = useState('Spinnaker');
+    const [entryStatusFilter, setEntryStatusFilter] = useState<'all' | 'Pending' | 'Accepted' | 'Rejected'>('all');
+    const [entryClassFilter, setEntryClassFilter] = useState<number | 'all'>('all');
+    const [entrySort, setEntrySort] = useState<{ field: 'boat' | 'rating', direction: 'asc' | 'desc' }>({ field: 'boat', direction: 'asc' });
 
     const [regattaSettings, setRegattaSettings] = useState({
         name: '',
@@ -122,6 +125,55 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         'Completed': 'badge-completed',
         'Draft': 'badge-completed'
     };
+
+    const getRatingTypeLabel = (method?: ScoringMethod) => {
+        switch (method) {
+            case ScoringMethod.PHRF_TOT: return 'PHRF ToT';
+            case ScoringMethod.PHRF_TOD: return 'PHRF ToD';
+            case ScoringMethod.ORR_EZ_GPH: return 'GPH';
+            case ScoringMethod.ORR_EZ_PC: return 'ORR-EZ';
+            case ScoringMethod.ORR_Full_PC: return 'ORR';
+            case ScoringMethod.Portsmouth: return 'Portsmouth';
+            case ScoringMethod.OneDesign: return 'One Design';
+            default: return 'Rating';
+        }
+    };
+
+    const getEntryConfig = (entry: typeof regatta.entries extends (infer E)[] | undefined ? E : never) => {
+        const fleet = regatta.fleets?.find(f => f.id === entry.fleetId);
+        if (!fleet) return entry.configuration || 'Spinnaker';
+        return fleet.allowMixedConfiguration ? (entry.configuration || 'Spinnaker') : fleet.defaultConfiguration;
+    };
+
+    const isAccepted = (s: string) => s === 'Accepted' || s === 'Approved';
+
+    // Class-filtered base set — counts derive from this so pills update when class changes
+    const classFilteredEntries = regatta.entries?.filter(e =>
+        entryClassFilter === 'all' || e.fleetId === entryClassFilter
+    ) || [];
+
+    const entryCounts = {
+        total: classFilteredEntries.length,
+        accepted: classFilteredEntries.filter(e => isAccepted(e.registrationStatus)).length,
+        pending: classFilteredEntries.filter(e => e.registrationStatus === 'Pending').length,
+        rejected: classFilteredEntries.filter(e => e.registrationStatus === 'Rejected').length,
+    };
+
+    const filteredEntries = classFilteredEntries.filter(e => {
+        if (entryStatusFilter === 'Accepted' && !isAccepted(e.registrationStatus)) return false;
+        if (entryStatusFilter === 'Pending' && e.registrationStatus !== 'Pending') return false;
+        if (entryStatusFilter === 'Rejected' && e.registrationStatus !== 'Rejected') return false;
+        return true;
+    }).sort((a, b) => {
+        const factor = entrySort.direction === 'asc' ? 1 : -1;
+        if (entrySort.field === 'rating') {
+            const valA = a.rating ?? (entrySort.direction === 'asc' ? Infinity : -Infinity);
+            const valB = b.rating ?? (entrySort.direction === 'asc' ? Infinity : -Infinity);
+            return (valA - valB) * factor;
+        }
+        // Default: Sort by Boat Name
+        return a.boatName.localeCompare(b.boatName) * factor;
+    });
 
     const handleAddFleet = async () => {
         if (!fleetName.trim()) return;
@@ -303,176 +355,196 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
             )}
 
             {activeTab === 'Entries' && (
-                <div className="space-y-6">
-                    <div className="glass-container">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white">Regatta Entries</h2>
-                            <div className="text-sm text-slate-400">{regatta.boatsEnteredCount} Boats Confirmed</div>
-                        </div>
+                <div className="space-y-4">
+                    {/* Status Summary Bar */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button onClick={() => setEntryStatusFilter('all')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${entryStatusFilter === 'all' ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] border-white/5 text-slate-400 hover:bg-white/5'}`}>
+                            All <span className="text-xs px-1.5 py-0.5 rounded-md bg-white/10">{entryCounts.total}</span>
+                        </button>
+                        <button onClick={() => setEntryStatusFilter('Accepted')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${entryStatusFilter === 'Accepted' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-white/[0.03] border-white/5 text-slate-400 hover:bg-white/5'}`}>
+                            Accepted <span className="text-xs px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400">{entryCounts.accepted}</span>
+                        </button>
+                        <button onClick={() => setEntryStatusFilter('Pending')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${entryStatusFilter === 'Pending' ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' : 'bg-white/[0.03] border-white/5 text-slate-400 hover:bg-white/5'}`}>
+                            Pending <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-400">{entryCounts.pending}</span>
+                        </button>
+                        {entryCounts.rejected > 0 && (
+                            <button onClick={() => setEntryStatusFilter('Rejected')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${entryStatusFilter === 'Rejected' ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-white/[0.03] border-white/5 text-slate-400 hover:bg-white/5'}`}>
+                                Rejected <span className="text-xs px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-400">{entryCounts.rejected}</span>
+                            </button>
+                        )}
+                        {regatta.fleets && (
+                            <div className="ml-auto flex items-center gap-3">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest whitespace-nowrap">Filter Class:</label>
+                                <select title="Filter by Class" value={entryClassFilter} onChange={(e) => setEntryClassFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                                    className="bg-slate-900/80 border border-white/10 rounded-xl py-2 px-3 text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50">
+                                    <option value="all">All Classes</option>
+                                    {regatta.fleets.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                            </div>
+                        )}
+                    </div>
 
-                        {!regatta.entries || regatta.entries.length === 0 ? (
+                    {/* Entries Table */}
+                    <div className="glass-container">
+                        {filteredEntries.length === 0 ? (
                             <div className="text-center py-12 text-slate-400">
-                                No boats have entered this regatta yet.
+                                {regatta.entries?.length === 0 ? 'No boats have entered this regatta yet.' : 'No entries match the current filters.'}
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-white/10 text-slate-400 text-sm">
-                                            <th className="pb-3 font-medium">Boat Name</th>
-                                            <th className="pb-3 font-medium">Owner</th>
-                                            <th className="pb-3 font-medium">Design / Model</th>
-                                            <th className="pb-3 font-medium">Class / Fleet</th>
-                                            <th className="pb-3 font-medium">Rating</th>
-                                            <th className="pb-0 font-medium">Status</th>
-                                            <th className="pb-3 text-right font-medium">Actions</th>
+                                        <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                                            <th className="pb-3 font-semibold cursor-pointer hover:text-white transition-colors group"
+                                                onClick={() => setEntrySort({ field: 'boat', direction: entrySort.field === 'boat' && entrySort.direction === 'asc' ? 'desc' : 'asc' })}>
+                                                <div className="flex items-center gap-1">
+                                                    Boat
+                                                    <ArrowUpDown className={`w-3 h-3 ${entrySort.field === 'boat' ? 'text-cyan-400' : 'text-slate-600 opacity-0 group-hover:opacity-100'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="pb-3 font-semibold">Owner</th>
+                                            <th className="pb-3 font-semibold">Class</th>
+                                            <th className="pb-3 font-semibold cursor-pointer hover:text-white transition-colors group"
+                                                onClick={() => setEntrySort({ field: 'rating', direction: entrySort.field === 'rating' && entrySort.direction === 'asc' ? 'desc' : 'asc' })}>
+                                                <div className="flex items-center gap-1">
+                                                    Rating
+                                                    <ArrowUpDown className={`w-3 h-3 ${entrySort.field === 'rating' ? 'text-cyan-400' : 'text-slate-600 opacity-0 group-hover:opacity-100'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="pb-3 font-semibold">Status</th>
+                                            <th className="pb-3 text-right font-semibold">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-sm">
-                                        {regatta.entries.map((entry) => (
-                                            <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                                                <td className="py-4 text-white font-medium">{entry.boatName} <span className="text-slate-500 text-xs block">{entry.sailNumber !== 'None' ? `Sail: ${entry.sailNumber}` : ''}</span></td>
-                                                <td className="py-4 text-slate-300">{entry.ownerName}</td>
-                                                <td className="py-4 text-slate-300">{entry.boatType}</td>
-                                                <td className="py-4">
-                                                    {editingEntryId === entry.id ? (
-                                                        <>
-                                                            <select
-                                                            title="Fleet Selection"
-                                                            value={editEntryData.fleetId || ''}
-                                                            onChange={(e) => setEditEntryData({ ...editEntryData, fleetId: e.target.value ? parseInt(e.target.value) : null })}
-                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
-                                                        >
-                                                            <option value="">-- No Class --</option>
-                                                            {regatta.fleets?.map(f => (
-                                                                <option key={f.id} value={f.id}>{f.name}</option>
-                                                            ))}
-                                                        </select>
-                                                        {regatta.fleets?.find(f => f.id === editEntryData.fleetId)?.allowMixedConfiguration && (
-                                                            <select
-                                                                title="Entry Configuration"
-                                                                value={editEntryData.configuration}
-                                                                onChange={(e) => setEditEntryData({ ...editEntryData, configuration: e.target.value })}
-                                                                className="mt-2 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-[10px] w-full font-bold uppercase"
-                                                            >
-                                                                <option value="Spinnaker">Spinnaker</option>
-                                                                <option value="Non-Spinnaker">Non-Spinnaker</option>
-                                                            </select>
-                                                        )}
-                                                    </>
-                                                    ) : (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-cyan-400 font-medium">{regatta.fleets?.find(f => f.id === entry.fleetId)?.name || 'Unassigned'}</span>
-                                                            {regatta.fleets?.find(f => f.id === entry.fleetId)?.allowMixedConfiguration && (
-                                                                <span className="text-[10px] text-slate-500 font-bold uppercase">Mixed Fleet</span>
+                                        {filteredEntries.map((entry) => {
+                                            const fleet = regatta.fleets?.find(f => f.id === entry.fleetId);
+                                            const ratingLabel = fleet ? getRatingTypeLabel(fleet.scoringMethod) : 'Rating';
+                                            const config = getEntryConfig(entry);
+                                            const isEditing = editingEntryId === entry.id;
+                                            return (
+                                                <React.Fragment key={entry.id}>
+                                                    <tr className={`border-b transition-colors ${isEditing ? 'border-cyan-500/20 bg-cyan-500/[0.03]' : 'border-white/5 hover:bg-white/[0.03] group'}`}>
+                                                        <td className="py-3.5">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-white font-medium">{entry.boatName}</span>
+                                                                <span className="text-slate-500 text-xs">{entry.boatType}{entry.sailNumber !== 'None' ? ` · ${entry.sailNumber}` : ''}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 text-slate-300">{entry.ownerName}</td>
+                                                        <td className="py-3.5">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="text-cyan-400 font-medium text-sm">{fleet?.name || 'Unassigned'}</span>
+                                                                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{config}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5">
+                                                            <div className="flex items-baseline gap-1.5">
+                                                                <span className="text-white font-semibold tabular-nums">{entry.rating ?? '—'}</span>
+                                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{ratingLabel}</span>
+                                                            </div>
+                                                            {entry.activeCertificateType && (
+                                                                <span className="text-[10px] text-slate-600">{entry.activeCertificateType} #{entry.activeCertificateNumber}</span>
                                                             )}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="py-4">
-                                                    {editingEntryId === entry.id ? (
-                                                        <div className="flex flex-col gap-2">
-                                                            <input
-                                                                type="number"
-                                                                step="0.1"
-                                                                value={editEntryData.rating ?? ''}
-                                                                onChange={(e) => setEditEntryData({ ...editEntryData, rating: e.target.value ? parseFloat(e.target.value) : null })}
-                                                                className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm w-full"
-                                                                placeholder="Rating"
-                                                            />
-                                                            <select
-                                                                title="Certificate Selection"
-                                                                value={editEntryData.activeCertificateId || ''}
-                                                                onChange={(e) => setEditEntryData({ ...editEntryData, activeCertificateId: e.target.value ? parseInt(e.target.value) : null })}
-                                                                className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-xs w-full"
-                                                            >
-                                                                <option value="">-- No Cert --</option>
-                                                                {boatCertificates?.map(c => (
-                                                                    <option key={c.id} value={c.id}>{c.certificateType} #{c.certificateNumber}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-slate-300 font-medium">{entry.rating ?? '—'}</span>
-                                                            {entry.activeCertificateId && (
-                                                                <span className="text-[10px] text-slate-500">
-                                                                    {regatta.fleets?.find(f => f.id === entry.fleetId)?.scoringMethod === ScoringMethod.PHRF_TOT ? 'Manual PHRF' : 'Linked Cert'}
-                                                                </span>
+                                                        </td>
+                                                        <td className="py-3.5">
+                                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                                                                isAccepted(entry.registrationStatus) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                                entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                                'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                                                {isAccepted(entry.registrationStatus) ? 'Accepted' : entry.registrationStatus}
+                                                            </span>
+                                                            {entry.statusNote && (
+                                                                <div className="mt-1 flex items-start gap-1 text-[10px] text-amber-400/80 max-w-[200px]">
+                                                                    <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                                                    <span className="leading-tight">{entry.statusNote}</span>
+                                                                </div>
                                                             )}
-                                                            {entry.configuration && (
-                                                                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tighter">
-                                                                    {entry.configuration}
-                                                                </span>
+                                                        </td>
+                                                        <td className="py-3.5 text-right">
+                                                            {isEditing ? (
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <button onClick={() => handleUpdateEntrySubmit(entry.id)} title="Save" className="p-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"><Save className="w-4 h-4" /></button>
+                                                                    <button onClick={() => setEditingEntryId(null)} className="p-1.5 bg-slate-700/50 text-slate-400 hover:bg-slate-700 rounded-lg transition-colors text-xs">Cancel</button>
+                                                                </div>
+                                                            ) : (
+                                                                <button onClick={() => { setEditingEntryId(entry.id); setEditEntryData({ fleetId: entry.fleetId || null, rating: entry.rating ?? null, registrationStatus: entry.registrationStatus, activeCertificateId: entry.activeCertificateId || null, configuration: entry.configuration || 'Spinnaker' }); }}
+                                                                    title="Edit Entry" className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Edit className="w-4 h-4" /></button>
                                                             )}
-                                                        </div>
+                                                        </td>
+                                                    </tr>
+                                                    {isEditing && (
+                                                        <tr className="border-b border-cyan-500/10 bg-cyan-500/[0.02]">
+                                                            <td colSpan={6} className="px-4 py-4">
+                                                                <div className="flex flex-wrap gap-4 items-end">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Class</label>
+                                                                        <select title="Fleet" value={editEntryData.fleetId || ''} onChange={(e) => setEditEntryData({ ...editEntryData, fleetId: e.target.value ? parseInt(e.target.value) : null })}
+                                                                            className="block bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm min-w-[140px]">
+                                                                            <option value="">-- No Class --</option>
+                                                                            {regatta.fleets?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                                                        </select>
+                                                                    </div>
+                                                                    {regatta.fleets?.find(f => f.id === editEntryData.fleetId)?.allowMixedConfiguration && (
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Config</label>
+                                                                            <select title="Configuration" value={editEntryData.configuration} onChange={(e) => setEditEntryData({ ...editEntryData, configuration: e.target.value })}
+                                                                                className="block bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm min-w-[140px]">
+                                                                                <option value="Spinnaker">Spinnaker</option>
+                                                                                <option value="Non-Spinnaker">Non-Spinnaker</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Certificate</label>
+                                                                        <select title="Certificate" value={editEntryData.activeCertificateId || ''} onChange={(e) => setEditEntryData({ ...editEntryData, activeCertificateId: e.target.value ? parseInt(e.target.value) : null })}
+                                                                            className="block bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm min-w-[160px]">
+                                                                            <option value="">-- No Cert --</option>
+                                                                            {boatCertificates?.map(c => <option key={c.id} value={c.id}>{c.certificateType} #{c.certificateNumber}</option>)}
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Rating Override</label>
+                                                                        <input type="number" step="0.1" value={editEntryData.rating ?? ''} onChange={(e) => setEditEntryData({ ...editEntryData, rating: e.target.value ? parseFloat(e.target.value) : null })}
+                                                                            className="block bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm w-24" placeholder="Auto" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Status</label>
+                                                                        <select title="Status" value={editEntryData.registrationStatus} onChange={(e) => setEditEntryData({ ...editEntryData, registrationStatus: e.target.value })}
+                                                                            className="block bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm min-w-[120px]">
+                                                                            <option value="Pending">Pending</option>
+                                                                            <option value="Accepted">Accepted</option>
+                                                                            <option value="Rejected">Rejected</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="ml-auto flex items-center gap-2">
+                                                                        <button 
+                                                                            onClick={async () => {
+                                                                                if (confirm('Are you sure you want to remove this entry? This action cannot be undone if no races have been sailed.')) {
+                                                                                    try {
+                                                                                        await deleteEntry(entry.id);
+                                                                                        setEditingEntryId(null);
+                                                                                    } catch (err) {
+                                                                                        alert(err instanceof Error ? err.message : 'Failed to delete entry');
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                            className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors text-xs font-bold border border-rose-500/20"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                            Remove Entry
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
                                                     )}
-                                                </td>
-                                                <td className="py-4">
-                                                    {editingEntryId === entry.id ? (
-                                                        <select
-                                                            title="Registration Status"
-                                                            value={editEntryData.registrationStatus}
-                                                            onChange={(e) => setEditEntryData({ ...editEntryData, registrationStatus: e.target.value })}
-                                                            className="bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-sm"
-                                                        >
-                                                            <option value="Pending">Pending</option>
-                                                            <option value="Accepted">Accepted</option>
-                                                            <option value="Rejected">Rejected</option>
-                                                        </select>
-                                                    ) : (
-                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${entry.registrationStatus === 'Accepted' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                                            entry.registrationStatus === 'Pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                                                'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                                            }`}>
-                                                            {entry.registrationStatus}
-                                                        </span>
-                                                    )}
-                                                     {entry.statusNote && (
-                                                         <div className="mt-1 flex items-center gap-1.5 text-[10px] text-amber-400 font-medium">
-                                                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                                                              <span className="leading-tight">{entry.statusNote}</span>
-                                                         </div>
-                                                     )}
-                                                </td>
-                                                <td className="py-4 text-right">
-                                                    {editingEntryId === entry.id ? (
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleUpdateEntrySubmit(entry.id)}
-                                                                title="Save Entry"
-                                                                className="p-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg transition-colors"
-                                                            >
-                                                                <Save className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setEditingEntryId(null)}
-                                                                className="p-1.5 bg-slate-700/50 text-slate-400 hover:bg-slate-700 rounded-lg transition-colors"
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => {
-                                                                setEditingEntryId(entry.id);
-                                                                setEditEntryData({ 
-                                                                    fleetId: entry.fleetId || null, 
-                                                                    rating: entry.rating ?? null, 
-                                                                    registrationStatus: entry.registrationStatus,
-                                                                    activeCertificateId: entry.activeCertificateId || null,
-                                                                    configuration: entry.configuration || 'Spinnaker'
-                                                                });
-                                                            }}
-                                                            title="Edit Entry"
-                                                            className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                </React.Fragment>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>

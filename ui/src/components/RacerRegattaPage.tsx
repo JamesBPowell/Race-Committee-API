@@ -10,6 +10,7 @@ import { useRaces, FinishResultDto } from '@/hooks/useRaces';
 import { useCertificates } from '@/hooks/useCertificates';
 import { RegattaResultsView, formatDuration, courseLabel } from '@/features/scoring';
 import { AlertCircle, Edit, Save, Loader2, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 
 interface RacerRegattaPageProps {
@@ -18,7 +19,7 @@ interface RacerRegattaPageProps {
 
 export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegattaPageProps) {
     const [activeTab, setActiveTab] = useState<'Results' | 'Schedule' | 'My Entry' | 'Class'>('Results');
-    const { regatta, updateEntry, isLoading: isUpdating } = useRegatta(initialRegatta.id);
+    const { regatta, updateEntry, deleteEntry, isLoading: isUpdating } = useRegatta(initialRegatta.id);
     const { getRaceResults } = useRaces();
 
     const myEntryId = regatta?.myEntryId || initialRegatta.myEntryId;
@@ -36,6 +37,8 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
 
     const { certificates } = useCertificates(myEntry?.boatId || null);
 
+    const router = useRouter();
+
     const handleSaveEntry = async () => {
         if (!myEntryId) return;
         try {
@@ -47,6 +50,18 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
         } catch (err) {
             console.error("Failed to update entry:", err);
             alert("Failed to save changes. Please try again.");
+        }
+    };
+
+    const handleWithdraw = async () => {
+        if (!myEntry) return;
+        if (confirm('Are you sure you want to withdraw your entry? This cannot be undone once processed.')) {
+            try {
+                await deleteEntry(myEntry.id);
+                router.push('/dashboard');
+            } catch (err) {
+                alert(err instanceof Error ? err.message : 'Failed to withdraw entry');
+            }
         }
     };
 
@@ -335,6 +350,16 @@ export default function RacerRegattaPage({ regatta: initialRegatta }: RacerRegat
                                     </div>
                                 </div>
                             )}
+
+                            <div className="mt-12 pt-8 border-t border-white/5 flex justify-center">
+                                <button 
+                                    onClick={handleWithdraw}
+                                    className="text-xs font-bold text-slate-500 hover:text-rose-400 flex items-center gap-2 transition-colors uppercase tracking-wider"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Withdraw Entry from Regatta
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-20 text-slate-500 border border-dashed border-slate-800 rounded-3xl bg-slate-900/20">

@@ -73,6 +73,8 @@ export interface EntryResponse {
     rating?: number | null;
     registrationStatus: string;
     activeCertificateId?: number | null;
+    activeCertificateType?: string | null;
+    activeCertificateNumber?: string | null;
     statusNote?: string | null;
     configuration?: string;
 }
@@ -208,13 +210,27 @@ export function useRegatta(id: string | number) {
         }
     };
 
+    const deleteEntry = async (entryId: number) => {
+        setIsLoading(true);
+        try {
+            await apiClient.delete(`/api/regattas/${id}/entries/${entryId}`);
+            await fetchRegatta();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to delete entry");
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return {
         regatta,
         isLoading,
         error,
         refetch: fetchRegatta,
         updateRegatta,
-        updateEntry
+        updateEntry,
+        deleteEntry
     };
 }
 

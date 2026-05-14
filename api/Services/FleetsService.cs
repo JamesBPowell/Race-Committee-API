@@ -90,6 +90,8 @@ namespace RaceCommittee.Api.Services
                 throw new UnauthorizedAccessException("Not a committee member");
 
             var oldScoringMethod = fleet.ScoringMethod;
+            var oldDefaultConfiguration = fleet.DefaultConfiguration;
+            var oldAllowMixedConfiguration = fleet.AllowMixedConfiguration;
             fleet.Name = dto.Name ?? string.Empty;
             fleet.SequenceOrder = dto.SequenceOrder;
             fleet.ScoringMethod = dto.ScoringMethod;
@@ -98,7 +100,10 @@ namespace RaceCommittee.Api.Services
 
             await _context.SaveChangesAsync();
 
-            if (oldScoringMethod != dto.ScoringMethod)
+            // Re-evaluate entries when scoring method OR configuration settings change
+            if (oldScoringMethod != dto.ScoringMethod || 
+                oldDefaultConfiguration != fleet.DefaultConfiguration ||
+                oldAllowMixedConfiguration != fleet.AllowMixedConfiguration)
             {
                 await ReevaluateFleetEntriesAsync(fleet.Id);
             }
@@ -112,6 +117,7 @@ namespace RaceCommittee.Api.Services
             if (fleet == null) return;
 
             var entries = await _context.Entries
+                .Include(e => e.ActiveCertificate)
                 .Where(e => e.FleetId == fleetId)
                 .ToListAsync();
 
@@ -130,10 +136,24 @@ namespace RaceCommittee.Api.Services
                 }
                 else
                 {
-                    // If it's valid, clear the note (it might have been pending due to missing cert)
+                    // If it's valid, clear the note
                     entry.StatusNote = null;
                 }
+
+                // Recalculate rating from certificate based on fleet configuration
+                if (entry.ActiveCertificate != null)
+                {
+                    string config = fleet.AllowMixedConfiguration 
+                        ? (entry.Configuration ?? BoatConfiguration.Spinnaker)
+                        : fleet.DefaultConfiguration;
+                    
+                    var isSpinnaker = config != BoatConfiguration.NonSpinnaker;
+                    entry.Rating = isSpinnaker 
+                        ? entry.ActiveCertificate.RatingSpinnaker 
+                        : entry.ActiveCertificate.RatingNonSpinnaker;
+                }
             }
+
 
             await _context.SaveChangesAsync();
         }
