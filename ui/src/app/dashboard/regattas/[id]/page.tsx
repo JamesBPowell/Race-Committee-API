@@ -10,6 +10,7 @@ import { useRegatta, useFleets, FleetResponse, ScoringMethod, StartType, CourseT
 import { useToast } from '@/components/ui/Toast';
 import { useRaces } from '@/hooks/useRaces';
 import { useCertificates } from '@/hooks/useCertificates';
+import { API_BASE_URL } from '@/lib/constants';
 import AddRaceModal from '@/components/AddRaceModal';
 import EditRaceModal from '@/components/EditRaceModal';
 import { ScoreRaceModal, RegattaResultsView } from '@/features/scoring';
@@ -463,7 +464,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                             </div>
                                                             {entry.activeCertificateType && entry.activeCertificateId ? (
                                                                 <a 
-                                                                    href={`/api/boats/${entry.boatId}/certificates/${entry.activeCertificateId}/mhtml`}
+                                                                    href={`${API_BASE_URL}/api/boats/${entry.boatId}/certificates/${entry.activeCertificateId}/mhtml`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-[10px] text-cyan-500 hover:text-cyan-400 hover:underline inline-flex items-center gap-1"

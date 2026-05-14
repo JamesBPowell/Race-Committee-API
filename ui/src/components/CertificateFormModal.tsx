@@ -7,6 +7,7 @@ import { useConfirm } from '@/components/ui/ConfirmContext';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { useCertificates, useCertificateSearch, CertificateResponse } from '@/hooks/useCertificates';
+import { API_BASE_URL } from '@/lib/constants';
 
 interface CertificateFormModalProps {
     isOpen: boolean;
@@ -386,7 +387,7 @@ export default function CertificateFormModal({ isOpen, onClose, boatId, editingC
                             </Button>
                             {currentCert.sourceContentPath ? (
                                 <a
-                                    href={`/api/boats/${currentCert.boatId}/certificates/${currentCert.id}/mhtml`}
+                                    href={`${API_BASE_URL}/api/boats/${currentCert.boatId}/certificates/${currentCert.id}/mhtml`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-cyan-400 hover:text-cyan-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors flex-1"
