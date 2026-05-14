@@ -79,7 +79,7 @@ namespace RaceCommittee.Api.Services
                 // Brief pause for any print-specific JS to settle (matchMedia callbacks, etc.)
                 await Task.Delay(500);
 
-                // Inline all external CSS into <style> blocks so the HTML is self-contained
+                // Step 1: Fetch and inline all external stylesheets
                 await page.EvaluateAsync(@"async () => {
                     const links = Array.from(document.querySelectorAll('link[rel=""stylesheet""]'));
                     for (const link of links) {
@@ -91,8 +91,45 @@ namespace RaceCommittee.Api.Services
                             link.parentNode.replaceChild(style, link);
                         } catch(e) { /* skip unreachable stylesheets */ }
                     }
+                }");
 
-                    // Convert images to data URIs so they're embedded
+                // Step 2: Transform CSS via CSSOM — unwrap @media print, strip @media screen
+                // This ensures the captured HTML always renders as the print view
+                await page.EvaluateAsync(@"() => {
+                    const styleElements = Array.from(document.querySelectorAll('style'));
+                    for (const styleEl of styleElements) {
+                        try {
+                            const sheet = styleEl.sheet;
+                            if (!sheet || !sheet.cssRules) continue;
+
+                            const newCss = [];
+                            for (let i = 0; i < sheet.cssRules.length; i++) {
+                                const rule = sheet.cssRules[i];
+                                if (rule.type === CSSRule.MEDIA_RULE) {
+                                    const media = (rule.conditionText || rule.media.mediaText || '').toLowerCase();
+                                    if (media.includes('print') && !media.includes('not print')) {
+                                        // Unwrap @media print rules — make them unconditional
+                                        for (let j = 0; j < rule.cssRules.length; j++) {
+                                            newCss.push(rule.cssRules[j].cssText);
+                                        }
+                                    } else if (media.includes('screen') || media.includes('not print')) {
+                                        // Strip @media screen rules entirely
+                                        continue;
+                                    } else {
+                                        // Keep other media queries as-is (e.g. max-width)
+                                        newCss.push(rule.cssText);
+                                    }
+                                } else {
+                                    newCss.push(rule.cssText);
+                                }
+                            }
+                            styleEl.textContent = newCss.join('\n');
+                        } catch(e) { /* skip inaccessible stylesheets */ }
+                    }
+                }");
+
+                // Step 3: Convert images to data URIs so they're embedded
+                await page.EvaluateAsync(@"() => {
                     const imgs = Array.from(document.querySelectorAll('img'));
                     for (const img of imgs) {
                         try {
