@@ -12,11 +12,22 @@ interface ScoreRaceModalProps {
     race: RaceResponse | null;
     regatta: RegattaResponse;
     defaultTab?: 'record' | 'results';
+    onTabChange?: (tab: 'record' | 'results') => void;
     onSuccess?: () => void;
 }
 
-export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'record', onSuccess }: ScoreRaceModalProps) {
+export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'record', onTabChange, onSuccess }: ScoreRaceModalProps) {
     const [activeTab, setActiveTab] = useState<'record' | 'results'>(defaultTab);
+
+    const handleTabChange = (tab: 'record' | 'results') => {
+        setActiveTab(tab);
+        onTabChange?.(tab);
+    };
+
+    // Synchronize local activeTab with defaultTab prop when it changes from parent
+    React.useEffect(() => {
+        setActiveTab(defaultTab);
+    }, [defaultTab]);
     const { states, actions, helpers } = useScoreRace({ race, regatta, onSuccess, isOpen });
 
     if (!isOpen || !race) return null;
@@ -52,8 +63,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
                 {/* Tabs */}
                 <div className="flex border-b border-white/10 px-6">
-                    <button onClick={() => setActiveTab('record')} className={tabButtonClass(activeTab === 'record')}>Record Finishes</button>
-                    <button onClick={() => setActiveTab('results')} className={tabButtonClass(activeTab === 'results')}>Calculated Results</button>
+                    <button onClick={() => handleTabChange('record')} className={tabButtonClass(activeTab === 'record')}>Record Finishes</button>
+                    <button onClick={() => handleTabChange('results')} className={tabButtonClass(activeTab === 'results')}>Calculated Results</button>
                 </div>
 
                 {/* Content */}
@@ -126,7 +137,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                         {activeTab === 'record' && (
                             <button
                                 onClick={async () => {
-                                    setActiveTab('results');
+                                    handleTabChange('results');
                                     await handleSaveFinishes();
                                 }}
                                 disabled={isLoading}

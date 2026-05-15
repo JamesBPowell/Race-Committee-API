@@ -100,6 +100,23 @@ namespace RaceCommittee.Api.Services
 
             await _context.SaveChangesAsync();
 
+            // Adjust RaceFleet overrides if scoring method changed
+            if (oldScoringMethod != dto.ScoringMethod)
+            {
+                var raceFleets = await _context.RaceFleets
+                    .Where(rf => rf.FleetId == fleet.Id)
+                    .ToListAsync();
+
+                foreach (var rf in raceFleets)
+                {
+                    if (rf.CourseType.HasValue && !IsCourseTypeSupported(rf.CourseType.Value, dto.ScoringMethod))
+                    {
+                        rf.CourseType = null; // Reset to race default if incompatible
+                    }
+                }
+                await _context.SaveChangesAsync();
+            }
+
             // Re-evaluate entries when scoring method OR configuration settings change
             if (oldScoringMethod != dto.ScoringMethod || 
                 oldDefaultConfiguration != fleet.DefaultConfiguration ||
@@ -109,6 +126,44 @@ namespace RaceCommittee.Api.Services
             }
 
             return fleet;
+        }
+
+        private bool IsCourseTypeSupported(CourseType courseType, ScoringMethod method)
+        {
+            switch (method)
+            {
+                case ScoringMethod.OneDesign:
+                    return courseType == CourseType.WindwardLeeward || 
+                           courseType == CourseType.Triangle || 
+                           courseType == CourseType.Olympic;
+
+                case ScoringMethod.PHRF_TOT:
+                case ScoringMethod.PHRF_TOD:
+                case ScoringMethod.Portsmouth:
+                    return courseType == CourseType.WindwardLeeward || 
+                           courseType == CourseType.RandomLeg || 
+                           courseType == CourseType.Triangle || 
+                           courseType == CourseType.Olympic;
+
+                case ScoringMethod.ORR_EZ_GPH:
+                    return true; // All supported for generic GPH
+
+                case ScoringMethod.ORR_EZ_PC:
+                case ScoringMethod.ORR_Full_PC:
+                    return courseType == CourseType.WindwardLeeward || 
+                           courseType == CourseType.RandomLeg || 
+                           courseType == CourseType.MostlyLW || 
+                           courseType == CourseType.MostlyReach ||
+                           courseType == CourseType.CircularRandom || 
+                           courseType == CourseType.MostlyWW || 
+                           courseType == CourseType.WL5050 || 
+                           courseType == CourseType.WL6040 ||
+                           courseType == CourseType.Triangle || 
+                           courseType == CourseType.Olympic;
+
+                default:
+                    return false;
+            }
         }
 
         public async Task ReevaluateFleetEntriesAsync(int fleetId)

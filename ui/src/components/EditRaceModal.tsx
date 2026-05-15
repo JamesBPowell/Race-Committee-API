@@ -3,10 +3,32 @@
 import React, { useState } from 'react';
 import { X, Loader2, Ruler, Wind } from 'lucide-react';
 import { useRaces } from '@/hooks/useRaces';
-import { RaceResponse, StartType, CourseType, FleetResponse } from '@/hooks/useRegattas';
+import { RaceResponse, StartType, CourseType, FleetResponse, ScoringMethod } from '@/hooks/useRegattas';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+
+function courseLabel(ct: CourseType | null | undefined): string {
+    if (ct == null) return '';
+    const labels: Record<number, string> = {
+        [CourseType.WindwardLeeward]: 'W/L',
+        [CourseType.RandomLeg]: 'Random Leg',
+        [CourseType.MostlyLW]: 'Mostly L/W',
+        [CourseType.MostlyReach]: 'Mostly Reach',
+        [CourseType.CircularRandom]: 'Circular Random',
+        [CourseType.MostlyWW]: 'Mostly W/W',
+        [CourseType.WL5050]: 'W/L 50/50',
+        [CourseType.WL6040]: 'W/L 60/40',
+        [CourseType.ClosedCourse]: 'Closed Course',
+        [CourseType.BayviewMac]: 'Bayview Mac',
+        [CourseType.ChicagoMac]: 'Chicago Mac',
+        [CourseType.PacificCup]: 'Pacific Cup',
+        [CourseType.Transpac]: 'Transpac',
+        [CourseType.Triangle]: 'Triangle',
+        [CourseType.Olympic]: 'Olympic'
+    };
+    return labels[ct] ?? `Course ${ct}`;
+}
 
 // Format UTC date string to local YYYY-MM-DDTHH:mm for datetime-local inputs
 function formatDateTimeLocal(utcDateString: string | null | undefined): string {
@@ -125,6 +147,29 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         }
     };
 
+    const SCORING_METHOD_COURSE_TYPES: Record<number, CourseType[]> = {
+        [ScoringMethod.OneDesign]: [CourseType.WindwardLeeward, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.PHRF_TOT]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.PHRF_TOD]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.ORR_EZ_GPH]: Object.values(CourseType).filter(v => typeof v === 'number') as CourseType[],
+        [ScoringMethod.ORR_EZ_PC]: [
+            CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+            CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+            CourseType.Triangle, CourseType.Olympic
+        ],
+        [ScoringMethod.ORR_Full_PC]: [
+            CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+            CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+            CourseType.Triangle, CourseType.Olympic
+        ],
+        [ScoringMethod.Portsmouth]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic]
+    };
+
+    // Calculate which course types are supported by ALL fleets in this race
+    const supportedByAll = Object.values(CourseType)
+        .filter(v => typeof v === 'number')
+        .filter(ct => fleets.every(f => (SCORING_METHOD_COURSE_TYPES[f.scoringMethod] || []).includes(ct as CourseType)));
+
     return (
         <div className="modal-overlay">
             <div className="modal-container max-w-lg">
@@ -190,21 +235,21 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                                 value={formData.courseType}
                                 title="Course Type"
                                 onChange={(e) => setFormData({ ...formData, courseType: parseInt(e.target.value) })}
-                                className="form-select"
+                                className={`form-select ${!supportedByAll.includes(formData.courseType) ? 'border-rose-500/50 text-rose-300' : ''}`}
                             >
-                                <option value={CourseType.WindwardLeeward}>Windward-Leeward</option>
-                                <option value={CourseType.RandomLeg}>Random Leg</option>
-                                <option value={CourseType.MostlyLW}>Mostly L/W</option>
-                                <option value={CourseType.MostlyReach}>Mostly Reach</option>
-                                <option value={CourseType.CircularRandom}>Circular Random</option>
-                                <option value={CourseType.MostlyWW}>Mostly WW</option>
-                                <option value={CourseType.WL5050}>WL 50/50</option>
-                                <option value={CourseType.WL6040}>WL 60/40</option>
-                                <option value={CourseType.ClosedCourse}>Closed Course</option>
-                                <option value={CourseType.BayviewMac}>Bayview Mac</option>
-                                <option value={CourseType.ChicagoMac}>Chicago Mac</option>
-                                <option value={CourseType.PacificCup}>Pacific Cup</option>
-                                <option value={CourseType.Transpac}>Transpac</option>
+                                <optgroup label="Supported by all classes">
+                                    {supportedByAll.map(ct => (
+                                        <option key={ct} value={ct}>{courseLabel(ct as CourseType)}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Other course types">
+                                    {Object.values(CourseType)
+                                        .filter(v => typeof v === 'number' && !supportedByAll.includes(v))
+                                        .map(ct => (
+                                            <option key={ct} value={ct}>{courseLabel(ct as CourseType)} (Limited Support)</option>
+                                        ))
+                                    }
+                                </optgroup>
                             </select>
                         </div>
                     </div>

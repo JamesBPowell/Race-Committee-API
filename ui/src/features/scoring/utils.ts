@@ -24,7 +24,21 @@ export function formatDelta(isoOrTimeSpan: string | null | undefined): string {
 export function courseLabel(ct: CourseType | null | undefined): string {
     if (ct == null) return '';
     const labels: Record<number, string> = {
-        0: 'W/L', 1: 'Random', 2: 'Triangle', 3: 'Olympic'
+        0: 'W/L',
+        1: 'Random Leg',
+        2: 'Mostly L/W',
+        3: 'Mostly Reach',
+        4: 'Circular Random',
+        5: 'Mostly W/W',
+        6: 'W/L 50/50',
+        7: 'W/L 60/40',
+        8: 'Closed Course',
+        9: 'Bayview Mac',
+        10: 'Chicago Mac',
+        11: 'Pacific Cup',
+        12: 'Transpac',
+        13: 'Triangle',
+        14: 'Olympic'
     };
-    return labels[ct] ?? '';
+    return labels[ct] ?? `Course ${ct}`;
 }

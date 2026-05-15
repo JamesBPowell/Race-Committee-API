@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Globalization;
 using AngleSharp;
 using AngleSharp.Dom;
+using AngleSharp.Html.Parser;
 using RaceCommittee.Api.Models;
 
 namespace RaceCommittee.Api.Services
@@ -29,22 +30,21 @@ namespace RaceCommittee.Api.Services
             return await ParseFromHtmlAsync(html, certType);
         }
 
-        public async Task<ParsedCertificateData> ParseFromHtmlAsync(string html, string certType)
+        public async Task<ParsedCertificateData> ParseFromHtmlAsync(string html, string certificateType)
         {
-            var config = Configuration.Default;
-            var context = BrowsingContext.New(config);
-            var document = await context.OpenAsync(req => req.Content(html));
-
-            var isOrrEz = certType.Equals("ORREZ", StringComparison.OrdinalIgnoreCase);
-            var schemaVersion = isOrrEz ? CertificateSchemas.CurrentOrrEz : CertificateSchemas.CurrentOrr;
+            var isOrrEz = certificateType.ToUpperInvariant() == "ORR-EZ";
+            var parser = new HtmlParser();
+            using var document = await parser.ParseDocumentAsync(html);
 
             var result = new ParsedCertificateData
             {
-                SchemaVersion = schemaVersion,
-                RawHtml = html
+                CertificateType = certificateType.ToUpperInvariant(),
+                SchemaVersion = isOrrEz ? CertificateSchemas.CurrentOrrEz : CertificateSchemas.CurrentOrr
             };
 
-            // Parse certificate number from page title or header
+            // Extract structured data from data-tbname tables and dataElement spans
+            var structuredData = ExtractStructuredData(document);
+
             result.CertificateNumber = ExtractCertificateNumber(document, isOrrEz);
 
             // Parse administrative data from input fields
@@ -65,7 +65,8 @@ namespace RaceCommittee.Api.Services
                 ["expirationDate"] = result.ExpirationDate?.ToString("yyyy-MM-dd"),
                 ["ratingSpinnaker"] = result.RatingSpinnaker,
                 ["ratingNonSpinnaker"] = result.RatingNonSpinnaker,
-                ["schemaVersion"] = schemaVersion
+                ["schemaVersion"] = result.SchemaVersion,
+                ["structuredData"] = structuredData
             };
 
             // Extract polar table data
@@ -502,34 +503,6 @@ namespace RaceCommittee.Api.Services
             return polarData;
         }
 
-        private static string GetTableSectionContext(IElement table)
-        {
-            // Walk up to find section headers
-            var sibling = table.PreviousElementSibling;
-            var context = "spinnaker"; // default
-            
-            for (int i = 0; i < 10 && sibling != null; i++)
-            {
-                var text = sibling.TextContent.Trim();
-                
-                if (text.Contains("Offshore", StringComparison.OrdinalIgnoreCase) && text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    return "offshoreNonSpinnaker";
-                if (text.Contains("Offshore", StringComparison.OrdinalIgnoreCase))
-                    return "offshoreSpinnaker";
-                if (text.Contains("Short Course", StringComparison.OrdinalIgnoreCase) && text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    return "shortCourseNonSpinnaker";
-                if (text.Contains("Short Course", StringComparison.OrdinalIgnoreCase))
-                    return "shortCourseSpinnaker";
-                    
-                if (text.Contains("Non-Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    context = "nonSpinnaker";
-                else if (text.Contains("Spinnaker", StringComparison.OrdinalIgnoreCase))
-                    context = "spinnaker";
-                    
-                sibling = sibling.PreviousElementSibling;
-            }
-            return context;
-        }
 
         private static Dictionary<string, object> ExtractBenchmarkRatings(IDocument document, bool isOrrEz)
         {
@@ -667,6 +640,63 @@ namespace RaceCommittee.Api.Services
                 }
             }
             return pcsData;
+        }
+
+        private static string GetTableSectionContext(IElement table)
+        {
+            // Look up the tree for a parent div with data-tbname or a preceding header
+            var parent = table.Closest("div[data-tbname]");
+            if (parent != null) return parent.GetAttribute("data-tbname") ?? "";
+
+            var prev = table.PreviousElementSibling;
+            while (prev != null)
+            {
+                if (prev.LocalName == "h2" || prev.LocalName == "h3" || prev.LocalName == "h4")
+                    return prev.TextContent.Trim();
+                prev = prev.PreviousElementSibling;
+            }
+
+            return "";
+        }
+
+        private static Dictionary<string, object> ExtractStructuredData(IDocument document)
+        {
+            var data = new Dictionary<string, object>();
+
+            // 1. Extract data from span.dataElement (modern certs)
+            foreach (var element in document.QuerySelectorAll("span.dataElement"))
+            {
+                var id = element.Id;
+                if (string.IsNullOrEmpty(id)) continue;
+
+                var text = element.TextContent?.Trim();
+                if (string.IsNullOrEmpty(text)) continue;
+
+                // Strip suffix "-input" if present
+                var key = id.EndsWith("-input") ? id.Substring(0, id.Length - 6) : id;
+                
+                if (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float val))
+                    data[key] = val;
+                else
+                    data[key] = text;
+            }
+
+            // 2. Extract data from input elements
+            foreach (var input in document.QuerySelectorAll("input[id], input[name]"))
+            {
+                var key = input.Id ?? input.GetAttribute("name");
+                if (string.IsNullOrEmpty(key)) continue;
+
+                var val = input.GetAttribute("value");
+                if (string.IsNullOrEmpty(val)) continue;
+
+                if (float.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out float fVal))
+                    data[key] = fVal;
+                else
+                    data[key] = val;
+            }
+
+            return data;
         }
 
         private static DateTime? TryParseDate(string value)

@@ -2,6 +2,7 @@ import React from 'react';
 import { Calculator, RefreshCw, Ruler, Navigation, Clock, Wind, Loader2 } from 'lucide-react';
 import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
 import { FinishResultDto } from '@/hooks/useRaces';
+import { courseLabel } from '../../utils';
 
 interface RaceResultsProps {
     race: RaceResponse;
@@ -92,7 +93,7 @@ export function RaceResults({ race, regatta, results, isLoading, onScoreRace }: 
                                         <div className={infoPill}>
                                             <Navigation className="h-3 w-3 text-sky-400/70" />
                                             <span className="uppercase">
-                                                {override.courseType === 0 ? 'W/L' : override.courseType === 1 ? 'Random' : override.courseType === 2 ? 'Triangle' : 'Olympic'}
+                                                {courseLabel(override.courseType)}
                                             </span>
                                         </div>
                                     )}

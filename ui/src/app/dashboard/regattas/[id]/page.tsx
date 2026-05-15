@@ -88,7 +88,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         }
     }, [regatta]);
 
-    if (isLoading) {
+    if (isLoading && !regatta) {
         return (
             <div className="flex-1 w-full flex justify-center items-center py-20">
                 <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
@@ -202,8 +202,53 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
         }
     };
 
+    const SCORING_METHOD_COURSE_TYPES: Record<number, CourseType[]> = {
+        [ScoringMethod.OneDesign]: [CourseType.WindwardLeeward, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.PHRF_TOT]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.PHRF_TOD]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+        [ScoringMethod.ORR_EZ_GPH]: Object.values(CourseType).filter(v => typeof v === 'number') as CourseType[],
+        [ScoringMethod.ORR_EZ_PC]: [
+            CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+            CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+            CourseType.Triangle, CourseType.Olympic
+        ],
+        [ScoringMethod.ORR_Full_PC]: [
+            CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+            CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+            CourseType.Triangle, CourseType.Olympic
+        ],
+        [ScoringMethod.Portsmouth]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic]
+    };
+
     const handleUpdateFleet = async () => {
         if (!editingFleet || !fleetName.trim()) return;
+
+        const methodChanged = scoringMethod !== editingFleet.scoringMethod;
+        const overridesWithIncompatibleCourse = regatta.races?.flatMap(r => 
+            (r.raceFleets || [])
+                .filter(rf => rf.fleetId === editingFleet.id && rf.courseType !== null)
+                .filter(rf => !SCORING_METHOD_COURSE_TYPES[scoringMethod].includes(rf.courseType!))
+                .map(rf => ({ raceName: r.name, courseType: rf.courseType }))
+        ) || [];
+
+        if (methodChanged && overridesWithIncompatibleCourse.length > 0) {
+            const confirmed = await confirm({
+                title: 'Incompatible Course Types',
+                message: `Changing to ${getRatingTypeLabel(scoringMethod)} will make course types in ${overridesWithIncompatibleCourse.length} race overrides incompatible. These overrides will be reset to the fleet default or cleared. Do you want to proceed?`,
+                confirmText: 'Update & Reset Overrides',
+                variant: 'warning'
+            });
+            if (!confirmed) return;
+        } else if (methodChanged) {
+            const confirmed = await confirm({
+                title: 'Change Scoring Method?',
+                message: `Are you sure you want to change the scoring method for ${editingFleet.name} to ${getRatingTypeLabel(scoringMethod)}? This may affect how results are calculated.`,
+                confirmText: 'Update Scoring Method',
+                variant: 'warning'
+            });
+            if (!confirmed) return;
+        }
+
         try {
             await updateFleet(editingFleet.id, {
                 name: fleetName,
@@ -1018,6 +1063,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                 race={regatta.races?.find(r => r.id === scoringRaceId) || null}
                 regatta={regatta}
                 defaultTab={scoringTab}
+                onTabChange={setScoringTab}
                 onSuccess={refetch}
             />
 

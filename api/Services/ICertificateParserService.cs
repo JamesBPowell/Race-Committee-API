@@ -10,6 +10,7 @@ namespace RaceCommittee.Api.Services
 
     public class ParsedCertificateData
     {
+        public string CertificateType { get; set; } = string.Empty;
         public string CertificateNumber { get; set; } = string.Empty;
         public string BoatName { get; set; } = string.Empty;
         public string SailNumber { get; set; } = string.Empty;

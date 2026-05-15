@@ -350,34 +350,21 @@ namespace RaceCommittee.Api.Services
                 try
                 {
                     var parsed = await _parser.ParseFromUrlAsync(cert.SourceUrl!, cert.CertificateType);
+                    UpdateCertificateFromParsedData(cert, parsed);
                     
-                    cert.CertificateNumber = parsed.CertificateNumber;
-                    cert.IssueDate = parsed.IssueDate;
-                    cert.ValidUntil = parsed.ExpirationDate;
-                    cert.RatingSpinnaker = parsed.RatingSpinnaker;
-                    cert.RatingNonSpinnaker = parsed.RatingNonSpinnaker;
-                    cert.RatingType = parsed.RatingType;
-                    cert.NormalizedToD = parsed.NormalizedToD;
-                    cert.Configuration = parsed.Configuration;
-                    cert.RawData = parsed.RawDataJson;
-                    cert.ParseStatus = "Success";
-                    cert.ParseErrors = null;
-                    cert.SchemaVersion = parsed.SchemaVersion;
-
-                    // Capture print-view HTML snapshot
-                    try
+                    // Capture print-view HTML snapshot if missing
+                    if (string.IsNullOrEmpty(cert.SourceContentPath))
                     {
-                        var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl!);
-                        var filename = $"cert_{cert.Id}.html";
-                        var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
-                        using var stream = new MemoryStream(htmlBytes);
-                        await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
-                        cert.SourceContentPath = blobPath;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log snapshot capture failure but don't fail the whole parsing if parsing succeeded
-                        cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
+                        try
+                        {
+                            var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl!);
+                            var filename = $"cert_{cert.Id}.html";
+                            var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
+                            using var stream = new MemoryStream(htmlBytes);
+                            await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
+                            cert.SourceContentPath = blobPath;
+                        }
+                        catch { /* ignore capture failures */ }
                     }
                     
                     count++;
@@ -391,6 +378,53 @@ namespace RaceCommittee.Api.Services
             
             await _context.SaveChangesAsync();
             return count;
+        }
+
+        public async Task<int> ReparseFromSnapshotsAsync()
+        {
+            var certificates = await _context.Certificates
+                .Where(c => !string.IsNullOrEmpty(c.SourceContentPath))
+                .ToListAsync();
+            
+            int count = 0;
+            foreach (var cert in certificates)
+            {
+                try
+                {
+                    using var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.SourceContentPath!);
+                    using var reader = new StreamReader(stream);
+                    var html = await reader.ReadToEndAsync();
+                    
+                    var parsed = await _parser.ParseFromHtmlAsync(html, cert.CertificateType);
+                    UpdateCertificateFromParsedData(cert, parsed);
+                    
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    cert.ParseStatus = "Failed";
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Reparse from snapshot failed: " + ex.Message });
+                }
+            }
+            
+            await _context.SaveChangesAsync();
+            return count;
+        }
+
+        private void UpdateCertificateFromParsedData(Certificate cert, ParsedCertificateData parsed)
+        {
+            cert.CertificateNumber = parsed.CertificateNumber ?? cert.CertificateNumber;
+            cert.IssueDate = parsed.IssueDate;
+            cert.ValidUntil = parsed.ExpirationDate;
+            cert.RatingSpinnaker = parsed.RatingSpinnaker;
+            cert.RatingNonSpinnaker = parsed.RatingNonSpinnaker;
+            cert.RatingType = parsed.RatingType;
+            cert.NormalizedToD = parsed.NormalizedToD;
+            cert.Configuration = parsed.Configuration;
+            cert.RawData = parsed.RawDataJson;
+            cert.ParseStatus = "Success";
+            cert.ParseErrors = null;
+            cert.SchemaVersion = parsed.SchemaVersion;
         }
 
         private static CertificateDto MapToDto(Certificate cert)

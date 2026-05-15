@@ -7,6 +7,7 @@ import { RaceResponse, CourseType, FleetResponse, StartType } from '@/hooks/useR
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { ScoringMethod } from '@/hooks/useRegattas';
 
 interface RaceOverridesModalProps {
     isOpen: boolean;
@@ -31,10 +32,42 @@ interface RaceFleetOverride {
 function courseLabel(ct: CourseType | null | undefined): string {
     if (ct == null) return '';
     const labels: Record<number, string> = {
-        0: 'W/L', 1: 'Random', 2: 'Triangle', 3: 'Olympic'
+        0: 'W/L',
+        1: 'Random Leg',
+        2: 'Mostly L/W',
+        3: 'Mostly Reach',
+        4: 'Circular Random',
+        5: 'Mostly W/W',
+        6: 'W/L 50/50',
+        7: 'W/L 60/40',
+        8: 'Closed Course',
+        9: 'Bayview Mac',
+        10: 'Chicago Mac',
+        11: 'Pacific Cup',
+        12: 'Transpac',
+        13: 'Triangle',
+        14: 'Olympic'
     };
-    return labels[ct] ?? '';
+    return labels[ct] ?? `Course ${ct}`;
 }
+
+const SCORING_METHOD_COURSE_TYPES: Record<number, CourseType[]> = {
+    [ScoringMethod.OneDesign]: [CourseType.WindwardLeeward, CourseType.Triangle, CourseType.Olympic],
+    [ScoringMethod.PHRF_TOT]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+    [ScoringMethod.PHRF_TOD]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic],
+    [ScoringMethod.ORR_EZ_GPH]: Object.values(CourseType).filter(v => typeof v === 'number') as CourseType[],
+    [ScoringMethod.ORR_EZ_PC]: [
+        CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+        CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+        CourseType.Triangle, CourseType.Olympic
+    ],
+    [ScoringMethod.ORR_Full_PC]: [
+        CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.MostlyLW, CourseType.MostlyReach,
+        CourseType.CircularRandom, CourseType.MostlyWW, CourseType.WL5050, CourseType.WL6040,
+        CourseType.Triangle, CourseType.Olympic
+    ],
+    [ScoringMethod.Portsmouth]: [CourseType.WindwardLeeward, CourseType.RandomLeg, CourseType.Triangle, CourseType.Olympic]
+};
 
 export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSuccess }: RaceOverridesModalProps) {
     const { updateRace } = useRaces();
@@ -214,10 +247,9 @@ export default function RaceOverridesModal({ isOpen, onClose, fleet, races, onSu
                                                     title="Select course type"
                                                 >
                                                     <option value="">Default ({courseLabel(race.courseType)})</option>
-                                                    <option value={CourseType.WindwardLeeward}>Windward/Leeward</option>
-                                                    <option value={CourseType.RandomLeg}>Random Leg</option>
-                                                    <option value={CourseType.Triangle}>Triangle</option>
-                                                    <option value={CourseType.Olympic}>Olympic</option>
+                                                    {(SCORING_METHOD_COURSE_TYPES[fleet.scoringMethod] || []).map(ct => (
+                                                        <option key={ct} value={ct}>{courseLabel(ct)}</option>
+                                                    ))}
                                                 </select>
                                             </div>
                                             <div className="bg-slate-900/30 p-2 rounded-xl">
