@@ -128,19 +128,36 @@ namespace RaceCommittee.Api.Services
                     }
                 }");
 
-                // Step 3: Convert images to data URIs so they're embedded
+                // Step 3: Convert images and canvases to embedded data URIs
                 await page.EvaluateAsync(@"() => {
+                    // Convert <img> elements to data URIs
                     const imgs = Array.from(document.querySelectorAll('img'));
                     for (const img of imgs) {
                         try {
                             if (!img.naturalWidth) continue;
-                            const canvas = document.createElement('canvas');
-                            canvas.width = img.naturalWidth;
-                            canvas.height = img.naturalHeight;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0);
-                            img.src = canvas.toDataURL('image/png');
+                            const c = document.createElement('canvas');
+                            c.width = img.naturalWidth;
+                            c.height = img.naturalHeight;
+                            c.getContext('2d').drawImage(img, 0, 0);
+                            img.src = c.toDataURL('image/png');
                         } catch(e) { /* skip CORS-restricted images */ }
+                    }
+
+                    // Convert <canvas> elements (e.g. line drawings) to <img> tags
+                    // Canvas pixel data is lost in serialized HTML, so we snapshot it
+                    const canvases = Array.from(document.querySelectorAll('canvas'));
+                    for (const canvas of canvases) {
+                        try {
+                            if (!canvas.width || !canvas.height) continue;
+                            const dataUrl = canvas.toDataURL('image/png');
+                            const img = document.createElement('img');
+                            img.src = dataUrl;
+                            img.width = canvas.width;
+                            img.height = canvas.height;
+                            img.style.cssText = canvas.style.cssText;
+                            img.className = canvas.className;
+                            canvas.parentNode.replaceChild(img, canvas);
+                        } catch(e) { /* skip tainted canvases */ }
                     }
                 }");
 
