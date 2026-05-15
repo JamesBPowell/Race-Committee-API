@@ -163,19 +163,19 @@ namespace RaceCommittee.Api.Controllers
             return File(stream, contentType ?? "application/octet-stream", fileName);
         }
 
-        // GET: api/boats/{boatId}/certificates/{id}/mhtml
-        [HttpGet("{id}/mhtml")]
-        [AllowAnonymous] // Ideally check if user has access to regatta or boat, but simplified for now
-        public async Task<IActionResult> DownloadMhtml(int boatId, int id)
+        // GET: api/boats/{boatId}/certificates/{id}/snapshot
+        [HttpGet("{id}/snapshot")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadSnapshot(int boatId, int id)
         {
             var userId = GetCurrentUserId();
             
-            var (stream, contentType, fileName) = await _certificatesService.GetMhtmlAsync(id, userId ?? string.Empty);
+            var (stream, contentType, fileName) = await _certificatesService.GetSnapshotAsync(id, userId ?? string.Empty);
             if (stream == null) return NotFound();
 
-            // Serve as text/html with inline disposition so the browser renders it in a new tab
+            // Serve with inline disposition so the browser renders it (PDF or HTML)
             Response.Headers.Append("Content-Disposition", $"inline; filename={fileName}");
-            return File(stream, contentType ?? "text/html");
+            return File(stream, contentType ?? "application/octet-stream");
         }
     }
 
@@ -214,8 +214,29 @@ namespace RaceCommittee.Api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return Unauthorized();
             
-            // This could be restricted to admins, but for now we'll allow committee members or just leave it open to authorized users
             var count = await _certificatesService.ReparseAllCertificatesAsync();
+            return Ok(new { count });
+        }
+
+        // POST: api/certificates/reparse-snapshots
+        [HttpPost("reparse-snapshots")]
+        public async Task<ActionResult<object>> ReparseSnapshots()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+            
+            var count = await _certificatesService.ReparseFromSnapshotsAsync();
+            return Ok(new { count });
+        }
+
+        // POST: api/certificates/scrub-snapshots
+        [HttpPost("scrub-snapshots")]
+        public async Task<ActionResult<object>> ScrubSnapshots()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+            
+            var count = await _certificatesService.ScrubSnapshotsAsync();
             return Ok(new { count });
         }
     }

@@ -67,7 +67,7 @@ builder.Services.AddScoped<IFleetsService, FleetsService>();
 builder.Services.AddScoped<ICertificatesService, CertificatesService>();
 builder.Services.AddHttpClient<ICertificateParserService, RegattamanParserService>();
 builder.Services.AddHttpClient<ICertificateListService, RegattamanCertificateListService>();
-builder.Services.AddSingleton<IPlaywrightMhtmlService, PlaywrightMhtmlService>();
+builder.Services.AddSingleton<ICertificateCaptureService, CertificateCaptureService>();
 
 // File storage: local filesystem in dev, Azure Blob in production
 var storageConnectionString = builder.Configuration["StorageAccountConnectionString"];

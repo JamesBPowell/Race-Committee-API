@@ -13,7 +13,9 @@ namespace RaceCommittee.Api.Services
         Task<(bool Success, string ErrorMessage)> DeleteCertificateAsync(int id, string userId);
         Task<CertificateDto?> RefreshFromSourceAsync(int id, string userId);
         Task<(Stream? FileStream, string? ContentType, string? FileName)> GetFileDownloadAsync(int id, string userId);
-        Task<(Stream? FileStream, string? ContentType, string? FileName)> GetMhtmlAsync(int id, string userId);
+        Task<(Stream? FileStream, string? ContentType, string? FileName)> GetSnapshotAsync(int id, string userId);
         Task<int> ReparseAllCertificatesAsync();
+        Task<int> ReparseFromSnapshotsAsync();
+        Task<int> ScrubSnapshotsAsync();
     }
 }

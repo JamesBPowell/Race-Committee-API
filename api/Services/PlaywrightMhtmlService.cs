@@ -1,24 +1,26 @@
 using Microsoft.Playwright;
+using RaceCommittee.Api.Models.DTOs;
 
 namespace RaceCommittee.Api.Services
 {
-    public interface IPlaywrightMhtmlService
+    public interface ICertificateCaptureService
     {
-        Task<byte[]> CapturePrintHtmlAsync(string url);
+        Task<CertificateCaptureResult> CaptureCertificateAsync(string url, string certificateType);
     }
 
-    public class PlaywrightMhtmlService : IPlaywrightMhtmlService, IAsyncDisposable
+    public class CertificateCaptureService : ICertificateCaptureService, IAsyncDisposable
     {
+        private readonly ICertificateParserService _parser;
         private readonly SemaphoreSlim _requestSemaphore;
         private readonly SemaphoreSlim _browserSemaphore;
-        
         private IPlaywright? _playwright;
         private IBrowser? _browser;
         private DateTime _browserStartedAt;
         private readonly TimeSpan _browserMaxLifetime = TimeSpan.FromMinutes(30);
 
-        public PlaywrightMhtmlService(int maxConcurrent = 3)
+        public CertificateCaptureService(ICertificateParserService parser, int maxConcurrent = 3)
         {
+            _parser = parser;
             _requestSemaphore = new SemaphoreSlim(maxConcurrent, maxConcurrent);
             _browserSemaphore = new SemaphoreSlim(1, 1);
         }
@@ -47,7 +49,7 @@ namespace RaceCommittee.Api.Services
             }
         }
 
-        public async Task<byte[]> CapturePrintHtmlAsync(string url)
+        public async Task<CertificateCaptureResult> CaptureCertificateAsync(string url, string certificateType)
         {
             // Backpressure: fail quickly if too many requests
             if (!await _requestSemaphore.WaitAsync(TimeSpan.FromSeconds(10)))
@@ -62,109 +64,45 @@ namespace RaceCommittee.Api.Services
                 if (_browser == null) throw new InvalidOperationException("Browser not initialized.");
 
                 // Create context with print media emulated from the start.
-                // This ensures @media print CSS rules are active during page load,
-                // and matchMedia('print') listeners fire as the page initializes.
                 await using var context = await _browser.NewContextAsync(new BrowserNewContextOptions
                 {
-                    ColorScheme = ColorScheme.Light
+                    ColorScheme = ColorScheme.Light,
+                    ViewportSize = new ViewportSize { Width = 1280, Height = 1024 }
                 });
                 var page = await context.NewPageAsync();
 
                 // Emulate print media BEFORE navigation so the page renders in print mode
+                // This unrolls all tabs (Ratings, Offshore Polars, Short Course Polars) into a single page
                 await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Print });
 
                 // Navigate — NetworkIdle ensures all resources (CSS, images, XHR) are loaded
                 await page.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
+                // Wait for certificates elements to be visible
+                await page.WaitForSelectorAsync("div[data-tbname]", new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible, Timeout = 5000 });
+
                 // Brief pause for any print-specific JS to settle (matchMedia callbacks, etc.)
-                await Task.Delay(500);
+                await Task.Delay(1000);
 
-                // Step 1: Fetch and inline all external stylesheets
-                await page.EvaluateAsync(@"async () => {
-                    const links = Array.from(document.querySelectorAll('link[rel=""stylesheet""]'));
-                    for (const link of links) {
-                        try {
-                            const resp = await fetch(link.href);
-                            const css = await resp.text();
-                            const style = document.createElement('style');
-                            style.textContent = css;
-                            link.parentNode.replaceChild(style, link);
-                        } catch(e) { /* skip unreachable stylesheets */ }
-                    }
-                }");
+                // Extract HTML for parsing
+                // Since we are in Print mode, this HTML contains ALL sections (Ratings, Polars, etc.)
+                var unrolledHtml = await page.ContentAsync();
+                var parsedData = await _parser.ParseFromHtmlAsync(unrolledHtml, certificateType);
 
-                // Step 2: Transform CSS via CSSOM — unwrap @media print, strip @media screen
-                // This ensures the captured HTML always renders as the print view
-                await page.EvaluateAsync(@"() => {
-                    const styleElements = Array.from(document.querySelectorAll('style'));
-                    for (const styleEl of styleElements) {
-                        try {
-                            const sheet = styleEl.sheet;
-                            if (!sheet || !sheet.cssRules) continue;
+                // Generate archival PDF
+                // We use standard PDF generation which is highly compressed compared to Base64 HTML
+                var pdfBytes = await page.PdfAsync(new PagePdfOptions
+                {
+                    Format = "Letter",
+                    PrintBackground = true,
+                    Margin = new Margin { Top = "0.4in", Bottom = "0.4in", Left = "0.4in", Right = "0.4in" }
+                });
 
-                            const newCss = [];
-                            for (let i = 0; i < sheet.cssRules.length; i++) {
-                                const rule = sheet.cssRules[i];
-                                if (rule.type === CSSRule.MEDIA_RULE) {
-                                    const media = (rule.conditionText || rule.media.mediaText || '').toLowerCase();
-                                    if (media.includes('print') && !media.includes('not print')) {
-                                        // Unwrap @media print rules — make them unconditional
-                                        for (let j = 0; j < rule.cssRules.length; j++) {
-                                            newCss.push(rule.cssRules[j].cssText);
-                                        }
-                                    } else if (media.includes('screen') || media.includes('not print')) {
-                                        // Strip @media screen rules entirely
-                                        continue;
-                                    } else {
-                                        // Keep other media queries as-is (e.g. max-width)
-                                        newCss.push(rule.cssText);
-                                    }
-                                } else {
-                                    newCss.push(rule.cssText);
-                                }
-                            }
-                            styleEl.textContent = newCss.join('\n');
-                        } catch(e) { /* skip inaccessible stylesheets */ }
-                    }
-                }");
-
-                // Step 3: Convert images and canvases to embedded data URIs
-                await page.EvaluateAsync(@"() => {
-                    // Convert <img> elements to data URIs
-                    const imgs = Array.from(document.querySelectorAll('img'));
-                    for (const img of imgs) {
-                        try {
-                            if (!img.naturalWidth) continue;
-                            const c = document.createElement('canvas');
-                            c.width = img.naturalWidth;
-                            c.height = img.naturalHeight;
-                            c.getContext('2d').drawImage(img, 0, 0);
-                            img.src = c.toDataURL('image/png');
-                        } catch(e) { /* skip CORS-restricted images */ }
-                    }
-
-                    // Convert <canvas> elements (e.g. line drawings) to <img> tags
-                    // Canvas pixel data is lost in serialized HTML, so we snapshot it
-                    const canvases = Array.from(document.querySelectorAll('canvas'));
-                    for (const canvas of canvases) {
-                        try {
-                            if (!canvas.width || !canvas.height) continue;
-                            const dataUrl = canvas.toDataURL('image/png');
-                            const img = document.createElement('img');
-                            img.src = dataUrl;
-                            img.width = canvas.width;
-                            img.height = canvas.height;
-                            img.style.cssText = canvas.style.cssText;
-                            img.className = canvas.className;
-                            canvas.parentNode.replaceChild(img, canvas);
-                        } catch(e) { /* skip tainted canvases */ }
-                    }
-                }");
-
-                // Capture the fully-rendered, self-contained HTML
-                var html = await page.ContentAsync();
-
-                return System.Text.Encoding.UTF8.GetBytes(html);
+                return new CertificateCaptureResult
+                {
+                    ParsedData = parsedData,
+                    PdfBytes = pdfBytes
+                };
             }
             finally
             {

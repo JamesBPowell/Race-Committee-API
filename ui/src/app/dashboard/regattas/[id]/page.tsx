@@ -509,7 +509,7 @@ export default function RegattaPage({ params }: { params: Promise<{ id: string }
                                                             </div>
                                                             {entry.activeCertificateType && entry.activeCertificateId ? (
                                                                 <a 
-                                                                    href={`${API_BASE_URL}/api/boats/${entry.boatId}/certificates/${entry.activeCertificateId}/mhtml`}
+                                                                    href={`${API_BASE_URL}/api/boats/${entry.boatId}/certificates/${entry.activeCertificateId}/snapshot`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-[10px] text-cyan-500 hover:text-cyan-400 hover:underline inline-flex items-center gap-1"

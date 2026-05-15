@@ -1,3 +1,4 @@
+using AngleSharp;
 using Microsoft.EntityFrameworkCore;
 using RaceCommittee.Api.Data;
 using RaceCommittee.Api.Models;
@@ -10,7 +11,7 @@ namespace RaceCommittee.Api.Services
         private readonly ApplicationDbContext _context;
         private readonly IFileStorageService _fileStorage;
         private readonly ICertificateParserService _parser;
-        private readonly IPlaywrightMhtmlService _mhtmlService;
+        private readonly ICertificateCaptureService _captureService;
         private const string CertificatesContainer = "certificates";
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
         private static readonly string[] AllowedContentTypes = ["application/pdf", "image/jpeg", "image/png"];
@@ -19,12 +20,12 @@ namespace RaceCommittee.Api.Services
             ApplicationDbContext context,
             IFileStorageService fileStorage,
             ICertificateParserService parser,
-            IPlaywrightMhtmlService mhtmlService)
+            ICertificateCaptureService captureService)
         {
             _context = context;
             _fileStorage = fileStorage;
             _parser = parser;
-            _mhtmlService = mhtmlService;
+            _captureService = captureService;
         }
 
         public async Task<IEnumerable<CertificateDto>> GetCertificatesForBoatAsync(int boatId, string userId)
@@ -109,18 +110,26 @@ namespace RaceCommittee.Api.Services
                 : CertificateSchemas.CurrentOrrEz;
 
             ParsedCertificateData? parsed = null;
+            byte[]? pdfBytes = null;
             string parseStatus = "Pending";
             string? parseErrors = null;
 
             try
             {
-                parsed = await _parser.ParseFromUrlAsync(dto.SourceUrl, dto.CertificateType);
+                // Single-pass: Capture data and PDF archival in one browser session
+                var captureResult = await _captureService.CaptureCertificateAsync(dto.SourceUrl, dto.CertificateType);
+                parsed = captureResult.ParsedData;
+                pdfBytes = captureResult.PdfBytes;
                 parseStatus = "Success";
+            }
+            catch (TimeoutException)
+            {
+                throw new Exception("Service is busy, please retry in a short while.");
             }
             catch (Exception ex)
             {
                 parseStatus = "Failed";
-                parseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { ex.Message });
+                parseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Capture failed: " + ex.Message });
             }
 
             var cert = new Certificate
@@ -146,29 +155,25 @@ namespace RaceCommittee.Api.Services
             _context.Certificates.Add(cert);
             await _context.SaveChangesAsync();
 
-            // Try to capture print-view HTML snapshot
-            try
+            // Save PDF snapshot if capture was successful
+            if (pdfBytes != null)
             {
-                var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(dto.SourceUrl);
-                var filename = $"cert_{cert.Id}.html";
-                var blobPath = $"{boatId}/{cert.Id}/{filename}";
-                
-                using var stream = new MemoryStream(htmlBytes);
-                await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
-                
-                cert.SourceContentPath = blobPath;
-                await _context.SaveChangesAsync();
-            }
-            catch (TimeoutException ex)
-            {
-                // Throw so the frontend displays the busy message
-                throw new Exception("Service is busy, please retry in a short while.");
-            }
-            catch (Exception ex)
-            {
-                cert.ParseStatus = "Failed";
-                cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
-                await _context.SaveChangesAsync();
+                try
+                {
+                    var filename = $"cert_{cert.Id}.pdf";
+                    var blobPath = $"{boatId}/{cert.Id}/{filename}";
+                    
+                    using var stream = new MemoryStream(pdfBytes);
+                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "application/pdf");
+                    
+                    cert.SourceContentPath = blobPath;
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to save PDF: " + ex.Message });
+                    await _context.SaveChangesAsync();
+                }
             }
 
             return MapToDto(cert);
@@ -262,44 +267,30 @@ namespace RaceCommittee.Api.Services
 
             try
             {
-                var parsed = await _parser.ParseFromUrlAsync(cert.SourceUrl, cert.CertificateType);
-
-                cert.CertificateNumber = parsed.CertificateNumber;
-                cert.IssueDate = parsed.IssueDate;
-                cert.ValidUntil = parsed.ExpirationDate;
-                cert.RatingSpinnaker = parsed.RatingSpinnaker;
-                cert.RatingNonSpinnaker = parsed.RatingNonSpinnaker;
-                cert.RatingType = parsed.RatingType;
-                cert.NormalizedToD = parsed.NormalizedToD;
-                cert.Configuration = parsed.Configuration;
-                cert.RawData = parsed.RawDataJson;
-                cert.ParseStatus = "Success";
-                cert.ParseErrors = null;
-                cert.SchemaVersion = parsed.SchemaVersion;
-
-                await _context.SaveChangesAsync();
-
-                // Try to capture print-view HTML snapshot
+                // Single-pass: Capture data and PDF archival in one browser session
                 try
                 {
-                    var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl);
-                    var filename = $"cert_{cert.Id}.html";
+                    var captureResult = await _captureService.CaptureCertificateAsync(cert.SourceUrl, cert.CertificateType);
+                    UpdateCertificateFromParsedData(cert, captureResult.ParsedData);
+
+                    // Save PDF snapshot
+                    var filename = $"cert_{cert.Id}.pdf";
                     var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
-                    
-                    using var stream = new MemoryStream(htmlBytes);
-                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
+                    using var stream = new MemoryStream(captureResult.PdfBytes);
+                    await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "application/pdf");
                     
                     cert.SourceContentPath = blobPath;
                     await _context.SaveChangesAsync();
                 }
                 catch (TimeoutException)
                 {
+                    // Throw so the frontend displays the busy message
                     throw new Exception("Service is busy, please retry in a short while.");
                 }
                 catch (Exception ex)
                 {
                     cert.ParseStatus = "Failed";
-                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Failed to capture snapshot: " + ex.Message });
+                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { "Refresh capture failed: " + ex.Message });
                     await _context.SaveChangesAsync();
                 }
 
@@ -328,14 +319,18 @@ namespace RaceCommittee.Api.Services
             return (stream, cert.ContentType, cert.FileName);
         }
 
-        public async Task<(Stream? FileStream, string? ContentType, string? FileName)> GetMhtmlAsync(int id, string userId)
+        public async Task<(Stream? FileStream, string? ContentType, string? FileName)> GetSnapshotAsync(int id, string userId)
         {
             var cert = await _context.Certificates.FirstOrDefaultAsync(c => c.Id == id);
 
             if (cert?.SourceContentPath == null) return (null, null, null);
 
             var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.SourceContentPath);
-            return (stream, "text/html", $"cert_{cert.Id}.html");
+            var isPdf = cert.SourceContentPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+            var contentType = isPdf ? "application/pdf" : "text/html";
+            var fileName = isPdf ? $"cert_{cert.Id}.pdf" : $"cert_{cert.Id}.html";
+
+            return (stream, contentType, fileName);
         }
     
         public async Task<int> ReparseAllCertificatesAsync()
@@ -347,33 +342,25 @@ namespace RaceCommittee.Api.Services
             int count = 0;
             foreach (var cert in certificates)
             {
-                try
-                {
-                    var parsed = await _parser.ParseFromUrlAsync(cert.SourceUrl!, cert.CertificateType);
-                    UpdateCertificateFromParsedData(cert, parsed);
-                    
-                    // Capture print-view HTML snapshot if missing
-                    if (string.IsNullOrEmpty(cert.SourceContentPath))
-                    {
-                        try
-                        {
-                            var htmlBytes = await _mhtmlService.CapturePrintHtmlAsync(cert.SourceUrl!);
-                            var filename = $"cert_{cert.Id}.html";
-                            var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
-                            using var stream = new MemoryStream(htmlBytes);
-                            await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "text/html");
-                            cert.SourceContentPath = blobPath;
-                        }
-                        catch { /* ignore capture failures */ }
-                    }
-                    
-                    count++;
-                }
-                catch (Exception ex)
-                {
-                    cert.ParseStatus = "Failed";
-                    cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { ex.Message });
-                }
+            try
+            {
+                var captureResult = await _captureService.CaptureCertificateAsync(cert.SourceUrl!, cert.CertificateType);
+                UpdateCertificateFromParsedData(cert, captureResult.ParsedData);
+                
+                // Save PDF snapshot
+                var filename = $"cert_{cert.Id}.pdf";
+                var blobPath = $"{cert.BoatId}/{cert.Id}/{filename}";
+                using var stream = new MemoryStream(captureResult.PdfBytes);
+                await _fileStorage.UploadAsync(CertificatesContainer, blobPath, stream, "application/pdf");
+                
+                cert.SourceContentPath = blobPath;
+                count++;
+            }
+            catch (Exception ex)
+            {
+                cert.ParseStatus = "Failed";
+                cert.ParseErrors = System.Text.Json.JsonSerializer.Serialize(new[] { ex.Message });
+            }
             }
             
             await _context.SaveChangesAsync();
@@ -408,6 +395,57 @@ namespace RaceCommittee.Api.Services
             }
             
             await _context.SaveChangesAsync();
+            return count;
+        }
+
+        public async Task<int> ScrubSnapshotsAsync()
+        {
+            var certificates = await _context.Certificates
+                .Where(c => !string.IsNullOrEmpty(c.SourceContentPath))
+                .ToListAsync();
+
+            int count = 0;
+            var config = AngleSharp.Configuration.Default;
+            var context = AngleSharp.BrowsingContext.New(config);
+
+            foreach (var cert in certificates)
+            {
+                try
+                {
+                    using var stream = await _fileStorage.DownloadAsync(CertificatesContainer, cert.SourceContentPath!);
+                    using var reader = new StreamReader(stream);
+                    var html = await reader.ReadToEndAsync();
+
+                    var document = await context.OpenAsync(m => m.Content(html));
+
+                    // Remove scripts, noscripts, and prefetch links
+                    var scripts = document.QuerySelectorAll("script, noscript, link[rel='prefetch'], link[rel='preload']");
+                    foreach (var s in scripts) s.Remove();
+
+                    // Remove tracking/meta bloat
+                    var metaBloat = document.QuerySelectorAll("meta[name*='google'], meta[name*='twitter'], meta[property*='og:'], link[rel='alternate']");
+                    foreach (var m in metaBloat) m.Remove();
+
+                    // Remove non-print UI elements
+                    var uiElements = document.QuerySelectorAll(".noPrint, .noprint, #header_sect, #nav, #footer_sect, .menu-collapser");
+                    foreach (var e in uiElements) e.Remove();
+
+                    var cleanedHtml = document.DocumentElement.OuterHtml;
+
+                    // Minification
+                    cleanedHtml = System.Text.RegularExpressions.Regex.Replace(cleanedHtml, @"<!--[\s\S]*?-->", "");
+                    cleanedHtml = System.Text.RegularExpressions.Regex.Replace(cleanedHtml, @"\s+", " ");
+                    cleanedHtml = System.Text.RegularExpressions.Regex.Replace(cleanedHtml, @">\s+<", "><");
+
+                    var scrubbedBytes = System.Text.Encoding.UTF8.GetBytes(cleanedHtml.Trim());
+                    using var uploadStream = new MemoryStream(scrubbedBytes);
+                    await _fileStorage.UploadAsync(CertificatesContainer, cert.SourceContentPath!, uploadStream, "text/html");
+
+                    count++;
+                }
+                catch { /* skip failures */ }
+            }
+
             return count;
         }
 
