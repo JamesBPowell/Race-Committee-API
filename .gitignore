@@ -73,3 +73,6 @@ Desktop.ini
 
 # IDEs
 .idea/
+
+# Uploaded files (certificates, snapshots, etc.)
+api/wwwroot/uploads/
