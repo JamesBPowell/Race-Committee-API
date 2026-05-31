@@ -23,6 +23,22 @@ RaceKrewe is built using a Monorepo architecture hosted entirely on Microsoft Az
 - **Infrastructure as Code**: Bicep (`/infrastructure`).
 - **CI/CD**: GitHub Actions workflows deploy changes automatically.
 
+## Local Development
+
+You can start and stop the entire development environment (Next.js frontend and C# ASP.NET Core backend) with automated database migrations using the helper scripts in the root directory:
+
+### Windows (PowerShell)
+- **Start Stack**: `.\start-dev.ps1`
+  - Spawns both backend and frontend servers in separate, interactive terminal windows.
+  - Automatically checks/installs `dotnet-ef` and applies any pending Entity Framework database migrations.
+- **Stop Stack**: `.\stop-dev.ps1`
+  - Gracefully terminates the running dev servers by PID and cleans up the process files.
+
+### macOS & Linux (Bash)
+- **Start Stack**: `./start-dev.sh`
+- **Stop Stack**: `./stop-dev.sh`
+
+
 ## Roadmap
 
 Development is tracked meticulously via the [Race Committee Tracker GitHub Project](https://github.com/users/JamesBPowell/projects/1). Core upcoming features include:

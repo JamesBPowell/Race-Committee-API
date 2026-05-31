@@ -76,3 +76,8 @@ Desktop.ini
 
 # Uploaded files (certificates, snapshots, etc.)
 api/wwwroot/uploads/
+
+# Local Dev Script Helpers
+.dev-pids.json
+*.log
+

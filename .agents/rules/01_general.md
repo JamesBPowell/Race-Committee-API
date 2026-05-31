@@ -17,3 +17,13 @@ These rules apply to all agent activities within the Race Committee project.
 
 - **KIs**: Update Knowledge Items (KIs) when introducing new architectural patterns, services, or complex logic.
 - **READMEs**: Ensure README files in `ui` and `api` reflect current setup/run instructions.
+
+## 4. Development Stack Management
+
+- **Start Stack**: When asked to start or spin up the application stack, run:
+  - Windows: `powershell -ExecutionPolicy Bypass -File start-dev.ps1`
+  - macOS/Linux: `./start-dev.sh`
+- **Stop Stack**: When asked to stop or tear down the application stack, run:
+  - Windows: `powershell -ExecutionPolicy Bypass -File stop-dev.ps1`
+  - macOS/Linux: `./stop-dev.sh`
+
