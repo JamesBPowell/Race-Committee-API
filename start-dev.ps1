@@ -2,7 +2,12 @@
 # Starts the backend API and frontend Next.js server in separate interactive terminal windows
 # with automatic database migration updates.
 
+param (
+    [switch]$Headless = $false
+)
+
 $ErrorActionPreference = "Stop"
+
 
 Clear-Host
 Write-Host "=========================================" -ForegroundColor Cyan
@@ -56,15 +61,26 @@ if (-not (Test-Path "ui/node_modules")) {
     & npm install --prefix ui
 }
 
-# 5. Launch Backend in new window
-Write-Host "Launching Backend API (HTTP: http://localhost:5236)..." -ForegroundColor Cyan
-$apiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/api" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Backend API' } catch {}; dotnet run --launch-profile http" -PassThru
+# 5. Launch Backend and Frontend depending on mode
+$apiProcess = $null
+$uiProcess = $null
 
-# 6. Launch Frontend in new window
-Write-Host "Launching Frontend UI (HTTP: http://localhost:3000)..." -ForegroundColor Cyan
-$uiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/ui" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Frontend UI' } catch {}; npm run dev" -PassThru
+if ($Headless) {
+    Write-Host "Launching Backend API in background (headless)..." -ForegroundColor Cyan
+    $apiProcess = Start-Process dotnet -WorkingDirectory "$PSScriptRoot/api" -ArgumentList "run --launch-profile http" -NoNewWindow -PassThru
 
-# 7. Save PIDs for graceful termination
+    Write-Host "Launching Frontend UI in background (headless)..." -ForegroundColor Cyan
+    $uiProcessName = if ($env:OS -like "*Windows*") { "npm.cmd" } else { "npm" }
+    $uiProcess = Start-Process $uiProcessName -WorkingDirectory "$PSScriptRoot/ui" -ArgumentList "run dev" -NoNewWindow -PassThru
+} else {
+    Write-Host "Launching Backend API (HTTP: http://localhost:5236) in new window..." -ForegroundColor Cyan
+    $apiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/api" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Backend API' } catch {}; dotnet run --launch-profile http" -PassThru
+
+    Write-Host "Launching Frontend UI (HTTP: http://localhost:3000) in new window..." -ForegroundColor Cyan
+    $uiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/ui" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Frontend UI' } catch {}; npm run dev" -PassThru
+}
+
+# 6. Save PIDs for graceful termination
 $pids = @{
     apiPid = $apiProcess.Id
     uiPid = $uiProcess.Id
@@ -77,6 +93,10 @@ Write-Host "  - UI:  http://localhost:3000" -ForegroundColor Green
 Write-Host "  - API: http://localhost:5236" -ForegroundColor Green
 Write-Host "  - Docs: http://localhost:5236/openapi/v1.json" -ForegroundColor Green
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host "  Console windows have been launched." -ForegroundColor Gray
+if ($Headless) {
+    Write-Host "  Servers launched in the background." -ForegroundColor Gray
+} else {
+    Write-Host "  Console windows have been launched." -ForegroundColor Gray
+}
 Write-Host "  To stop the servers, run: .\stop-dev.ps1" -ForegroundColor Yellow
 Write-Host "=========================================" -ForegroundColor Green
