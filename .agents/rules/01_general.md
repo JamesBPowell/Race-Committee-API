@@ -21,7 +21,7 @@ These rules apply to all agent activities within the Race Committee project.
 ## 4. Development Stack Management
 
 - **Start Stack**: When asked to start or spin up the application stack, run:
-  - Windows: `powershell -ExecutionPolicy Bypass -File start-dev.ps1`
+  - Windows: `powershell -ExecutionPolicy Bypass -File start-dev.ps1 -Headless` (Note: `-Headless` is required for background execution in headless agent/CI environments)
   - macOS/Linux: `./start-dev.sh`
 - **Stop Stack**: When asked to stop or tear down the application stack, run:
   - Windows: `powershell -ExecutionPolicy Bypass -File stop-dev.ps1`
