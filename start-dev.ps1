@@ -58,11 +58,11 @@ if (-not (Test-Path "ui/node_modules")) {
 
 # 5. Launch Backend in new window
 Write-Host "Launching Backend API (HTTP: http://localhost:5236)..." -ForegroundColor Cyan
-$apiProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$Host.UI.RawUI.WindowTitle = 'RaceKrewe Backend API'; Set-Location api; dotnet run --launch-profile http" -PassThru
+$apiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/api" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Backend API' } catch {}; dotnet run --launch-profile http" -PassThru
 
 # 6. Launch Frontend in new window
 Write-Host "Launching Frontend UI (HTTP: http://localhost:3000)..." -ForegroundColor Cyan
-$uiProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$Host.UI.RawUI.WindowTitle = 'RaceKrewe Frontend UI'; Set-Location ui; npm run dev" -PassThru
+$uiProcess = Start-Process powershell -WorkingDirectory "$PSScriptRoot/ui" -ArgumentList "-NoExit", "-Command", "try { `$Host.UI.RawUI.WindowTitle = 'RaceKrewe Frontend UI' } catch {}; npm run dev" -PassThru
 
 # 7. Save PIDs for graceful termination
 $pids = @{
