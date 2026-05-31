@@ -28,6 +28,7 @@ RaceKrewe is built using a Monorepo architecture hosted entirely on Microsoft Az
 You can start and stop the entire development environment (Next.js frontend and C# ASP.NET Core backend) with automated database migrations using the helper scripts in the root directory:
 
 ### Windows (PowerShell)
+
 - **Start Stack**: `.\start-dev.ps1`
   - Spawns both backend and frontend servers in separate, interactive terminal windows.
   - Automatically checks/installs `dotnet-ef` and applies any pending Entity Framework database migrations.
@@ -35,9 +36,9 @@ You can start and stop the entire development environment (Next.js frontend and 
   - Gracefully terminates the running dev servers by PID and cleans up the process files.
 
 ### macOS & Linux (Bash)
+
 - **Start Stack**: `./start-dev.sh`
 - **Stop Stack**: `./stop-dev.sh`
-
 
 ## Roadmap
 

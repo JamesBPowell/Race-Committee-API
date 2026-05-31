@@ -26,4 +26,3 @@ These rules apply to all agent activities within the Race Committee project.
 - **Stop Stack**: When asked to stop or tear down the application stack, run:
   - Windows: `powershell -ExecutionPolicy Bypass -File stop-dev.ps1`
   - macOS/Linux: `./stop-dev.sh`
-
