@@ -41,6 +41,10 @@ export function RaceResultTables({ results, fleets, myEntryId, race }: RaceResul
                 if (!fleetResults || fleetResults.length === 0) return null;
 
                 const override = race?.raceFleets?.find(rf => rf.fleetId === fleet.id);
+                const effectiveDistance = override?.courseDistance ?? race?.courseDistance;
+                const effectiveCourseType = override?.courseType ?? race?.courseType;
+                const effectiveWindSpeed = override?.windSpeed ?? race?.windSpeed;
+                const effectiveWindDirection = override?.windDirection ?? race?.windDirection;
 
                 return (
                     <div key={fleet.id} className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden">
@@ -53,16 +57,16 @@ export function RaceResultTables({ results, fleets, myEntryId, race }: RaceResul
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3 mt-1.5 overflow-x-auto pb-1 no-scrollbar">
-                                    {override?.courseDistance !== undefined && override?.courseDistance !== null && (
+                                    {effectiveDistance !== null && effectiveDistance !== undefined && (
                                         <div className={infoPill}>
                                             <Ruler className="h-3 w-3 text-emerald-400/70" />
-                                            <span>{override.courseDistance} NM</span>
+                                            <span>{effectiveDistance} NM</span>
                                         </div>
                                     )}
-                                    {override?.courseType !== undefined && override?.courseType !== null && (
+                                    {effectiveCourseType !== null && effectiveCourseType !== undefined && (
                                         <div className={infoPill}>
                                             <Navigation className="h-3 w-3 text-sky-400/70" />
-                                            <span>{courseLabel(override.courseType)}</span>
+                                            <span>{courseLabel(effectiveCourseType)}</span>
                                         </div>
                                     )}
                                     {override?.startTimeOffset && override.startTimeOffset !== '00:00:00' && (
@@ -71,12 +75,13 @@ export function RaceResultTables({ results, fleets, myEntryId, race }: RaceResul
                                             <span>+{override.startTimeOffset}</span>
                                         </div>
                                     )}
-                                    {(override?.windSpeed || override?.windDirection) ? (
+                                    {((effectiveWindSpeed !== null && effectiveWindSpeed !== undefined) || 
+                                      (effectiveWindDirection !== null && effectiveWindDirection !== undefined)) && (
                                         <div className={infoPill}>
                                             <Wind className="h-3 w-3 text-amber-400/70" />
-                                            <span>{override.windSpeed || 0}KT / {override.windDirection || 0}°</span>
+                                            <span>{effectiveWindSpeed ?? 0}KT / {effectiveWindDirection ?? 0}°</span>
                                         </div>
-                                    ) : null}
+                                    )}
                                 </div>
                             </div>
                             <div className="text-right shrink-0">

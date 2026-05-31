@@ -9,6 +9,10 @@ namespace RaceCommittee.Api.Models
 {
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "schemaVersion")]
     [JsonDerivedType(typeof(OrrEzCertificateData), "1.0")]
+    [JsonDerivedType(typeof(OrrEzCertificateData), "1.1")]
+    [JsonDerivedType(typeof(OrrEzCertificateData), "2.0")]
+    [JsonDerivedType(typeof(OrrEzCertificateData), "ORREZ-2026-v1")]
+    [JsonDerivedType(typeof(OrrEzCertificateData), "ORR-2026-v1")]
     public class BaseCertificateData
     {
         [JsonPropertyName("schemaVersion")]
@@ -77,34 +81,67 @@ namespace RaceCommittee.Api.Models
             var dict = isNonSpin ? NonSpin : Spin;
             if (dict == null) return null;
 
-            string key = courseType switch
+            var candidates = new List<string>();
+            switch (courseType)
             {
-                CourseType.WindwardLeeward => "wl",
-                CourseType.RandomLeg => "randomLeg",
-                CourseType.MostlyLW => "mostlyLW",
-                CourseType.MostlyReach => "mostlyReach",
-                CourseType.CircularRandom => "circularRandom",
-                CourseType.MostlyWW => "mostlyWW",
-                CourseType.WL5050 => "wl5050",
-                CourseType.WL6040 => "wl6040",
-                CourseType.ClosedCourse => "closedCourse",
-                CourseType.BayviewMac => "bayviewMac",
-                CourseType.ChicagoMac => "chicagoMacAP",
-                CourseType.PacificCup => "pacificCup",
-                CourseType.Transpac => "transpacApprox",
-                _ => "wl"
-            };
-
-            if (dict.TryGetValue(key, out var curve))
-            {
-                return curve.GetAllowance(windSpeed);
+                case CourseType.WindwardLeeward:
+                    candidates.AddRange(new[] { "wl", "windwardLeeward", "windward/leeward", "windwardleeward" });
+                    break;
+                case CourseType.RandomLeg:
+                    candidates.AddRange(new[] { "randomLeg", "rl", "randomleg" });
+                    break;
+                case CourseType.MostlyLW:
+                    candidates.AddRange(new[] { "mostlyLW", "mostlyLw", "mostlylw", "mostlyDownwind", "mostlyL/W" });
+                    break;
+                case CourseType.MostlyReach:
+                    candidates.AddRange(new[] { "mostlyReach", "mostlyreach", "reaching" });
+                    break;
+                case CourseType.CircularRandom:
+                    candidates.AddRange(new[] { "circularRandom", "circularrandom", "cr" });
+                    break;
+                case CourseType.MostlyWW:
+                    candidates.AddRange(new[] { "mostlyWW", "mostlyWw", "mostlyww", "mostlyUpwind" });
+                    break;
+                case CourseType.WL5050:
+                    candidates.AddRange(new[] { "wl5050", "wl50/50", "wl50_50" });
+                    break;
+                case CourseType.WL6040:
+                    candidates.AddRange(new[] { "wl6040", "wl60/40", "wl60_40" });
+                    break;
+                case CourseType.ClosedCourse:
+                    candidates.AddRange(new[] { "closedCourse", "closedcourse" });
+                    break;
+                case CourseType.BayviewMac:
+                    candidates.AddRange(new[] { "bayviewMac", "bayviewmac" });
+                    break;
+                case CourseType.ChicagoMac:
+                    candidates.AddRange(new[] { "chicagoMacAP", "chicagoMacAp", "chicagoMac", "chicagomac" });
+                    break;
+                case CourseType.PacificCup:
+                    candidates.AddRange(new[] { "pacificCup", "pacificcup", "pacCup" });
+                    break;
+                case CourseType.Transpac:
+                    candidates.AddRange(new[] { "transpacApprox", "transpac", "transpacapprox" });
+                    break;
+                default:
+                    candidates.Add(courseType.ToString());
+                    break;
             }
 
-            foreach (var kvp in dict)
+            foreach (var key in candidates)
             {
-                if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+                if (dict.TryGetValue(key, out var curve))
                 {
-                    return kvp.Value.GetAllowance(windSpeed);
+                    return curve.GetAllowance(windSpeed);
+                }
+
+                // Also try case-insensitive check
+                foreach (var kvp in dict)
+                {
+                    if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return kvp.Value.GetAllowance(windSpeed);
+                    }
                 }
             }
 
@@ -134,11 +171,36 @@ namespace RaceCommittee.Api.Models
 
             if (allowance.HasValue) return allowance.Value;
 
-            string wsStr = ((int)Math.Round(windSpeed)).ToString() + "kt";
-            if (NumericalAllowances != null && NumericalAllowances.TryGetValue(wsStr, out var numObj))
+            if (NumericalAllowances != null)
             {
-                if (numObj is JsonElement jel && jel.TryGetSingle(out var v))
-                    return v;
+                int roundedWind = (int)Math.Round(windSpeed);
+                var keysToCheck = new[] { roundedWind.ToString() + "kt", roundedWind.ToString(), roundedWind.ToString() + " kts", roundedWind.ToString() + " kt" };
+
+                foreach (var wsStr in keysToCheck)
+                {
+                    if (NumericalAllowances.TryGetValue(wsStr, out var numObj))
+                    {
+                        if (numObj is JsonElement jel)
+                        {
+                            if (jel.ValueKind == JsonValueKind.Number && jel.TryGetSingle(out var v))
+                                return v;
+                            if (jel.ValueKind == JsonValueKind.String && float.TryParse(jel.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var f))
+                                return f;
+                        }
+                        else if (numObj is float fVal)
+                        {
+                            return fVal;
+                        }
+                        else if (numObj is double dVal)
+                        {
+                            return (float)dVal;
+                        }
+                        else if (numObj is int iVal)
+                        {
+                            return (float)iVal;
+                        }
+                    }
+                }
             }
 
             return null;
