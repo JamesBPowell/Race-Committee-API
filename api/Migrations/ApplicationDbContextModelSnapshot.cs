@@ -409,6 +409,9 @@ namespace api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CalculatedStartTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Code")
                         .HasColumnType("nvarchar(max)");
 
@@ -513,6 +516,9 @@ namespace api.Migrations
                     b.Property<int?>("FleetId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsPursuitRace")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -533,6 +539,9 @@ namespace api.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<float>("Weight")
+                        .HasColumnType("real");
 
                     b.Property<float?>("WindDirection")
                         .HasColumnType("real");

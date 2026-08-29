@@ -5,8 +5,8 @@ import { RecordFinishDto } from '@/hooks/useRaces';
 
 interface RecordFinishesProps {
     regatta: RegattaResponse;
-    finishesMap: Record<number, RecordFinishDto & { dayOffset: number }>;
-    setFinishesMap: React.Dispatch<React.SetStateAction<Record<number, RecordFinishDto & { dayOffset: number }>>>;
+    finishesMap: Record<number, RecordFinishDto>;
+    setFinishesMap: React.Dispatch<React.SetStateAction<Record<number, RecordFinishDto>>>;
     onRecordFinish: (entryId: number) => void;
 }
 
@@ -53,27 +53,9 @@ export function RecordFinishes({ regatta, finishesMap, setFinishesMap, onRecordF
                                                 <td className="px-5 py-3 text-slate-400">{entry.boatName}</td>
                                                 <td className="px-5 py-2">
                                                     <div className="flex items-center gap-1.5">
-                                                        <select
-                                                            className={selectBase}
-                                                            value={fState.dayOffset}
-                                                            title="Finish Day"
-                                                            onChange={e => {
-                                                                const val = parseInt(e.target.value);
-                                                                setFinishesMap(prev => ({
-                                                                    ...prev,
-                                                                    [entry.id]: { ...prev[entry.id], dayOffset: val }
-                                                                }));
-                                                            }}
-                                                        >
-                                                            <option value={0}>Day 1</option>
-                                                            <option value={1}>Day 2</option>
-                                                            <option value={2}>Day 3</option>
-                                                            <option value={3}>Day 4</option>
-                                                            <option value={4}>Day 5</option>
-                                                        </select>
                                                         <input
-                                                            type="text"
-                                                            placeholder="Clock Time"
+                                                            type="datetime-local"
+                                                            step="1"
                                                             title="Finish Time"
                                                             aria-label="Finish Time"
                                                             className={`w-full font-mono ${inputBase}`}

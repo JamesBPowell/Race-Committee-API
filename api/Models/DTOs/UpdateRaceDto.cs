@@ -18,6 +18,9 @@ namespace RaceCommittee.Api.Models.DTOs
         public float? WindSpeed { get; set; }
         public float? WindDirection { get; set; }
 
+        public bool? IsPursuitRace { get; set; }
+        public float? Weight { get; set; }
+
         public IEnumerable<UpdateRaceFleetDto>? RaceFleets { get; set; }
     }
 

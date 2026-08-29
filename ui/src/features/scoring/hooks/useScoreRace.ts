@@ -15,13 +15,12 @@ export function useScoreRace({ race, regatta, onSuccess, isOpen }: UseScoreRaceP
     // Initial map setup
     const initialFinishesMap = useMemo<Record<number, RecordFinishDto & { dayOffset: number }>>(() => {
         if (!race || !regatta.entries) return {};
-        const initialMap: Record<number, RecordFinishDto & { dayOffset: number }> = {};
+        const initialMap: Record<number, RecordFinishDto> = {};
         const relevantEntries = regatta.entries || [];
         relevantEntries.forEach(entry => {
             initialMap[entry.id] = {
                 entryId: entry.id,
                 finishTime: '',
-                dayOffset: 0,
                 timePenalty: '',
                 pointPenalty: 0,
                 code: '',
@@ -53,7 +52,7 @@ export function useScoreRace({ race, regatta, onSuccess, isOpen }: UseScoreRaceP
         return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
     };
 
-    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto & { dayOffset: number }>>(initialFinishesMap);
+    const [finishesMap, setFinishesMap] = useState<Record<number, RecordFinishDto>>(initialFinishesMap);
     const [windSpeed, setWindSpeed] = useState<number>(race?.windSpeed || 0);
     const [windDirection, setWindDirection] = useState<number>(race?.windDirection || 0);
     const [actualStartTime, setActualStartTime] = useState<string>('');
@@ -77,14 +76,12 @@ export function useScoreRace({ race, regatta, onSuccess, isOpen }: UseScoreRaceP
                             let localTimeStr = '';
                             let offset = 0;
                             if (result.finishTime) {
-                                const d = new Date(result.finishTime);
-                                localTimeStr = formatTimeToClock(d);
-                                offset = calculateDayOffset(d);
+                                // Strip Z for local datetime input
+                                localTimeStr = result.finishTime.replace('Z', '').substring(0, 19);
                             }
                             newMap[result.entryId] = {
                                 entryId: result.entryId,
                                 finishTime: localTimeStr,
-                                dayOffset: offset,
                                 code: result.code || '',
                                 timePenalty: result.timePenalty || '',
                                 pointPenalty: 0,
@@ -120,16 +117,22 @@ export function useScoreRace({ race, regatta, onSuccess, isOpen }: UseScoreRaceP
 
     const handleRecordFinish = (entryId: number, time?: string) => {
         const nowTime = new Date();
-        const timestamp = time || formatTimeToClock(nowTime);
-        const offset = time ? (finishesMap[entryId]?.dayOffset || 0) : calculateDayOffset(nowTime);
+        // pad manually so it uses local time zone
+        const y = nowTime.getFullYear();
+        const m = String(nowTime.getMonth() + 1).padStart(2, '0');
+        const d = String(nowTime.getDate()).padStart(2, '0');
+        const h = String(nowTime.getHours()).padStart(2, '0');
+        const min = String(nowTime.getMinutes()).padStart(2, '0');
+        const s = String(nowTime.getSeconds()).padStart(2, '0');
+        const localTimestamp = `${y}-${m}-${d}T${h}:${min}:${s}`;
+        
+        const timestamp = time || localTimestamp;
 
         setFinishesMap(prev => ({
             ...prev,
             [entryId]: {
                 ...prev[entryId],
                 finishTime: timestamp,
-                dayOffset: offset,
-                code: ''
             }
         }));
     };
@@ -167,20 +170,10 @@ export function useScoreRace({ race, regatta, onSuccess, isOpen }: UseScoreRaceP
             };
 
             const finishesArr: RecordFinishDto[] = Object.values(finishesMap).map(f => {
-                const rawTime = f.finishTime?.trim();
-                let finalFinishTime: string | null = null;
-
-                if (rawTime) {
-                    if (rawTime.includes('T')) {
-                        finalFinishTime = rawTime;
-                    } else {
-                        const localDateTimeStr = constructDateStr(f.dayOffset, rawTime);
-                        const localDateTime = new Date(localDateTimeStr);
-                        if (!isNaN(localDateTime.getTime())) {
-                            finalFinishTime = localDateTimeStr;
-                        }
-                    }
-                }
+                let finalFinishTime = f.finishTime?.trim();
+                // backend expects ISO 8601 string, but local works if we just append Z or keep it local depending on what EF core expects.
+                // We'll just pass the datetime-local string directly (it has the T).
+                if (!finalFinishTime || finalFinishTime === '') finalFinishTime = null;
 
                 return {
                     entryId: f.entryId,

@@ -49,6 +49,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
         courseDistance: 0,
         windSpeed: 0,
         windDirection: 0,
+        isPursuitRace: false,
+        weight: 1.0,
         raceFleets: [] as {
             fleetId: number;
             fleetName: string;
@@ -98,6 +100,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 courseDistance: formData.courseDistance !== undefined ? formData.courseDistance : null,
                 windSpeed: formData.windSpeed !== undefined ? formData.windSpeed : null,
                 windDirection: formData.windDirection !== undefined ? formData.windDirection : null,
+                isPursuitRace: formData.isPursuitRace,
+                weight: formData.weight,
                 raceFleets: formData.raceFleets.map(rf => ({
                     fleetId: rf.fleetId,
                     raceNumber: rf.raceNumber,
@@ -119,6 +123,8 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                 courseDistance: 0,
                 windSpeed: 0,
                 windDirection: 0,
+                isPursuitRace: false,
+                weight: 1.0,
                 raceFleets: []
             });
             onSuccess();
@@ -188,8 +194,30 @@ export default function AddRaceModal({ isOpen, onClose, regattaId, fleets, onSuc
                             >
                                 <option value={StartType.Single_Gun}>Single Gun (All Fleets)</option>
                                 <option value={StartType.Staggered}>Staggered (Sequential)</option>
-                                <option value={StartType.Pursuit}>Pursuit (Steeplechase)</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Race Weight (Multiplier)</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={formData.weight}
+                                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })}
+                            />
+                        </div>
+                        <div className="flex items-center pt-8">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox bg-slate-900 border-slate-700 rounded text-indigo-500 focus:ring-indigo-500"
+                                    checked={formData.isPursuitRace}
+                                    onChange={(e) => setFormData({ ...formData, isPursuitRace: e.target.checked })}
+                                />
+                                <span className="text-sm font-medium text-slate-300">Is Pursuit Race</span>
+                            </label>
                         </div>
                     </div>
 

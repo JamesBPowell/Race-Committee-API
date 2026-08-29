@@ -65,6 +65,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
         courseDistance: 0,
         windSpeed: 0,
         windDirection: 0,
+        isPursuitRace: false,
+        weight: 1.0,
         raceFleets: [] as {
             id: number;
             fleetId: number;
@@ -93,6 +95,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             courseDistance: race.courseDistance ?? 0,
             windSpeed: race.windSpeed ?? 0,
             windDirection: race.windDirection ?? 0,
+            isPursuitRace: race.isPursuitRace ?? false,
+            weight: race.weight ?? 1.0,
             raceFleets: fleets.map(f => {
                 const rf = race.raceFleets?.find(r => r.fleetId === f.id);
                 return {
@@ -127,6 +131,8 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                 courseDistance: formData.courseDistance !== undefined ? formData.courseDistance : null,
                 windSpeed: formData.windSpeed !== undefined ? formData.windSpeed : null,
                 windDirection: formData.windDirection !== undefined ? formData.windDirection : null,
+                isPursuitRace: formData.isPursuitRace,
+                weight: formData.weight,
                 raceFleets: formData.raceFleets.map(rf => ({
                     id: rf.id,
                     fleetId: rf.fleetId,
@@ -226,7 +232,6 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                             >
                                 <option value={StartType.Single_Gun}>Single Gun (All Fleets)</option>
                                 <option value={StartType.Staggered}>Staggered (Sequential)</option>
-                                <option value={StartType.Pursuit}>Pursuit (Steeplechase)</option>
                             </select>
                         </div>
                         <div>
@@ -275,7 +280,30 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                         </div>
                     </div>
 
-                    <div className="p-4 bg-slate-800/50 rounded-xl border border-white/5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Race Weight (Multiplier)</Label>
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={formData.weight}
+                                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })}
+                            />
+                        </div>
+                        <div className="flex items-center pt-8">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox bg-slate-900 border-slate-700 rounded text-indigo-500 focus:ring-indigo-500"
+                                    checked={formData.isPursuitRace}
+                                    onChange={(e) => setFormData({ ...formData, isPursuitRace: e.target.checked })}
+                                />
+                                <span className="text-sm font-medium text-slate-300">Is Pursuit Race</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900/50 rounded-xl border border-white/5 overflow-hidden">
                         <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Default Race Parameters</h3>
                         <div className="grid grid-cols-3 gap-4">
                             <div>

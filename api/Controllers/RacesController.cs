@@ -96,6 +96,17 @@ namespace RaceCommittee.Api.Controllers
             return Ok(results);
         }
 
+        // POST api/races/5/calculate-pursuit-starts
+        [HttpPost("{id}/calculate-pursuit-starts")]
+        public async Task<IActionResult> CalculatePursuitStarts(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            await _scoringService.CalculatePursuitStartsAsync(id);
+            return Ok();
+        }
+
         // GET api/races/5/results
         [HttpGet("{id}/results")]
         [AllowAnonymous]

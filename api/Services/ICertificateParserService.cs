@@ -25,5 +25,6 @@ namespace RaceCommittee.Api.Services
         public string SchemaVersion { get; set; } = string.Empty;
         public string RawHtml { get; set; } = string.Empty;
         public string RawDataJson { get; set; } = "{}";
+        public Dictionary<string, float> BenchmarkRatings { get; set; } = new Dictionary<string, float>();
     }
 }

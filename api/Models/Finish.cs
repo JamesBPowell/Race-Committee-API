@@ -16,6 +16,7 @@ namespace RaceCommittee.Api.Models
         public Entry Entry { get; set; } = default!;
 
         public DateTime? FinishTime { get; set; }
+        public DateTime? CalculatedStartTime { get; set; }
         public TimeSpan? ElapsedDuration { get; set; }
         public TimeSpan? CorrectedDuration { get; set; }
 

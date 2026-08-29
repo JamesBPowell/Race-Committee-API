@@ -23,8 +23,11 @@ namespace RaceCommittee.Api.Models
         public DateTime? ScheduledStartTime { get; set; }
         public DateTime? ActualStartTime { get; set; }
 
-        public string Status { get; set; } = "Scheduled"; // Scheduled, InSequence, Racing, Completed, Postponed, Abandoned
+        public string Status { get; set; } = "Scheduled"; // Scheduled, InSequence, Racing, Completed, Postponed, Abandoned, Finalized
         public string ScoringParameters { get; set; } = "{}"; // JSON for race-specific scoring data (e.g. course mix for ORR-EZ)
+
+        public bool IsPursuitRace { get; set; }
+        public float Weight { get; set; } = 1.0f;
 
         public ICollection<RaceFleet> ParticipatingFleets { get; set; } = new List<RaceFleet>();
         public ICollection<Finish> Finishes { get; set; } = new List<Finish>();

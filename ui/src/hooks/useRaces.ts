@@ -54,6 +54,8 @@ export function useRaces() {
         courseDistance?: number | null;
         windSpeed?: number | null;
         windDirection?: number | null;
+        isPursuitRace?: boolean;
+        weight?: number;
         raceFleets?: {
             fleetId: number;
             raceNumber?: number | null;
@@ -89,6 +91,8 @@ export function useRaces() {
         courseDistance?: number | null;
         windSpeed?: number | null;
         windDirection?: number | null;
+        isPursuitRace?: boolean;
+        weight?: number;
         raceFleets?: {
             id?: number;
             fleetId: number;

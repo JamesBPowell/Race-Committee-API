@@ -45,6 +45,8 @@ namespace RaceCommittee.Api.Services
                 CourseDistance = dto.CourseDistance,
                 WindSpeed = dto.WindSpeed,
                 WindDirection = dto.WindDirection,
+                IsPursuitRace = dto.IsPursuitRace,
+                Weight = dto.Weight,
                 ScoringParameters = "{}" // Default empty parameters
             };
 
@@ -91,6 +93,19 @@ namespace RaceCommittee.Api.Services
                 throw new UnauthorizedAccessException("You don't have permission to manage this race");
             }
 
+            if (race.Status == "Finalized" && dto.Status != "Finalized" && dto.Status != null)
+            {
+                // Unlocking is allowed, but we don't process other updates in the same request to be safe
+                race.Status = dto.Status;
+                _context.Races.Update(race);
+                await _context.SaveChangesAsync();
+                return race;
+            }
+            else if (race.Status == "Finalized")
+            {
+                throw new InvalidOperationException("This race is finalized. You must unlock it before editing.");
+            }
+
             if (!string.IsNullOrEmpty(dto.Name)) race.Name = dto.Name;
             if (dto.ScheduledStartTime.HasValue) race.ScheduledStartTime = dto.ScheduledStartTime;
             if (dto.ActualStartTime.HasValue) race.ActualStartTime = dto.ActualStartTime;
@@ -100,6 +115,8 @@ namespace RaceCommittee.Api.Services
             if (dto.CourseDistance.HasValue) race.CourseDistance = dto.CourseDistance.Value;
             if (dto.WindSpeed.HasValue) race.WindSpeed = dto.WindSpeed.Value;
             if (dto.WindDirection.HasValue) race.WindDirection = dto.WindDirection.Value;
+            if (dto.IsPursuitRace.HasValue) race.IsPursuitRace = dto.IsPursuitRace.Value;
+            if (dto.Weight.HasValue) race.Weight = dto.Weight.Value;
 
             if (dto.RaceFleets != null)
             {
@@ -185,6 +202,11 @@ namespace RaceCommittee.Api.Services
                 if (!race.Regatta.CommitteeMembers.Any(cm => cm.UserId == userId))
                 {
                     throw new UnauthorizedAccessException("You don't have permission to manage this race");
+                }
+
+                if (race.Status == "Finalized")
+                {
+                    throw new InvalidOperationException("This race is finalized. You must unlock it before editing finishes.");
                 }
 
                 // Update race-level conditions

@@ -67,7 +67,11 @@ namespace RaceCommittee.Api.Services
                 {
                     if (finish.FinishTime.HasValue)
                     {
-                        var elapsed = finish.FinishTime.Value - fleetStartTime;
+                        DateTime startToUse = race.IsPursuitRace && finish.CalculatedStartTime.HasValue 
+                            ? finish.CalculatedStartTime.Value 
+                            : fleetStartTime;
+
+                        var elapsed = finish.FinishTime.Value - startToUse;
 
                         // Clamp to prevent SQL Server time column out of range errors
                         if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
@@ -75,8 +79,10 @@ namespace RaceCommittee.Api.Services
 
                         finish.ElapsedDuration = elapsed;
 
-                        // Apply scoring algorithm
-                        var corrected = CalculateCorrectedTime(fleet, elapsed, finish.Entry, raceFleet, race);
+                        // Apply scoring algorithm (pursuit races don't need correction, rating is baked into start time)
+                        var corrected = race.IsPursuitRace 
+                            ? elapsed 
+                            : CalculateCorrectedTime(fleet, elapsed, finish.Entry, raceFleet, race);
 
                         // Add penalties
                         if (finish.TimePenalty.HasValue)
@@ -165,6 +171,8 @@ namespace RaceCommittee.Api.Services
                         finish.Points += finish.PointPenalty.Value;
                     }
 
+                    finish.Points *= race.Weight;
+
                     TimeSpan? timeDelta = null;
                     if (finish.CorrectedDuration.HasValue && winnerCorrected.HasValue)
                     {
@@ -237,6 +245,8 @@ namespace RaceCommittee.Api.Services
                     {
                         res.OverallPoints = overallRank;
                     }
+
+                    res.OverallPoints *= race.Weight;
 
                     // Map these back to the entity for persistence
                     var finishToUpdate = race.Finishes.FirstOrDefault(f => f.Id == res.FinishId);
@@ -323,6 +333,74 @@ namespace RaceCommittee.Api.Services
                 default:
                     return elapsed;
             }
+        }
+
+        public async Task CalculatePursuitStartsAsync(int raceId)
+        {
+            var race = await _context.Races
+                .Include(r => r.ParticipatingFleets)
+                    .ThenInclude(rf => rf.Fleet)
+                .Include(r => r.Finishes)
+                    .ThenInclude(f => f.Entry)
+                        .ThenInclude(e => e.Boat)
+                .FirstOrDefaultAsync(r => r.Id == raceId);
+
+            if (race == null || !race.IsPursuitRace) return;
+
+            var raceStartTime = race.ActualStartTime ?? race.ScheduledStartTime;
+            if (!raceStartTime.HasValue) return;
+
+            // We calculate pursuit offsets per fleet
+            var fleetFinishes = race.Finishes
+                .Where(f => f.Entry != null && f.Entry.FleetId.HasValue)
+                .GroupBy(f => f.Entry.FleetId!.Value)
+                .ToList();
+
+            foreach (var group in fleetFinishes)
+            {
+                var fleetId = group.Key;
+                var raceFleet = race.ParticipatingFleets.FirstOrDefault(rf => rf.FleetId == fleetId);
+                var fleet = raceFleet?.Fleet ?? await _context.Fleets.FindAsync(fleetId);
+
+                if (fleet == null) continue;
+
+                // Find the scratch boat rating (the lowest rating in the fleet, since lower = faster)
+                // Or highest? Usually, lowest rating is faster, so we subtract boat rating from scratch rating.
+                // Wait, if rating is TOD (sec/mi), lower rating means faster boat.
+                // The SLOWEST boat starts FIRST. 
+                // Wait, highest rating = slowest boat.
+                // Offset = (Highest Rating - Boat Rating) * Distance
+                // Scratch rating (slowest) = max rating.
+
+                float fallbackDistance = raceFleet?.CourseDistance ?? race.CourseDistance ?? 0;
+                if (fallbackDistance == 0) continue; // Cannot calculate without distance
+
+                // To compute proper rating, we might need to parse snapshot or use entry.Rating
+                // Keeping it simple: use entry.Rating or boat.DefaultRating
+                float maxRating = 0;
+                foreach (var finish in group)
+                {
+                    float rating = finish.Entry.Rating ?? finish.Entry.Boat.DefaultRating;
+                    if (rating > maxRating) maxRating = rating;
+                }
+
+                foreach (var finish in group)
+                {
+                    float rating = finish.Entry.Rating ?? finish.Entry.Boat.DefaultRating;
+                    // Offset in seconds = (Slowest Rating - Boat Rating) * Distance
+                    float offsetSeconds = (maxRating - rating) * fallbackDistance;
+                    
+                    DateTime fleetBaseStart = raceStartTime.Value;
+                    if (raceFleet?.StartTimeOffset != null)
+                    {
+                        fleetBaseStart = fleetBaseStart.Add(raceFleet.StartTimeOffset.Value);
+                    }
+
+                    finish.CalculatedStartTime = fleetBaseStart.AddSeconds(offsetSeconds);
+                }
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

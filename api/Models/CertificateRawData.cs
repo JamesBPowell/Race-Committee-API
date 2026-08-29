@@ -47,7 +47,11 @@ namespace RaceCommittee.Api.Models
             {
                 float rating = 0;
                 string bmKey = isNonSpin ? "nonSpin" : "spin";
-                if (BenchmarkRatings != null && BenchmarkRatings.TryGetValue(bmKey, out var bmVal))
+                if (BenchmarkRatings != null && BenchmarkRatings.TryGetValue($"{bmKey}_GPH_TOD", out var gphTodVal))
+                    rating = gphTodVal;
+                else if (BenchmarkRatings != null && BenchmarkRatings.TryGetValue($"{bmKey}_GPH", out var gphVal2))
+                    rating = gphVal2;
+                else if (BenchmarkRatings != null && BenchmarkRatings.TryGetValue(bmKey, out var bmVal))
                     rating = bmVal;
                 else if (Ratings != null && Ratings.TryGetValue("GPH", out var gphVal))
                     rating = gphVal;

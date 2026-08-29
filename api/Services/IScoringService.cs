@@ -7,6 +7,7 @@ namespace RaceCommittee.Api.Services
     public interface IScoringService
     {
         Task<IEnumerable<FinishResultDto>> CalculateRaceScoresAsync(int raceId);
+        Task CalculatePursuitStartsAsync(int raceId);
         // Task<IEnumerable<SeriesResultDto>> CalculateRegattaSeriesAsync(int regattaId);
     }
 }

@@ -74,6 +74,9 @@ namespace RaceCommittee.Api.Services
 
             // Try to extract benchmark ratings
             var benchmarks = ExtractBenchmarkRatings(document, isOrrEz);
+            foreach (var kvp in result.BenchmarkRatings)
+                benchmarks[kvp.Key] = kvp.Value;
+
             if (benchmarks.Count > 0)
                 rawData["benchmarkRatings"] = benchmarks;
 
@@ -318,9 +321,6 @@ namespace RaceCommittee.Api.Services
 
         private static void ExtractOrrEzSectionRatings(IDocument document, ParsedCertificateData result)
         {
-            // ORR-EZ has separate Spinnaker and Non-Spinnaker sections
-            // Each section has a "GPH" row with TOT and TOD values
-            var allText = document.Body?.TextContent ?? "";
             var tables = document.QuerySelectorAll("table");
 
             bool inSpinSection = false;
@@ -340,32 +340,45 @@ namespace RaceCommittee.Api.Services
                 var rows = table.QuerySelectorAll("tr");
                 foreach (var row in rows)
                 {
-                    var rowCells = row.QuerySelectorAll("td");
+                    var rowCells = row.QuerySelectorAll("td, th");
                     if (rowCells.Length < 2) continue;
 
                     var label = rowCells[0].TextContent.Trim();
                     bool isRatingLabel = label.Contains("GPH", StringComparison.OrdinalIgnoreCase) || 
                                        label.Contains("Benchmark", StringComparison.OrdinalIgnoreCase) || 
-                                       label.Contains("PHRF", StringComparison.OrdinalIgnoreCase);
+                                       label.Contains("PHRF", StringComparison.OrdinalIgnoreCase) ||
+                                       label.Contains("IR#", StringComparison.OrdinalIgnoreCase);
 
                     if (!isRatingLabel) continue;
 
-                    // The next cell should be the TOT value (the multiplier, e.g. 0.882)
-                    // or the TOD value (sec/mi, e.g. 604.4)
+                    string keyPrefix = inSpinSection ? "spin" : (inNonSpinSection ? "nonSpin" : "rating");
+                    string baseLabel = label.Contains("GPH") ? "GPH" : (label.Contains("IR#") ? "TOT" : "PHRF");
+
+                    // The text might be separated by slashes e.g., "0.780 / 683.5" or just be in separate cells
+                    // We'll extract all floating point numbers from the remaining cells
                     for (int j = 1; j < rowCells.Length; j++)
                     {
-                        var valText = rowCells[j].TextContent.Trim();
-                        if (float.TryParse(valText, NumberStyles.Float, CultureInfo.InvariantCulture, out var val) && val > 0)
+                        var cellText = rowCells[j].TextContent;
+                        var matches = System.Text.RegularExpressions.Regex.Matches(cellText, @"(\d+(\.\d+)?)");
+                        foreach (System.Text.RegularExpressions.Match match in matches)
                         {
-                            // TOD values (sec/mi) are typically > 100
-                            // TOT values (multiplier) are typically < 2
-                            if (val > 100) // This is a TOD (sec/mi) — use as rating
+                            if (float.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var val) && val > 0)
                             {
-                                if (inSpinSection)
-                                    result.RatingSpinnaker = val;
-                                else if (inNonSpinSection)
-                                    result.RatingNonSpinnaker = val;
-                                break;
+                                if (val > 100) // TOD
+                                {
+                                    if (inSpinSection && result.RatingSpinnaker == null) result.RatingSpinnaker = val;
+                                    else if (inNonSpinSection && result.RatingNonSpinnaker == null) result.RatingNonSpinnaker = val;
+                                    
+                                    result.BenchmarkRatings[$"{keyPrefix}_{baseLabel}_TOD"] = val;
+                                }
+                                else if (val < 2) // TOT
+                                {
+                                    result.BenchmarkRatings[$"{keyPrefix}_{baseLabel}_TOT"] = val;
+                                }
+                                else if (val > 10 && val < 300) // PHRF usually
+                                {
+                                    result.BenchmarkRatings[$"{keyPrefix}_{baseLabel}"] = val;
+                                }
                             }
                         }
                     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calculator, AlertTriangle, Save, RefreshCw, Clock } from 'lucide-react';
 import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
+import { useRaces } from '@/hooks/useRaces';
 import { useScoreRace } from '../../hooks/useScoreRace';
 import { RaceConditions } from './RaceConditions';
 import { RecordFinishes } from './RecordFinishes';
@@ -29,6 +30,8 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
         setActiveTab(defaultTab);
     }, [defaultTab]);
     const { states, actions, helpers } = useScoreRace({ race, regatta, onSuccess, isOpen });
+    const { updateRace } = useRaces();
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     if (!isOpen || !race) return null;
 
@@ -38,6 +41,21 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
     const tabButtonClass = (isActive: boolean) =>
         `py-3 px-4 font-bold text-sm border-b-2 transition-colors ${isActive ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-300'}`;
+
+    const isFinalized = race.status === 'Finalized';
+
+    const handleToggleFinalize = async () => {
+        if (!race) return;
+        setIsUpdatingStatus(true);
+        try {
+            await updateRace(race.id, { status: isFinalized ? 'Completed' : 'Finalized' });
+            onSuccess?.();
+        } catch (err) {
+            console.error('Failed to update status', err);
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -77,7 +95,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                     )}
 
                     {activeTab === 'record' && (
-                        <div className="space-y-8">
+                        <div className={`space-y-8 ${isFinalized ? 'pointer-events-none opacity-60' : ''}`}>
                             {/* Race Clock */}
                             <div className="flex flex-col lg:flex-row gap-4 items-stretch">
                                 <div className="flex-1 p-5 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-between shadow-lg shadow-indigo-500/5">
@@ -131,16 +149,29 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
 
                 {/* Footer */}
                 <div className="p-6 border-t border-white/10 bg-slate-900 flex justify-between items-center rounded-b-2xl">
-                    <span className="text-xs text-slate-500">Changes are saved automatically when calculating scores.</span>
+                    <span className="text-xs text-slate-500">
+                        {isFinalized ? "Race is finalized. Unlock to make changes." : "Changes are saved automatically when calculating scores."}
+                    </span>
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-5 py-2.5 text-sm font-bold text-slate-300 hover:text-white transition-colors">Close</button>
-                        {activeTab === 'record' && (
+                        
+                        <button
+                            onClick={handleToggleFinalize}
+                            disabled={isLoading || isUpdatingStatus}
+                            className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all shadow-lg flex items-center justify-center min-w-[100px] disabled:opacity-50 ${
+                                isFinalized ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/25' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/25'
+                            }`}
+                        >
+                            {isUpdatingStatus ? <RefreshCw className="h-5 w-5 animate-spin" /> : (isFinalized ? 'Unlock' : 'Finalize')}
+                        </button>
+
+                        {activeTab === 'record' && !isFinalized && (
                             <button
                                 onClick={async () => {
                                     handleTabChange('results');
                                     await handleSaveFinishes();
                                 }}
-                                disabled={isLoading}
+                                disabled={isLoading || isUpdatingStatus}
                                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center min-w-[140px] disabled:opacity-50"
                             >
                                 {isLoading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <><Save className="h-4 w-4 mr-2" />Save & Score</>}
