@@ -59,7 +59,7 @@ namespace RaceCommittee.Api.Models
                 return TimeSpan.FromSeconds(Math.Max(0, elapsed.TotalSeconds - (rating * distance)));
             }
 
-            if (method == ScoringMethod.ORR_EZ_PC && PcsRatings != null)
+            if ((method == ScoringMethod.ORR_EZ_PC || method == ScoringMethod.ORR_Full_PC) && PcsRatings != null)
             {
                 var allowance = PcsRatings.GetTargetAllowance(courseType ?? CourseType.WindwardLeeward, isNonSpin, windSpeed ?? 12f);
                 if (allowance.HasValue)

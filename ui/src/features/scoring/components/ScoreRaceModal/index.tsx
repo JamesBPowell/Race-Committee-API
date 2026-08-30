@@ -128,6 +128,7 @@ export function ScoreRaceModal({ isOpen, onClose, race, regatta, defaultTab = 'r
                             />
 
                             <RecordFinishes
+                                race={race}
                                 regatta={regatta}
                                 finishesMap={finishesMap}
                                 setFinishesMap={setFinishesMap}

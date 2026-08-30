@@ -77,6 +77,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
             courseDistance: number | null;
             windSpeed: number | null;
             windDirection: number | null;
+            isParticipating: boolean;
             includeInOverall: boolean;
         }[]
     });
@@ -109,6 +110,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     courseDistance: rf?.courseDistance ?? null,
                     windSpeed: rf?.windSpeed ?? null,
                     windDirection: rf?.windDirection ?? null,
+                    isParticipating: rf != null,
                     includeInOverall: rf?.includeInOverall ?? true
                 };
             })
@@ -133,7 +135,7 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                 windDirection: formData.windDirection !== undefined ? formData.windDirection : null,
                 isPursuitRace: formData.isPursuitRace,
                 weight: formData.weight,
-                raceFleets: formData.raceFleets.map(rf => ({
+                raceFleets: formData.raceFleets.filter(rf => rf.isParticipating).map(rf => ({
                     id: rf.id,
                     fleetId: rf.fleetId,
                     raceNumber: rf.raceNumber,
@@ -304,8 +306,29 @@ export default function EditRaceModal({ isOpen, onClose, race, fleets, onSuccess
                     </div>
 
                     <div className="bg-slate-900/50 rounded-xl border border-white/5 overflow-hidden">
-                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Default Race Parameters</h3>
-                        <div className="grid grid-cols-3 gap-4">
+                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4 pt-4">Participating Fleets</h3>
+                        <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+                            {formData.raceFleets.map((rf, idx) => (
+                                <label key={rf.fleetId} className="flex items-center gap-3 p-3 rounded-lg border border-white/10 bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox bg-slate-900 border-slate-700 rounded text-indigo-500 focus:ring-indigo-500"
+                                        checked={rf.isParticipating}
+                                        onChange={(e) => {
+                                            const newFleets = [...formData.raceFleets];
+                                            newFleets[idx].isParticipating = e.target.checked;
+                                            setFormData({ ...formData, raceFleets: newFleets });
+                                        }}
+                                    />
+                                    <span className="text-sm font-medium text-slate-300">{rf.fleetName}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900/50 rounded-xl border border-white/5 overflow-hidden">
+                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-4 pt-4">Default Race Parameters</h3>
+                        <div className="grid grid-cols-3 gap-4 px-4 pb-2">
                             <div>
                                 <Label className="flex items-center gap-2 text-[10px]">
                                     <Ruler className="w-3 h-3 text-emerald-400" />

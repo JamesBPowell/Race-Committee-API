@@ -1,9 +1,10 @@
 import React from 'react';
 import { Save } from 'lucide-react';
-import { RegattaResponse } from '@/hooks/useRegattas';
+import { RaceResponse, RegattaResponse } from '@/hooks/useRegattas';
 import { RecordFinishDto } from '@/hooks/useRaces';
 
 interface RecordFinishesProps {
+    race: RaceResponse;
     regatta: RegattaResponse;
     finishesMap: Record<number, RecordFinishDto>;
     setFinishesMap: React.Dispatch<React.SetStateAction<Record<number, RecordFinishDto>>>;
@@ -16,8 +17,9 @@ const rowBase = "hover:bg-slate-800/30 transition-colors";
 const inputBase = "bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2";
 const selectBase = "bg-slate-900 border border-slate-700 text-white text-[10px] rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 min-w-[70px] appearance-none cursor-pointer hover:bg-slate-800";
 
-export function RecordFinishes({ regatta, finishesMap, setFinishesMap, onRecordFinish }: RecordFinishesProps) {
-    const relevantFleets = regatta.fleets || [];
+export function RecordFinishes({ race, regatta, finishesMap, setFinishesMap, onRecordFinish }: RecordFinishesProps) {
+    const participatingFleetIds = new Set(race.raceFleets?.map(rf => rf.fleetId) || []);
+    const relevantFleets = (regatta.fleets || []).filter(f => participatingFleetIds.has(f.id));
 
     return (
         <div className="space-y-8">
